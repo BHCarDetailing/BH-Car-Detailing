@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BH Car Detailing | Miami's Premier Mobile Detailing</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/style.css"/>
+<style>
+/* ── HERO ── */
+#home {
+  min-height: 100svh; display: flex; align-items: flex-end;
+  position: relative; overflow: hidden;
+  padding: 80px var(--px) 96px;
+}
+.hero-bg { position: absolute; inset: 0; background: linear-gradient(135deg, #0a0a0a 0%, #1a0408 50%, #0a0a0a 100%); }
+.hero-photo {
+  position: absolute; inset: 0;
+  background: url('Pics/IMG_6636.JPG') center 30% / cover no-repeat;
+  opacity: 0.25;
+}
+.hero-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(8,8,8,0.55) 0%, rgba(8,8,8,0.2) 40%, rgba(8,8,8,0.9) 100%); }
+.hero-overlay-bottom { position: absolute; bottom: 0; left: 0; right: 0; height: 200px; background: linear-gradient(transparent, var(--black)); }
+.hero-grid {
+  position: absolute; inset: 0; opacity: 0.025;
+  background-image: linear-gradient(var(--white) 1px, transparent 1px), linear-gradient(90deg, var(--white) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.hero-content { position: relative; z-index: 2; width: 100%; }
+.hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--red); margin-bottom: 16px; }
+.hero-eyebrow::before { content: ''; display: block; width: 24px; height: 1px; background: var(--red); }
+.hero-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(52px, 15vw, 120px); line-height: 0.92; letter-spacing: 2px; margin-bottom: 18px; }
+.hero-title em { color: var(--red); font-style: normal; }
+.hero-sub { font-family: 'Cormorant Garamond', serif; font-size: clamp(15px, 4vw, 20px); font-style: italic; color: rgba(245,242,238,0.65); line-height: 1.6; margin-bottom: 32px; }
+.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.hero-stats { display: none; }
+
+/* ── TRUSTED WITH ── */
+#trusted { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 22px var(--px); background: var(--black2); overflow: hidden; }
+.trusted-inner { display: flex; flex-direction: column; gap: 12px; }
+.trusted-label { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--gray); white-space: nowrap; flex-shrink: 0; }
+.brand-logos { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.brand-logo { font-family: 'Cormorant Garamond', serif; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: rgba(245,242,238,0.28); font-weight: 600; transition: color 0.2s; cursor: default; white-space: nowrap; }
+.brand-logo:hover { color: rgba(245,242,238,0.65); }
+
+/* ── PROCESS ── */
+#process { background: var(--black3); }
+.process-header { margin-bottom: 44px; }
+.process-grid { display: grid; grid-template-columns: 1fr; gap: 0; border: 1px solid var(--border); }
+.process-step { padding: 32px 22px; position: relative; border-bottom: 1px solid var(--border); }
+.process-step:last-child { border-bottom: none; }
+.step-num { font-family: 'Bebas Neue', sans-serif; font-size: 80px; color: rgba(200,16,46,0.07); line-height: 1; position: absolute; top: 14px; right: 16px; }
+.step-icon { width: 40px; height: 40px; border: 1px solid var(--red); display: flex; align-items: center; justify-content: center; margin-bottom: 18px; font-size: 17px; }
+.step-title { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 1px; margin-bottom: 10px; }
+.step-desc { font-size: 14px; line-height: 1.7; color: rgba(245,242,238,0.55); }
+
+/* ── STATS BAR ── */
+#stats { background: var(--black2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 0; }
+.stats-inner { display: grid; grid-template-columns: repeat(3, 1fr); }
+.stat-item { padding: 32px 20px; text-align: center; border-right: 1px solid var(--border); }
+.stat-item:last-child { border-right: none; }
+.stat-num { font-family: 'Bebas Neue', sans-serif; font-size: clamp(36px, 8vw, 64px); color: var(--red); line-height: 1; }
+.stat-label { font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: rgba(245,242,238,0.4); margin-top: 6px; }
+
+@media (min-width: 640px) {
+  .trusted-inner { flex-direction: row; align-items: center; }
+  .trusted-label { margin-right: 40px; }
+}
+@media (min-width: 1024px) {
+  #home { padding: 0 var(--px) 80px; }
+  .hero-photo { opacity: 0.33; }
+  .hero-overlay { background: linear-gradient(to right, rgba(8,8,8,0.92) 40%, rgba(8,8,8,0.3) 100%); }
+  .hero-content { max-width: 780px; }
+  .hero-stats {
+    display: flex; position: absolute; right: var(--px); bottom: 80px;
+    flex-direction: column; gap: 32px; z-index: 2; align-items: flex-end;
+  }
+  .hero-stats .stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 48px; line-height: 1; color: var(--red); }
+  .hero-stats .stat-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.5; }
+  .process-grid { grid-template-columns: repeat(3, 1fr); }
+  .process-step { border-bottom: none; }
+  .process-step:not(:last-child) { border-right: 1px solid var(--border); }
+  .stat-item { padding: 40px 32px; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo"><a href="index.html"><img src="Pics/BH LOGO PNG.png" alt="BH Car Detailing"/></a></div>
+  <ul class="nav-links">
+    <li><a href="services.html">Services</a></li>
+    <li><a href="gallery.html">Gallery</a></li>
+    <li><a href="reviews.html">Reviews</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="faq.html">FAQ</a></li>
+    <li><a href="tel:+19177831038" class="nav-phone">&#128222; (917) 783-1038</a></li>
+    <li><a href="book.html" class="nav-cta">Book Now</a></li>
+  </ul>
+  <button class="nav-hamburger" id="hamburger" aria-label="Toggle menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<div class="nav-drawer" id="navDrawer">
+  <ul>
+    <li><a href="services.html" onclick="closeNav()">Services</a></li>
+    <li><a href="gallery.html" onclick="closeNav()">Gallery</a></li>
+    <li><a href="reviews.html" onclick="closeNav()">Reviews</a></li>
+    <li><a href="about.html" onclick="closeNav()">About</a></li>
+    <li><a href="faq.html" onclick="closeNav()">FAQ</a></li>
+    <li><a href="contact.html" onclick="closeNav()">Contact</a></li>
+    <li><a href="tel:+19177831038">&#128222; (917) 783-1038</a></li>
+    <li><a href="book.html" class="drawer-cta" onclick="closeNav()">Book Now</a></li>
+  </ul>
+</div>
+
+<div class="float-bar">
+  <a href="tel:+19177831038" class="float-btn call"><span class="float-icon">&#128222;</span><span class="float-label">Call</span></a>
+  <a href="sms:+19177831038?body=Hi%20BH%20Car%20Detailing%2C%20I%27d%20like%20a%20quote!" class="float-btn sms"><span class="float-icon">&#128172;</span><span class="float-label">Text</span></a>
+  <a href="book.html" class="float-btn book"><span class="float-icon">&#128197;</span><span class="float-label">Book</span></a>
+</div>
+
+<!-- HERO -->
+<section id="home">
+  <div class="hero-bg"></div>
+  <div class="hero-photo"></div>
+  <div class="hero-overlay"></div>
+  <div class="hero-overlay-bottom"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-content reveal">
+    <div class="hero-eyebrow">Miami's Premier Mobile Detailing</div>
+    <h1 class="hero-title">YOUR CAR.<br/><em>PERFECTED.</em><br/>DELIVERED.</h1>
+    <p class="hero-sub">Concierge-level detailing for luxury and exotic vehicles across Miami — we come to you.</p>
+    <div class="hero-actions">
+      <a href="book.html" class="btn-primary">Book a Detail</a>
+      <a href="services.html" class="btn-ghost">View Services</a>
+    </div>
+  </div>
+  <div class="hero-stats">
+    <div><div class="stat-num">5&#9733;</div><div class="stat-label">Google Rating</div></div>
+    <div><div class="stat-num">100+</div><div class="stat-label">Exotics Detailed</div></div>
+    <div><div class="stat-num">Miami</div><div class="stat-label">Based &amp; Mobile</div></div>
+  </div>
+</section>
+
+<!-- TRUSTED WITH -->
+<div id="trusted">
+  <div class="trusted-inner">
+    <div class="trusted-label">Trusted With</div>
+    <div class="brand-logos">
+      <div class="brand-logo">Ferrari</div>
+      <div class="brand-logo">Lamborghini</div>
+      <div class="brand-logo">McLaren</div>
+      <div class="brand-logo">Aston Martin</div>
+      <div class="brand-logo">Porsche</div>
+      <div class="brand-logo">Rolls-Royce</div>
+      <div class="brand-logo">Bentley</div>
+      <div class="brand-logo">Mercedes-AMG</div>
+      <div class="brand-logo">Bugatti</div>
+      <div class="brand-logo">Pagani</div>
+    </div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div id="stats">
+  <div class="stats-inner">
+    <div class="stat-item reveal"><div class="stat-num">5&#9733;</div><div class="stat-label">Google Rating</div></div>
+    <div class="stat-item reveal"><div class="stat-num">100+</div><div class="stat-label">Exotics Detailed</div></div>
+    <div class="stat-item reveal"><div class="stat-num">24/7</div><div class="stat-label">Service Available</div></div>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section id="process">
+  <div class="process-header reveal">
+    <div class="section-eyebrow">How It Works</div>
+    <h2 class="section-title">THREE STEPS<br/>TO FLAWLESS</h2>
+    <p class="section-sub">Mobile detailing, the way it should be. Book online, we come to you, you drive flawless.</p>
+  </div>
+  <div class="process-grid">
+    <div class="process-step reveal">
+      <div class="step-num">01</div>
+      <div class="step-icon">&#128203;</div>
+      <div class="step-title">Book Online</div>
+      <div class="step-desc">Pick your service, choose your time, tell us your location. Takes under 2 minutes.</div>
+    </div>
+    <div class="process-step reveal">
+      <div class="step-num">02</div>
+      <div class="step-icon">&#128295;</div>
+      <div class="step-title">We Come to You</div>
+      <div class="step-desc">We arrive fully equipped. All we need is water and power access — you don't move a thing.</div>
+    </div>
+    <div class="process-step reveal">
+      <div class="step-num">03</div>
+      <div class="step-icon">&#10022;</div>
+      <div class="step-title">Drive Flawless</div>
+      <div class="step-desc">Inspect the results. Pay only when completely satisfied. Your car leaves better than the day you got it.</div>
+    </div>
+  </div>
+</section>
+
+<!-- BOOK CTA -->
+<div class="book-cta-banner">
+  <div class="book-cta-title">READY TO<br/>BOOK YOUR DETAIL?</div>
+  <p class="book-cta-sub">We come to you. Results that speak for themselves.</p>
+  <div class="book-cta-actions">
+    <a href="book.html" class="btn-white">Book Online Now</a>
+    <a href="tel:+19177831038" class="btn-outline-white">Call (917) 783-1038</a>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-top">
+    <div>
+      <div class="footer-logo"><img src="Pics/BH LOGO PNG.png" alt="BH Car Detailing"/></div>
+      <div class="footer-tagline">Miami's premier mobile detailing for luxury and exotic vehicles. We come to you.</div>
+      <div class="footer-contact-item">&#128205; Miami, FL — Mobile across South Florida</div>
+      <div class="footer-contact-item">&#128222; <a href="tel:+19177831038">(917) 783-1038</a></div>
+      <div class="footer-contact-item">&#128172; <a href="sms:+19177831038?body=Hi%20BH%2C%20I%27d%20like%20a%20quote!">Text Us</a></div>
+      <div class="footer-contact-item">&#9993; <a href="mailto:info@bhcardetails.com">info@bhcardetails.com</a></div>
+    </div>
+    <div class="footer-cols">
+      <div class="footer-col">
+        <h4>Services</h4>
+        <ul>
+          <li><a href="services.html">Essential Detail</a></li>
+          <li><a href="services.html">Full Detail</a></li>
+          <li><a href="services.html">BH Detail</a></li>
+          <li><a href="services.html">Correction + Coating</a></li>
+          <li><a href="services.html">View All &rarr;</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Pages</h4>
+        <ul>
+          <li><a href="about.html">About</a></li>
+          <li><a href="gallery.html">Gallery</a></li>
+          <li><a href="reviews.html">Reviews</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Follow Us</h4>
+        <ul>
+          <li><a href="https://instagram.com/bhdetails" target="_blank">Instagram @bhdetails</a></li>
+          <li><a href="https://tiktok.com/@bhdetails" target="_blank">TikTok @bhdetails</a></li>
+          <li><a href="https://g.page/bhcardetailing" target="_blank">Google Reviews</a></li>
+          <li><a href="https://www.facebook.com/share/1K1RH2eYC9/" target="_blank">Facebook</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">&copy; 2026 BH Car Detailing. All rights reserved.</div>
+    <div class="footer-legal"><a href="#">Privacy Policy</a><a href="#">Terms</a></div>
+  </div>
+</footer>
+
+<script>
+  const hamburger = document.getElementById('hamburger');
+  const navDrawer = document.getElementById('navDrawer');
+  hamburger.addEventListener('click', () => { hamburger.classList.toggle('open'); navDrawer.classList.toggle('open'); });
+  function closeNav() { hamburger.classList.remove('open'); navDrawer.classList.remove('open'); }
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

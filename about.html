@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>About | BH Car Detailing Miami</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/style.css"/>
+<style>
+/* ── STORY SECTION ── */
+#story { background: var(--black2); }
+.story-grid { display: grid; grid-template-columns: 1fr; gap: 40px; align-items: start; }
+.story-img {
+  aspect-ratio: 4/3; position: relative; overflow: hidden;
+  border: 1px solid var(--border);
+}
+.story-img img { width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+.story-img::after {
+  content: ''; position: absolute; top: 10px; left: 10px; right: -6px; bottom: -6px;
+  border: 1px solid rgba(200,16,46,0.22); z-index: 0; pointer-events: none;
+}
+.story-text .section-sub { max-width: 100%; }
+.story-body { font-size: 15px; line-height: 1.9; color: rgba(245,242,238,0.6); margin-top: 18px; }
+.story-body p + p { margin-top: 16px; }
+
+/* ── CREDENTIALS ── */
+#credentials { background: var(--black3); }
+.creds-header { margin-bottom: 48px; }
+.creds-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+.cred-card {
+  background: var(--black2); border: 1px solid var(--border);
+  padding: 28px 22px; position: relative; overflow: hidden;
+}
+.cred-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--red); transform: scaleX(0); transform-origin: left; transition: transform 0.4s;
+}
+.cred-card:hover::before { transform: scaleX(1); }
+.cred-icon { font-size: 28px; margin-bottom: 14px; }
+.cred-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; margin-bottom: 8px; }
+.cred-desc { font-size: 13px; line-height: 1.7; color: rgba(245,242,238,0.5); }
+
+/* ── VALUES ── */
+#values { background: var(--black2); }
+.values-grid { display: grid; grid-template-columns: 1fr; gap: 32px; margin-top: 48px; }
+.value-item { border-left: 2px solid var(--red); padding-left: 20px; }
+.value-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; margin-bottom: 8px; }
+.value-desc { font-size: 14px; line-height: 1.75; color: rgba(245,242,238,0.55); }
+
+/* ── SERVICE AREA ── */
+#service-area { background: var(--black); padding: 72px 0 0; }
+.area-header { padding: 0 var(--px) 36px; }
+.map-wrap { position: relative; }
+.map-wrap iframe { display: block; width: 100%; height: 280px; border: 0; filter: grayscale(0.3) invert(0.9) hue-rotate(180deg) brightness(0.85) contrast(1.1); }
+.map-overlay-tag {
+  position: absolute; top: 14px; left: 14px;
+  background: var(--red); color: #fff;
+  padding: 8px 16px; font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+}
+.area-zones { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-top: 3px; }
+.area-zone {
+  background: var(--black2); border: 1px solid var(--border);
+  padding: 16px 18px; font-size: 12px; color: rgba(245,242,238,0.5);
+  display: flex; align-items: center; gap: 8px;
+}
+.area-zone::before { content: ''; width: 6px; height: 6px; background: var(--red); border-radius: 50%; flex-shrink: 0; }
+
+@media (min-width: 640px) {
+  .creds-grid { grid-template-columns: repeat(2, 1fr); }
+  .values-grid { grid-template-columns: 1fr 1fr; }
+  .area-zones { grid-template-columns: repeat(3, 1fr); }
+}
+@media (min-width: 1024px) {
+  .story-grid { grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
+  .story-img { aspect-ratio: 3/4; }
+  .creds-grid { grid-template-columns: repeat(4, 1fr); }
+  .values-grid { grid-template-columns: repeat(3, 1fr); }
+  .area-zones { grid-template-columns: repeat(4, 1fr); }
+  .map-wrap iframe { height: 440px; }
+  #service-area { padding: 100px 0 0; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo"><a href="index.html"><img src="Pics/BH LOGO PNG.png" alt="BH Car Detailing"/></a></div>
+  <ul class="nav-links">
+    <li><a href="services.html">Services</a></li>
+    <li><a href="gallery.html">Gallery</a></li>
+    <li><a href="reviews.html">Reviews</a></li>
+    <li><a href="about.html" class="active">About</a></li>
+    <li><a href="faq.html">FAQ</a></li>
+    <li><a href="tel:+19177831038" class="nav-phone">&#128222; (917) 783-1038</a></li>
+    <li><a href="book.html" class="nav-cta">Book Now</a></li>
+  </ul>
+  <button class="nav-hamburger" id="hamburger" aria-label="Toggle menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<div class="nav-drawer" id="navDrawer">
+  <ul>
+    <li><a href="services.html" onclick="closeNav()">Services</a></li>
+    <li><a href="gallery.html" onclick="closeNav()">Gallery</a></li>
+    <li><a href="reviews.html" onclick="closeNav()">Reviews</a></li>
+    <li><a href="about.html" class="active" onclick="closeNav()">About</a></li>
+    <li><a href="faq.html" onclick="closeNav()">FAQ</a></li>
+    <li><a href="contact.html" onclick="closeNav()">Contact</a></li>
+    <li><a href="tel:+19177831038">&#128222; (917) 783-1038</a></li>
+    <li><a href="book.html" class="drawer-cta" onclick="closeNav()">Book Now</a></li>
+  </ul>
+</div>
+
+<div class="float-bar">
+  <a href="tel:+19177831038" class="float-btn call"><span class="float-icon">&#128222;</span><span class="float-label">Call</span></a>
+  <a href="sms:+19177831038?body=Hi%20BH%20Car%20Detailing%2C%20I%27d%20like%20a%20quote!" class="float-btn sms"><span class="float-icon">&#128172;</span><span class="float-label">Text</span></a>
+  <a href="book.html" class="float-btn book"><span class="float-icon">&#128197;</span><span class="float-label">Book</span></a>
+</div>
+
+<!-- PAGE HERO -->
+<div class="page-hero">
+  <div class="page-hero-photo" style="background-image:url('Pics/IMG_6722.JPG');"></div>
+  <div class="page-hero-overlay"></div>
+  <div class="page-hero-grid"></div>
+  <div class="page-hero-content">
+    <div class="section-eyebrow">About BH Detailing</div>
+    <h1 class="page-hero-title">MIAMI'S<br/>STANDARD<br/>OF DETAIL</h1>
+    <p class="page-hero-sub">Built for Miami's exotic car scene. Held to its highest standards.</p>
+  </div>
+</div>
+
+<!-- STORY -->
+<section id="story">
+  <div class="story-grid">
+    <div class="story-img reveal">
+      <img src="Pics/IMG_6722.JPG" alt="BH Car Detailing — Working on McLaren interior"/>
+    </div>
+    <div class="story-text reveal">
+      <div class="section-eyebrow">Our Story</div>
+      <h2 class="section-title">WHY WE<br/>EXIST</h2>
+      <div class="divider"></div>
+      <p class="section-sub">"Miami's exotic car scene deserves a detailer that actually matches its standards."</p>
+      <div class="story-body">
+        <p>The dream was always racing. It still is.</p>
+        <p>But I learned early that the fastest way into this world isn't always through the track — it's through the cars and the people behind them. Every exotic vehicle has an owner with a story, a network, and a passion that runs just as deep as mine.</p>
+        <p>BH Car Detailing is my entry point. A way to get close to the machines I've always loved, understand them inside and out, and build real relationships within a world I intend to be a part of for life.</p>
+        <p>We treat every car we touch with that same obsession — because to us, this isn't a job. It's the beginning of something much bigger.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CREDENTIALS -->
+<section id="credentials">
+  <div class="creds-header reveal">
+    <div class="section-eyebrow">Why Trust Us</div>
+    <h2 class="section-title">CREDENTIALS &amp;<br/>GUARANTEES</h2>
+  </div>
+  <div class="creds-grid">
+    <div class="cred-card reveal">
+      <div class="cred-icon">&#128737;</div>
+      <div class="cred-title">Fully Insured</div>
+      <div class="cred-desc">BH Car Detailing carries full liability insurance. Your vehicle is protected from the moment we arrive until we leave.</div>
+    </div>
+    <div class="cred-card reveal">
+      <div class="cred-icon">&#127775;</div>
+      <div class="cred-title">Exotic Specialist</div>
+      <div class="cred-desc">We have hands-on experience with Ferrari, Lamborghini, McLaren, Porsche, Rolls-Royce, Bentley, and more.</div>
+    </div>
+    <div class="cred-card reveal">
+      <div class="cred-icon">&#128197;</div>
+      <div class="cred-title">Pay After Approval</div>
+      <div class="cred-desc">We collect payment only after you've personally inspected the results and approved the work. No surprises.</div>
+    </div>
+    <div class="cred-card reveal">
+      <div class="cred-icon">&#128269;</div>
+      <div class="cred-title">Pro-Grade Products</div>
+      <div class="cred-desc">We use only professional-grade, paint-safe products — the same products used by concours-level detailers worldwide.</div>
+    </div>
+  </div>
+</section>
+
+<!-- VALUES -->
+<section id="values">
+  <div class="reveal">
+    <div class="section-eyebrow">What Drives Us</div>
+    <h2 class="section-title">THE BH<br/>STANDARD</h2>
+    <p class="section-sub">Three principles behind every service we deliver.</p>
+  </div>
+  <div class="values-grid">
+    <div class="value-item reveal">
+      <div class="value-title">Precision Over Speed</div>
+      <div class="value-desc">We take the time the job demands. If something needs an extra hour to be perfect, it gets an extra hour. Speed is never a substitute for quality in our world.</div>
+    </div>
+    <div class="value-item reveal">
+      <div class="value-title">Respect for the Machine</div>
+      <div class="value-desc">We understand that exotic cars are not just transportation — they are investments, passions, and often art. We treat every car on our schedule with that understanding.</div>
+    </div>
+    <div class="value-item reveal">
+      <div class="value-title">White-Glove Service</div>
+      <div class="value-desc">From the booking process to our departure, the experience should feel effortless. On time, communicative, and completely professional from start to finish.</div>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICE AREA -->
+<div id="service-area">
+  <div class="area-header reveal">
+    <div class="section-eyebrow">Coverage</div>
+    <h2 class="section-title">WE COME<br/>TO YOU</h2>
+    <p class="section-sub">Fully mobile across Miami-Dade and South Broward. We serve your car where it lives.</p>
+  </div>
+  <div class="map-wrap">
+    <iframe
+      src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d184551.73638959003!2d-80.24!3d25.9!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1sen!2sus!4v1700000000000!5m2!1sen!2sus"
+      allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+      title="BH Car Detailing Service Area — Miami-Dade to South Broward">
+    </iframe>
+    <div class="map-overlay-tag">&#128205; Miami-Dade &rarr; South Broward</div>
+  </div>
+  <div class="area-zones">
+    <div class="area-zone">Brickell</div>
+    <div class="area-zone">Miami Beach</div>
+    <div class="area-zone">Coral Gables</div>
+    <div class="area-zone">Coconut Grove</div>
+    <div class="area-zone">Aventura</div>
+    <div class="area-zone">Sunny Isles</div>
+    <div class="area-zone">Surfside</div>
+    <div class="area-zone">Bal Harbour</div>
+    <div class="area-zone">North Miami</div>
+    <div class="area-zone">Hollywood</div>
+    <div class="area-zone">Fort Lauderdale</div>
+    <div class="area-zone">Hialeah</div>
+  </div>
+</div>
+
+<!-- BOOK CTA -->
+<div class="book-cta-banner" style="margin-top:3px;">
+  <div class="book-cta-title">READY TO<br/>EXPERIENCE BH?</div>
+  <p class="book-cta-sub">Book your detail online — we'll take care of the rest.</p>
+  <div class="book-cta-actions">
+    <a href="book.html" class="btn-white">Book Your Detail</a>
+    <a href="contact.html" class="btn-outline-white">Contact Us</a>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-top">
+    <div>
+      <div class="footer-logo"><img src="Pics/BH LOGO PNG.png" alt="BH Car Detailing"/></div>
+      <div class="footer-tagline">Miami's premier mobile detailing for luxury and exotic vehicles.</div>
+      <div class="footer-contact-item">&#128205; Miami, FL — Mobile across South Florida</div>
+      <div class="footer-contact-item">&#128222; <a href="tel:+19177831038">(917) 783-1038</a></div>
+      <div class="footer-contact-item">&#128172; <a href="sms:+19177831038?body=Hi%20BH%2C%20I%27d%20like%20a%20quote!">Text Us</a></div>
+      <div class="footer-contact-item">&#9993; <a href="mailto:info@bhcardetails.com">info@bhcardetails.com</a></div>
+    </div>
+    <div class="footer-cols">
+      <div class="footer-col"><h4>Services</h4><ul><li><a href="services.html">All Services</a></li><li><a href="book.html">Book Now</a></li></ul></div>
+      <div class="footer-col"><h4>Pages</h4><ul><li><a href="gallery.html">Gallery</a></li><li><a href="reviews.html">Reviews</a></li><li><a href="faq.html">FAQ</a></li><li><a href="contact.html">Contact</a></li></ul></div>
+      <div class="footer-col"><h4>Social</h4><ul><li><a href="https://instagram.com/bhdetails" target="_blank">Instagram @bhdetails</a></li><li><a href="https://tiktok.com/@bhdetails" target="_blank">TikTok @bhdetails</a></li><li><a href="https://g.page/bhcardetailing" target="_blank">Google Reviews</a></li></ul></div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">&copy; 2026 BH Car Detailing. All rights reserved.</div>
+    <div class="footer-legal"><a href="#">Privacy Policy</a><a href="#">Terms</a></div>
+  </div>
+</footer>
+
+<script>
+  const hamburger = document.getElementById('hamburger');
+  const navDrawer = document.getElementById('navDrawer');
+  hamburger.addEventListener('click', () => { hamburger.classList.toggle('open'); navDrawer.classList.toggle('open'); });
+  function closeNav() { hamburger.classList.remove('open'); navDrawer.classList.remove('open'); }
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

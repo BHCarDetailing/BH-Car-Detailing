@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Services & Pricing | BH Car Detailing Miami</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/style.css"/>
+<style>
+/* ── GOLD TOKENS ── */
+:root {
+  --gold: #C9A84C;
+  --gold-light: #e8c96e;
+  --gold-dim: rgba(201,168,76,0.12);
+}
+
+/* ── CARBON FIBER TEXTURE ── */
+.carbon-bg {
+  background-color: var(--black);
+  background-image:
+    repeating-linear-gradient(45deg,  rgba(255,255,255,0.016) 0px, rgba(255,255,255,0.016) 1px, transparent 1px, transparent 5px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.016) 0px, rgba(255,255,255,0.016) 1px, transparent 1px, transparent 5px);
+}
+
+/* ── SIZE SELECTOR (sticky) ── */
+.size-selector-wrap {
+  position: sticky;
+  top: 60px;
+  z-index: 50;
+  background: rgba(8,8,8,0.97);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 14px var(--px) 16px;
+}
+.size-selector-label {
+  font-size: 9px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--gray);
+  margin-bottom: 10px;
+}
+.size-selector-pills {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.size-selector-pills::-webkit-scrollbar { display: none; }
+.size-pill {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.14);
+  color: rgba(245,242,238,0.5);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 7px 13px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.size-pill:hover { border-color: var(--gold); color: var(--gold); }
+.size-pill.active {
+  border-color: var(--gold);
+  background: var(--gold-dim);
+  color: var(--gold);
+}
+.size-note {
+  margin-top: 10px;
+  font-size: 11px;
+  color: rgba(245,242,238,0.35);
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+}
+.size-note strong { color: var(--gold); font-style: normal; font-weight: 600; }
+
+/* ── SERVICE GROUPS ── */
+.service-group { padding: 64px var(--px) 0; }
+.service-group-last { padding-bottom: 0; }
+.group-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 10px;
+}
+.group-eyebrow::before { content: ''; width: 20px; height: 1px; background: var(--gold); }
+.group-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(28px, 6vw, 44px);
+  line-height: 1; letter-spacing: 1px;
+  margin-bottom: 28px;
+}
+
+/* ── SERVICE GRID ── */
+.svc-grid { display: grid; grid-template-columns: 1fr; gap: 2px; }
+
+/* ── SERVICE CARD ── */
+.svc-card {
+  background: var(--black2);
+  border: 1px solid var(--border);
+  padding: 30px 24px;
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.svc-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--red);
+  transform: scaleX(0); transform-origin: left; transition: transform 0.4s;
+}
+.svc-card:hover { border-color: rgba(200,16,46,0.35); box-shadow: 0 0 30px rgba(200,16,46,0.07); }
+.svc-card:hover::before { transform: scaleX(1); }
+
+.svc-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 46px; color: rgba(200,16,46,0.08);
+  line-height: 1; margin-bottom: 6px;
+}
+.svc-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px; letter-spacing: 1px;
+  margin-bottom: 8px; color: var(--white);
+}
+.svc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.svc-tag {
+  font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 3px 8px;
+  border: 1px solid rgba(201,168,76,0.35);
+  color: var(--gold);
+}
+.svc-desc {
+  font-size: 13px; line-height: 1.7;
+  color: rgba(245,242,238,0.48);
+  margin-bottom: 16px; flex-grow: 1;
+}
+.svc-price {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 26px; font-style: italic;
+  color: var(--gold);
+  margin-bottom: 14px;
+  min-height: 34px;
+}
+.svc-price-val { transition: opacity 0.15s ease; }
+.svc-price-val.fade { opacity: 0; }
+.svc-price .price-unit {
+  font-size: 11px; font-style: normal;
+  color: var(--gray); margin-left: 4px;
+}
+.svc-includes {
+  list-style: none;
+  border-top: 1px solid var(--border);
+  padding-top: 12px; margin-bottom: 20px;
+}
+.svc-includes li {
+  font-size: 12px; color: rgba(245,242,238,0.48);
+  padding: 3px 0; display: flex; align-items: flex-start;
+  gap: 8px; line-height: 1.55;
+}
+.svc-includes li::before { content: '—'; color: var(--red); flex-shrink: 0; }
+.svc-book {
+  display: inline-block;
+  border: 1px solid var(--red);
+  color: var(--red);
+  font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase;
+  text-decoration: none;
+  padding: 10px 18px;
+  transition: background 0.2s, color 0.2s;
+  align-self: flex-start;
+}
+.svc-book:hover { background: var(--red); color: #fff; }
+
+/* ── MAINTENANCE CARD ── */
+.maintenance-section { padding: 64px var(--px) 72px; }
+.maintenance-card {
+  border: 1px solid var(--gold);
+  background: linear-gradient(135deg, var(--black2) 0%, rgba(201,168,76,0.05) 100%);
+  padding: 40px 32px;
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 14px;
+  max-width: 640px;
+}
+.maintenance-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--gold), transparent);
+}
+.maintenance-card::after {
+  content: '✦'; position: absolute; top: 22px; right: 28px;
+  font-size: 34px; color: rgba(201,168,76,0.1); pointer-events: none;
+}
+.maintenance-label {
+  font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold);
+}
+.maintenance-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 38px; letter-spacing: 1px; color: var(--white); line-height: 1;
+}
+.maintenance-copy {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 17px; font-style: italic;
+  color: rgba(245,242,238,0.6); line-height: 1.65; max-width: 440px;
+}
+.maintenance-cta {
+  display: inline-block;
+  background: var(--red); color: #fff;
+  font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase;
+  text-decoration: none; padding: 12px 24px;
+  font-weight: 500; font-family: 'DM Sans', sans-serif;
+  transition: background 0.2s, transform 0.2s;
+  align-self: flex-start; margin-top: 4px;
+}
+.maintenance-cta:hover { background: var(--red-dark); transform: translateY(-1px); }
+
+/* ── ADD-ONS ── */
+#addons { background: var(--black3); }
+.addons-grid { display: grid; grid-template-columns: 1fr; gap: 2px; margin-top: 44px; }
+.addon-item {
+  background: var(--black2); border: 1px solid var(--border);
+  padding: 20px 22px; display: flex; justify-content: space-between; align-items: center; gap: 16px;
+}
+.addon-name { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 0.5px; }
+.addon-desc { font-size: 12px; color: rgba(245,242,238,0.45); margin-top: 4px; }
+.addon-price { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-style: italic; color: var(--gold); white-space: nowrap; flex-shrink: 0; }
+
+/* ── RESPONSIVE ── */
+@media (min-width: 640px) {
+  .svc-grid { grid-template-columns: 1fr 1fr; }
+  .addons-grid { grid-template-columns: 1fr 1fr; }
+  .size-selector-pills { flex-wrap: wrap; overflow-x: visible; }
+}
+@media (min-width: 1024px) {
+  .svc-grid { grid-template-columns: repeat(3, 1fr); }
+  .addons-grid { grid-template-columns: repeat(2, 1fr); }
+  .size-selector-wrap { top: 64px; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo"><a href="index.html"><img src="Pics/BH LOGO PNG.png" alt="BH Car Detailing"/></a></div>
+  <ul class="nav-links">
+    <li><a href="services.html" class="active">Services</a></li>
+    <li><a href="gallery.html">Gallery</a></li>
+    <li><a href="reviews.html">Reviews</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="faq.html">FAQ</a></li>
+    <li><a href="tel:+19177831038" class="nav-phone">&#128222; (917) 783-1038</a></li>
+    <li><a href="book.html" class="nav-cta">Book Now</a></li>
+  </ul>
+  <button class="nav-hamburger" id="hamburger" aria-label="Toggle menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<div class="nav-drawer" id="navDrawer">
+  <ul>
+    <li><a href="services.html" class="active" onclick="closeNav()">Services</a></li>
+    <li><a href="gallery.html" onclick="closeNav()">Gallery</a></li>
+    <li><a href="reviews.html" onclick="closeNav()">Reviews</a></li>
+    <li><a href="about.html" onclick="closeNav()">About</a></li>
+    <li><a href="faq.html" onclick="closeNav()">FAQ</a></li>
+    <li><a href="contact.html" onclick="closeNav()">Contact</a></li>
+    <li><a href="tel:+19177831038">&#128222; (917) 783-1038</a></li>
+    <li><a href="book.html" class="drawer-cta" onclick="closeNav()">Book Now</a></li>
+  </ul>
+</div>
+
+<div class="float-bar">
+  <a href="tel:+19177831038" class="float-btn call"><span class="float-icon">&#128222;</span><span class="float-label">Call</span></a>
+  <a href="sms:+19177831038?body=Hi%20BH%20Car%20Detailing%2C%20I%27d%20like%20a%20quote!" class="float-btn sms"><span class="float-icon">&#128172;</span><span class="float-label">Text</span></a>
+  <a href="book.html" class="float-btn book"><span class="float-icon">&#128197;</span><span class="float-label">Book</span></a>
+</div>
+
+<!-- PAGE HERO -->
+<div class="page-hero">
+  <div class="page-hero-photo" style="background-image:url('Pics/IMG_6562.JPG');"></div>
+  <div class="page-hero-overlay"></div>
+  <div class="page-hero-grid"></div>
+  <div class="page-hero-content">
+    <div class="section-eyebrow">Services &amp; Pricing</div>
+    <h1 class="page-hero-title">WHAT WE<br/>OFFER</h1>
+    <p class="page-hero-sub">Select your vehicle size below and all prices update instantly. Every service executed with professional-grade products and white-glove care.</p>
+  </div>
+</div>
+
+<!-- VEHICLE SIZE SELECTOR -->
+<div class="size-selector-wrap" id="sizeSelector">
+  <div class="size-selector-label">Select your vehicle size — prices update automatically</div>
+  <div class="size-selector-pills" id="sizePills">
+    <button class="size-pill active" data-size="sedan">Sedan / Coupe / Convertible</button>
+    <button class="size-pill" data-size="exotic">Exotic / Supercar</button>
+    <button class="size-pill" data-size="suv">SUV / Crossover / Truck</button>
+    <button class="size-pill" data-size="van">Van / Minivan</button>
+    <button class="size-pill" data-size="xl" title="Lifted trucks, duallys, Sprinter vans, full-size SUVs (Escalade ESV, Suburban, etc.)">XL / Oversized </button>
+  </div>
+  <div class="size-note">Prices shown for <strong id="activeSizeLabel">Sedan / Coupe / Convertible</strong>. Sedans and smaller are base pricing.</div>
+</div>
+
+<!-- SERVICES MAIN -->
+<div class="carbon-bg" id="servicesMain">
+
+  <!-- GROUP: WASHES -->
+  <div class="service-group reveal">
+    <div class="group-eyebrow">Washes</div>
+    <div class="group-title">CAR WASH</div>
+    <div class="svc-grid">
+
+      <div class="svc-card" data-svc-id="wash-ext">
+        <div class="svc-num">01</div>
+        <div class="svc-name">Car Wash — Exterior</div>
+        <div class="svc-desc">Hand wash and dry. A fast, thorough exterior refresh to keep your paint clean between details.</div>
+        <div class="svc-price">
+          <span class="svc-price-val" data-svc-id="wash-ext">$40</span>
+          <span class="price-unit">/ session</span>
+        </div>
+        <ul class="svc-includes">
+          <li>Hand wash &amp; dry</li>
+        </ul>
+        <a href="book.html" class="svc-book">Book This Service &rarr;</a>
+      </div>
+
+      <div class="svc-card" data-svc-id="wash-int">
+        <div class="svc-num">02</div>
+        <div class="svc-name">Car Wash — Interior</div>
+        <div class="svc-desc">Quick interior refresh. Vacuum and clean glass — ideal maintenance between full details.</div>
+        <div class="svc-price">
+          <span class="svc-price-val" data-svc-id="wash-int">$50</span>
+          <span class="price-unit">/ session</span>
+        </div>
+        <ul class="svc-includes">
+          <li>Light interior vacuum</li>
+          <li>Windows cleaned</li>
+        </ul>
+        <a href="book.html" class="svc-book">Book This Service &rarr;</a>
+      </div>
+
+      <div class="svc-card" data-svc-id="wash-both">
+        <div class="svc-num">03</div>
+        <div class="svc-name">Full Car Wash</div>
+        <div class="svc-desc">Full wash package — everything in both Exterior and Interior combined in one visit.</div>
+        <div class="svc-price">
+          <span class="svc-price-val" data-svc-id="wash-both">$80</span>
+          <span class="price-unit">/ session</span>
+        </div>
+        <ul class="svc-includes">
+          <li>Full exterior hand wash &amp; dry</li>
+          <li>Light interior vacuum</li>
+          <li>Windows cleaned</li>
+        </ul>
+        <a href="book.html" class="svc-book">Book This Service &rarr;</a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- GROUP: DETAILS -->
+  <div class="service-group reveal">
+    <div class="group-eyebrow">Detailing</div>
+    <div class="group-title">FULL DETAILS</div>
+    <div class="svc-grid">
+
+      <div class="svc-card" data-svc-id="light-det">
+        <div class="svc-num">04</div>
+        <div class="svc-name">Light Detail</div>
+        <div class="svc-desc">Interior + exterior care with fabric scrub and 3-month sealant. The smart maintenance detail.</div>
+        <div class="svc-price">
+          <span class="svc-price-val" data-svc-id="light-det">$180</span>
+          <span class="price-unit">/ session</span>
+        </div>
+        <ul class="svc-includes">
+          <li>Vacuum, wipe down &amp; windows</li>
+          <li>Door jambs &amp; sills scrubbed</li>
+          <li>Crevices blown out</li>
+          <li>Fabric/carpet scrubbed</li>
+          <li>Hand wash &amp; bug splatter treatment</li>
+          <li>Tires &amp; rims cleaned</li>
+          <li>3-month spray sealant</li>
+        </ul>
+        <a href="book.html" class="svc-book">Book This Service &rarr;</a>
+      </div>
+
+      <div class="svc-card" data-svc-id="full-det">
+        <div class="svc-num">05</div>
+        <div class="svc-name">Full Detail</div>
+        <div class="svc-desc">Deep reset for vehicles overdue for thorough care. Upgraded protection and complete interior extraction.</div>
+        <div class="svc-price">
+          <span class="svc-price-val" data-svc-id="full-det">$250</span>
+          <span class="price-unit">/ session</span>
+        </div>
+        <ul class="svc-includes">
+          <li>Everything in Light Detail</li>
+          <li>Deep carpet &amp; fabric scrub</li>
+          <li>Scuff removal on door sills &amp; kick points</li>
+          <li>Wheel wells cleaned</li>
+          <li>3-month wax + upgraded 6-month paint sealant</li>
+        </ul>
+        <a href="book.html" class="svc-book">Book This Service &rarr;</a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- GROUP: PROTECTION -->
+  <div class="service-group service-group-last reveal">
+    <div class="group-eyebrow">Protection</div>
+    <div class="group-title">PAINT PROTECTION</div>
+    <div class="svc-grid">
+
+      <div class="svc-card" data-svc-id="ceramic">
+        <div class="svc-num">06</div>
+        <div class="svc-name">Ceramic Coating</div>
+        <div class="svc-tags"><span class="svc-tag">Requires clean/corrected surface</span></div>
+        <div class="svc-desc">Long-lasting hydrophobic protection bonded to paint. UV resistance and deep, lasting shine for 1–2 years with maintenance.</div>
+        <div class="svc-price">
+          <span class="svc-price-val" data-svc-id="ceramic">$800</span>
+          <span class="price-unit">/ vehicle</span>
+        </div>
+        <ul class="svc-includes">
+          <li>Full clay bar decontamination (tar, iron, road grime)</li>
+          <li>Professional-grade coating bonded to paint</li>
+          <li>Hydrophobic protection &amp; UV resistance</li>
+          <li>Deep, lasting shine (1–2 years with maintenance)</li>
+          <li>Requires clean or corrected surface</li>
+        </ul>
+        <a href="book.html" class="svc-book">Book This Service &rarr;</a>
+      </div>
+
+      <div class="svc-card" data-svc-id="paint-cor">
+        <div class="svc-num">07</div>
+        <div class="svc-name">Paint Correction</div>
+        <div class="svc-tags"><span class="svc-tag">Pairs best with Ceramic Coating</span></div>
+        <div class="svc-desc">Machine polish to eliminate swirl marks, light scratches, and paint defects. Restores full clarity and gloss.</div>
+        <div class="svc-price">
+          <span class="svc-price-val" data-svc-id="paint-cor">$1,100</span>
+          <span class="price-unit">/ vehicle</span>
+        </div>
+        <ul class="svc-includes">
+          <li>Single-stage machine polish</li>
+          <li>Removes swirl marks, light scratches &amp; defects</li>
+          <li>Restores clarity and gloss</li>
+          <li>Best paired with Ceramic Coating</li>
+        </ul>
+        <a href="book.html" class="svc-book">Book This Service &rarr;</a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MAINTENANCE PLAN -->
+  <div class="maintenance-section reveal">
+    <div class="group-eyebrow">Recurring</div>
+    <div class="group-title" style="margin-bottom:24px;">MAINTENANCE PLAN</div>
+    <div class="maintenance-card">
+      <div class="maintenance-label">Member Service</div>
+      <div class="maintenance-title">Maintenance Plan</div>
+      <div class="maintenance-copy">Recurring weekly, biweekly, or monthly wash or detail service. Member discount available for clients who keep us on schedule.</div>
+      <a href="book.html" class="maintenance-cta">Contact for Pricing &rarr;</a>
+    </div>
+  </div>
+
+</div><!-- /carbon-bg -->
+
+<!-- ADD-ONS -->
+<section id="addons">
+  <div class="reveal">
+    <div class="section-eyebrow">Enhancements</div>
+    <h2 class="section-title">ADD-ONS &amp;<br/>UPGRADES</h2>
+    <p class="section-sub">Stack any of these onto your chosen service for a fully custom detail.</p>
+  </div>
+  <div class="addons-grid">
+    <div class="addon-item reveal">
+      <div><div class="addon-name">Ozone Odor Elimination</div><div class="addon-desc">Neutralizes smoke, pet, or mildew odors at the molecular level</div></div>
+      <div class="addon-price">+$79</div>
+    </div>
+    <div class="addon-item reveal">
+      <div><div class="addon-name">Pet Hair Removal</div><div class="addon-desc">Specialized tools for thorough pet hair extraction from fabric &amp; carpet</div></div>
+      <div class="addon-price">+$65</div>
+    </div>
+    <div class="addon-item reveal">
+      <div><div class="addon-name">Leather Conditioning</div><div class="addon-desc">Premium conditioner applied to all leather surfaces — restore suppleness</div></div>
+      <div class="addon-price">+$45</div>
+    </div>
+    <div class="addon-item reveal">
+      <div><div class="addon-name">Wheel Coating</div><div class="addon-desc">Ceramic coating applied to wheels for easy brake dust cleanup</div></div>
+      <div class="addon-price">+$99</div>
+    </div>
+    <div class="addon-item reveal">
+      <div><div class="addon-name">Glass Coating</div><div class="addon-desc">Hydrophobic glass coating for improved visibility in rain</div></div>
+      <div class="addon-price">+$55</div>
+    </div>
+    <div class="addon-item reveal">
+      <div><div class="addon-name">Convertible Top Treatment</div><div class="addon-desc">Clean, protect &amp; seal fabric or vinyl convertible tops</div></div>
+      <div class="addon-price">+$89</div>
+    </div>
+  </div>
+</section>
+
+<!-- BOOK CTA -->
+<div class="book-cta-banner">
+  <div class="book-cta-title">READY TO<br/>SCHEDULE?</div>
+  <p class="book-cta-sub">Use our booking wizard to select your service and pick a time.</p>
+  <div class="book-cta-actions">
+    <a href="book.html" class="btn-white">Book Your Detail</a>
+    <a href="tel:+19177831038" class="btn-outline-white">Call to Ask Questions</a>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-top">
+    <div>
+      <div class="footer-logo"><img src="Pics/BH LOGO PNG.png" alt="BH Car Detailing"/></div>
+      <div class="footer-tagline">Miami's premier mobile detailing for luxury and exotic vehicles.</div>
+      <div class="footer-contact-item">&#128205; Miami, FL — Mobile across South Florida</div>
+      <div class="footer-contact-item">&#128222; <a href="tel:+19177831038">(917) 783-1038</a></div>
+      <div class="footer-contact-item">&#128172; <a href="sms:+19177831038?body=Hi%20BH%2C%20I%27d%20like%20a%20quote!">Text Us</a></div>
+      <div class="footer-contact-item">&#9993; <a href="mailto:info@bhcardetails.com">info@bhcardetails.com</a></div>
+    </div>
+    <div class="footer-cols">
+      <div class="footer-col"><h4>Services</h4><ul><li><a href="services.html">All Services</a></li><li><a href="book.html">Book Now</a></li></ul></div>
+      <div class="footer-col"><h4>Pages</h4><ul><li><a href="about.html">About</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="reviews.html">Reviews</a></li><li><a href="faq.html">FAQ</a></li><li><a href="contact.html">Contact</a></li></ul></div>
+      <div class="footer-col"><h4>Social</h4><ul><li><a href="https://instagram.com/bhdetails" target="_blank">Instagram</a></li><li><a href="https://tiktok.com/@bhdetails" target="_blank">TikTok</a></li><li><a href="https://g.page/bhdetailing" target="_blank">Google</a></li></ul></div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">&copy; 2026 BH Car Detailing. All rights reserved.</div>
+    <div class="footer-legal"><a href="#">Privacy Policy</a><a href="#">Terms</a></div>
+  </div>
+</footer>
+
+<script>
+  /* ── DATA ── */
+  const SIZE_TIERS = [
+    { key: 'sedan', label: 'Sedan / Coupe / Convertible' },
+    { key: 'exotic', label: 'Exotic / Supercar' },
+    { key: 'suv',   label: 'SUV / Crossover / Truck' },
+    { key: 'van',   label: 'Van / Minivan' },
+    { key: 'xl',    label: 'XL / Oversized' },
+  ];
+
+  const MULTIPLIERS = {
+    wash_detail: { sedan: 1.0, exotic: 1.4, suv: 1.5, van: 1.8, xl: 2.0 },
+    protection:  { sedan: 1.0, exotic: 1.2, suv: 1.25, van: 1.4, xl: 1.5 },
+  };
+
+  const SERVICES = [
+    { id: 'wash-ext',  basePrice: 40,   category: 'wash_detail' },
+    { id: 'wash-int',  basePrice: 50,   category: 'wash_detail' },
+    { id: 'wash-both', basePrice: 80,   category: 'wash_detail' },
+    { id: 'light-det', basePrice: 180,  category: 'wash_detail' },
+    { id: 'full-det',  basePrice: 250,  category: 'wash_detail' },
+    { id: 'ceramic',   basePrice: 800,  category: 'protection'  },
+    { id: 'paint-cor', basePrice: 1100, category: 'protection'  },
+  ];
+
+  const getPrice = (svc, sizeKey) =>
+    Math.ceil(svc.basePrice * MULTIPLIERS[svc.category][sizeKey]);
+
+  /* ── PRICE UPDATE ── */
+  let currentSize = 'sedan';
+
+  function updatePrices(sizeKey) {
+    currentSize = sizeKey;
+
+    /* fade out */
+    const vals = document.querySelectorAll('.svc-price-val');
+    vals.forEach(el => el.classList.add('fade'));
+
+    setTimeout(() => {
+      /* update text */
+      vals.forEach(el => {
+        const id  = el.dataset.svcId;
+        const svc = SERVICES.find(s => s.id === id);
+        if (!svc) return;
+        const price = getPrice(svc, sizeKey);
+        el.textContent = '$' + price.toLocaleString();
+      });
+      /* fade back in */
+      vals.forEach(el => el.classList.remove('fade'));
+    }, 150);
+
+    /* update note label */
+    const tier = SIZE_TIERS.find(t => t.key === sizeKey);
+    document.getElementById('activeSizeLabel').textContent = tier.label;
+
+    /* update active pill */
+    document.querySelectorAll('.size-pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.size === sizeKey);
+    });
+  }
+
+  /* ── PILL LISTENERS ── */
+  document.getElementById('sizePills').addEventListener('click', e => {
+    const pill = e.target.closest('.size-pill');
+    if (pill) updatePrices(pill.dataset.size);
+  });
+
+  /* ── NAV ── */
+  const hamburger = document.getElementById('hamburger');
+  const navDrawer  = document.getElementById('navDrawer');
+  hamburger.addEventListener('click', () => {
+    hamburger.classList.toggle('open');
+    navDrawer.classList.toggle('open');
+  });
+  function closeNav() {
+    hamburger.classList.remove('open');
+    navDrawer.classList.remove('open');
+  }
+
+  /* ── SCROLL REVEAL ── */
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
+    });
+  }, { threshold: 0.06 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

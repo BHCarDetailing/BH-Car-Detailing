@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Contact | BH Car Detailing Miami</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/style.css"/>
+<style>
+/* ── CONTACT METHODS ── */
+#contact-page { background: var(--black); }
+.contact-intro { margin-bottom: 52px; }
+.contact-grid { display: grid; grid-template-columns: 1fr; gap: 2px; margin-bottom: 56px; }
+.contact-card {
+  background: var(--black2); border: 1px solid var(--border);
+  padding: 32px 24px; text-decoration: none; color: var(--white);
+  display: flex; flex-direction: column; gap: 12px;
+  position: relative; overflow: hidden; transition: border-color 0.3s;
+}
+.contact-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--red); transform: scaleX(0); transform-origin: left; transition: transform 0.4s;
+}
+.contact-card:hover { border-color: rgba(200,16,46,0.4); }
+.contact-card:hover::before { transform: scaleX(1); }
+.contact-card-icon { font-size: 32px; line-height: 1; }
+.contact-card-label { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--red); }
+.contact-card-value { font-family: 'Bebas Neue', sans-serif; font-size: clamp(22px, 5vw, 30px); letter-spacing: 1px; }
+.contact-card-sub { font-size: 12px; color: rgba(245,242,238,0.4); line-height: 1.6; }
+.contact-card-arrow { font-size: 18px; color: rgba(245,242,238,0.3); margin-top: auto; }
+.contact-card:hover .contact-card-arrow { color: var(--red); }
+
+/* ── QUICK CONTACT FORM ── */
+#quick-form { background: var(--black3); }
+.qf-layout { display: grid; grid-template-columns: 1fr; gap: 56px; align-items: start; }
+.qf-text .section-sub { max-width: 100%; }
+.qf-body { font-size: 14px; line-height: 1.8; color: rgba(245,242,238,0.55); margin-top: 16px; margin-bottom: 28px; }
+
+.qf-form { display: flex; flex-direction: column; gap: 16px; }
+.qf-input, .qf-select, .qf-textarea {
+  background: var(--black2); border: 1px solid var(--border);
+  color: var(--white); padding: 14px 16px;
+  font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 300;
+  width: 100%; transition: border-color 0.2s; outline: none;
+  -webkit-appearance: none; appearance: none; border-radius: 0;
+}
+.qf-input:focus, .qf-select:focus, .qf-textarea:focus { border-color: var(--red); }
+.qf-input::placeholder, .qf-textarea::placeholder { color: rgba(245,242,238,0.22); }
+.qf-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center;
+  padding-right: 38px; cursor: pointer;
+}
+.qf-select option { background: #111; color: var(--white); }
+.qf-textarea { resize: vertical; min-height: 120px; }
+.qf-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.qf-submit {
+  background: var(--red); color: #fff; border: none;
+  padding: 15px 32px; font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase;
+  cursor: pointer; transition: background 0.2s, transform 0.2s; font-family: 'DM Sans', sans-serif;
+  align-self: flex-start;
+}
+.qf-submit:hover { background: var(--red-dark); transform: translateY(-1px); }
+.qf-status {
+  font-size: 13px; padding: 14px 16px; border: 1px solid;
+  display: none;
+}
+.qf-status.success { border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.08); color: rgba(34,197,94,0.9); }
+.qf-status.error { border-color: rgba(200,16,46,0.4); background: rgba(200,16,46,0.08); color: rgba(245,100,100,0.9); }
+.qf-status.show { display: block; }
+
+/* ── SOCIAL LINKS ── */
+#social-section { background: var(--black2); }
+.social-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-top: 44px; }
+.social-card {
+  background: var(--black3); border: 1px solid var(--border);
+  padding: 28px 20px; text-decoration: none; color: var(--white);
+  display: flex; flex-direction: column; gap: 10px;
+  transition: border-color 0.3s; position: relative; overflow: hidden;
+}
+.social-card::before {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  background: var(--red); transform: scaleX(0); transform-origin: left; transition: transform 0.4s;
+}
+.social-card:hover { border-color: rgba(200,16,46,0.4); }
+.social-card:hover::before { transform: scaleX(1); }
+.social-platform { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--red); }
+.social-handle { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; }
+.social-action { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(245,242,238,0.4); }
+
+/* ── MAP ── */
+#map-section { background: var(--black); padding: 72px 0 0; }
+.map-header { padding: 0 var(--px) 36px; }
+.map-wrap { position: relative; }
+.map-wrap iframe { display: block; width: 100%; height: 280px; border: 0; filter: grayscale(0.3) invert(0.9) hue-rotate(180deg) brightness(0.85) contrast(1.1); }
+.map-tag { position: absolute; top: 14px; left: 14px; background: var(--red); color: #fff; padding: 8px 16px; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; }
+
+@media (min-width: 640px) {
+  .contact-grid { grid-template-columns: 1fr 1fr; }
+  .social-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1024px) {
+  .contact-grid { grid-template-columns: repeat(3, 1fr); }
+  .qf-layout { grid-template-columns: 1fr 1fr; gap: 80px; }
+  .social-grid { grid-template-columns: repeat(4, 1fr); }
+  .map-wrap iframe { height: 440px; }
+  #map-section { padding: 100px 0 0; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo"><a href="index.html"><img src="Pics/BH LOGO PNG.png" alt="BH Car Detailing"/></a></div>
+  <ul class="nav-links">
+    <li><a href="services.html">Services</a></li>
+    <li><a href="gallery.html">Gallery</a></li>
+    <li><a href="reviews.html">Reviews</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="faq.html">FAQ</a></li>
+    <li><a href="tel:+19177831038" class="nav-phone">&#128222; (917) 783-1038</a></li>
+    <li><a href="book.html" class="nav-cta">Book Now</a></li>
+  </ul>
+  <button class="nav-hamburger" id="hamburger" aria-label="Toggle menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<div class="nav-drawer" id="navDrawer">
+  <ul>
+    <li><a href="services.html" onclick="closeNav()">Services</a></li>
+    <li><a href="gallery.html" onclick="closeNav()">Gallery</a></li>
+    <li><a href="reviews.html" onclick="closeNav()">Reviews</a></li>
+    <li><a href="about.html" onclick="closeNav()">About</a></li>
+    <li><a href="faq.html" onclick="closeNav()">FAQ</a></li>
+    <li><a href="contact.html" class="active" onclick="closeNav()">Contact</a></li>
+    <li><a href="tel:+19177831038">&#128222; (917) 783-1038</a></li>
+    <li><a href="book.html" class="drawer-cta" onclick="closeNav()">Book Now</a></li>
+  </ul>
+</div>
+
+<div class="float-bar">
+  <a href="tel:+19177831038" class="float-btn call"><span class="float-icon">&#128222;</span><span class="float-label">Call</span></a>
+  <a href="sms:+19177831038?body=Hi%20BH%20Car%20Detailing%2C%20I%27d%20like%20a%20quote!" class="float-btn sms"><span class="float-icon">&#128172;</span><span class="float-label">Text</span></a>
+  <a href="book.html" class="float-btn book"><span class="float-icon">&#128197;</span><span class="float-label">Book</span></a>
+</div>
+
+<!-- PAGE HERO -->
+<div class="page-hero">
+  <div class="page-hero-photo" style="background-image:url('Pics/IMG_6490.JPG');"></div>
+  <div class="page-hero-overlay"></div>
+  <div class="page-hero-grid"></div>
+  <div class="page-hero-content">
+    <div class="section-eyebrow">Get In Touch</div>
+    <h1 class="page-hero-title">CONTACT<br/>US</h1>
+    <p class="page-hero-sub">Call, text, or message — we respond fast. Ready to come to you.</p>
+  </div>
+</div>
+
+<!-- CONTACT METHODS -->
+<section id="contact-page">
+  <div class="contact-intro reveal">
+    <div class="section-eyebrow">Reach Us</div>
+    <h2 class="section-title">CHOOSE HOW<br/>TO CONNECT</h2>
+    <p class="section-sub">We're a real team, not a call center. You'll always reach someone who knows your car.</p>
+  </div>
+
+  <div class="contact-grid">
+    <a href="tel:+19177831038" class="contact-card reveal">
+      <div class="contact-card-icon">&#128222;</div>
+      <div class="contact-card-label">Phone</div>
+      <div class="contact-card-value">(917) 783-1038</div>
+      <div class="contact-card-sub">Call us directly to ask questions, get a quote, or confirm availability. Mon–Sun, 8am–8pm.</div>
+      <div class="contact-card-arrow">&rarr;</div>
+    </a>
+
+    <a href="sms:+19177831038?body=Hi%20BH%20Car%20Detailing%2C%20I%27d%20like%20to%20get%20a%20quote!" class="contact-card reveal">
+      <div class="contact-card-icon">&#128172;</div>
+      <div class="contact-card-label">Text Message</div>
+      <div class="contact-card-value">Text (917) 783-1038</div>
+      <div class="contact-card-sub">Prefer texting? Send us a message — include your vehicle, location, and the service you're interested in.</div>
+      <div class="contact-card-arrow">&rarr;</div>
+    </a>
+
+    <a href="mailto:info@bhcardetails.com" class="contact-card reveal">
+      <div class="contact-card-icon">&#9993;</div>
+      <div class="contact-card-label">Email</div>
+      <div class="contact-card-value">info@bhcardetails.com</div>
+      <div class="contact-card-sub">For detailed inquiries, fleet quotes, or maintenance plan proposals. We reply within 24 hours.</div>
+      <div class="contact-card-arrow">&rarr;</div>
+    </a>
+  </div>
+</section>
+
+<!-- QUICK CONTACT FORM -->
+<!--
+  FORMSPREE SETUP:
+  1. Go to formspree.io → create free account → new form
+  2. Copy your endpoint ID (e.g. xpwzqnov)
+  3. Replace YOUR_FORMSPREE_ID in the form action below
+-->
+<section id="quick-form">
+  <div class="qf-layout">
+    <div class="qf-text reveal">
+      <div class="section-eyebrow">Message Us</div>
+      <h2 class="section-title">SEND A<br/>QUICK NOTE</h2>
+      <div class="divider"></div>
+      <p class="section-sub">Prefer a form? We'll get back to you within a few hours.</p>
+      <p class="qf-body">Include your vehicle info and the service you're interested in — the more detail you give us, the faster we can get back to you with a quote or availability.</p>
+      <div style="margin-top:28px;">
+        <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gray);margin-bottom:14px;">Or reach us directly</div>
+        <div style="font-size:14px;color:rgba(245,242,238,0.55);line-height:2;">
+          <a href="tel:+19177831038" style="color:var(--red);text-decoration:none;">&#128222; (917) 783-1038</a><br/>
+          <a href="sms:+19177831038" style="color:var(--red);text-decoration:none;">&#128172; Text (917) 783-1038</a><br/>
+          <a href="mailto:info@bhcardetails.com" style="color:var(--red);text-decoration:none;">&#9993; info@bhcardetails.com</a>
+        </div>
+      </div>
+    </div>
+    <div class="reveal">
+      <form class="qf-form" id="contact-form">
+        <div class="qf-row">
+          <input class="qf-input" type="text" name="name" placeholder="Your Name *" required/>
+          <input class="qf-input" type="tel" name="phone" placeholder="Phone *" required/>
+        </div>
+        <input class="qf-input" type="email" name="email" placeholder="Email Address *" required/>
+        <input class="qf-input" type="text" name="vehicle" placeholder="Your Vehicle (e.g. 2022 Ferrari 488)"/>
+        <select class="qf-select" name="service">
+          <option value="">Interested In... (optional)</option>
+          <option>Essential Detail — from $179</option>
+          <option>Full Detail — from $299</option>
+          <option>BH Detail — from $349</option>
+          <option>Correction + Coating</option>
+          <option>Exterior/Interior Refresh</option>
+          <option>Maintenance Plan</option>
+          <option>Headlight Restoration</option>
+          <option>Engine Bay Detail</option>
+          <option>Not Sure — Need a Recommendation</option>
+        </select>
+        <textarea class="qf-textarea" name="message" placeholder="Your message or question..."></textarea>
+        <div class="qf-status" id="qf-status"></div>
+        <button type="submit" class="qf-submit">Send Message &rarr;</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- SOCIAL LINKS -->
+<section id="social-section">
+  <div class="reveal">
+    <div class="section-eyebrow">Social Media</div>
+    <h2 class="section-title">FOLLOW THE<br/>WORK</h2>
+    <p class="section-sub">Daily content. Real results. Miami's finest exotics, every week.</p>
+  </div>
+  <div class="social-grid">
+    <a class="social-card reveal" href="https://instagram.com/bhdetails" target="_blank">
+      <div class="social-platform">Instagram</div>
+      <div class="social-handle">@bhdetails</div>
+      <div class="social-action">Follow &rarr;</div>
+    </a>
+    <a class="social-card reveal" href="https://tiktok.com/@bhdetails" target="_blank">
+      <div class="social-platform">TikTok</div>
+      <div class="social-handle">@bhdetails</div>
+      <div class="social-action">Watch &rarr;</div>
+    </a>
+    <a class="social-card reveal" href="https://g.page/bhcardetailing" target="_blank">
+      <div class="social-platform">Google Reviews</div>
+      <div class="social-handle">BH Detailing</div>
+      <div class="social-action">Leave a Review &rarr;</div>
+    </a>
+    <a class="social-card reveal" href="https://www.facebook.com/share/1K1RH2eYC9/?mibextid=wwXIfr" target="_blank">
+      <div class="social-platform">Facebook</div>
+      <div class="social-handle">BH Car Detailing</div>
+      <div class="social-action">Like Us &rarr;</div>
+    </a>
+  </div>
+</section>
+
+<!-- SERVICE AREA MAP -->
+<div id="map-section">
+  <div class="map-header reveal">
+    <div class="section-eyebrow">Service Area</div>
+    <h2 class="section-title">WE COME<br/>TO YOU</h2>
+    <p class="section-sub">Coral Gables to Fort Lauderdale. East to the water, west to Hialeah. Fully mobile across South Florida.</p>
+  </div>
+  <div class="map-wrap">
+    <iframe
+      src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d184551.73638959003!2d-80.24!3d25.9!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1sen!2sus!4v1700000000000!5m2!1sen!2sus"
+      allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+      title="BH Car Detailing Service Area">
+    </iframe>
+    <div class="map-tag">&#128205; Miami-Dade &rarr; South Broward</div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-top">
+    <div>
+      <div class="footer-logo"><img src="Pics/BH LOGO PNG.png" alt="BH Car Detailing"/></div>
+      <div class="footer-tagline">Miami's premier mobile detailing for luxury and exotic vehicles.</div>
+      <div class="footer-contact-item">&#128205; Miami, FL — Mobile across South Florida</div>
+      <div class="footer-contact-item">&#128222; <a href="tel:+19177831038">(917) 783-1038</a></div>
+      <div class="footer-contact-item">&#128172; <a href="sms:+19177831038?body=Hi%20BH%2C%20I%27d%20like%20a%20quote!">Text Us</a></div>
+      <div class="footer-contact-item">&#9993; <a href="mailto:info@bhcardetails.com">info@bhcardetails.com</a></div>
+    </div>
+    <div class="footer-cols">
+      <div class="footer-col"><h4>Services</h4><ul><li><a href="services.html">All Services</a></li><li><a href="book.html">Book Now</a></li></ul></div>
+      <div class="footer-col"><h4>Pages</h4><ul><li><a href="about.html">About</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="reviews.html">Reviews</a></li><li><a href="faq.html">FAQ</a></li></ul></div>
+      <div class="footer-col"><h4>Social</h4><ul><li><a href="https://instagram.com/bhdetails" target="_blank">Instagram @bhdetails</a></li><li><a href="https://tiktok.com/@bhdetails" target="_blank">TikTok @bhdetails</a></li><li><a href="https://g.page/bhcardetailing" target="_blank">Google Reviews</a></li></ul></div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">&copy; 2026 BH Car Detailing. All rights reserved.</div>
+    <div class="footer-legal"><a href="#">Privacy Policy</a><a href="#">Terms</a></div>
+  </div>
+</footer>
+
+<script>
+  /* Contact form — Formspree */
+  const FORMSPREE_ID = 'xlgapllq';
+
+  document.getElementById('contact-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = this.querySelector('.qf-submit');
+    const status = document.getElementById('qf-status');
+    btn.textContent = 'Sending...'; btn.disabled = true;
+
+    const data = Object.fromEntries(new FormData(this));
+
+    try {
+      const res = await fetch(`https://formspree.io/f/${FORMSPREE_ID}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (res.ok) {
+        status.textContent = '✓ Message sent! We\'ll get back to you within a few hours.';
+        status.className = 'qf-status success show';
+        this.reset();
+      } else {
+        throw new Error();
+      }
+    } catch {
+      status.textContent = 'Something went wrong. Please call or text us at (917) 783-1038.';
+      status.className = 'qf-status error show';
+    }
+    btn.textContent = 'Send Message →'; btn.disabled = false;
+  });
+
+  /* Nav */
+  const hamburger = document.getElementById('hamburger');
+  const navDrawer = document.getElementById('navDrawer');
+  hamburger.addEventListener('click', () => { hamburger.classList.toggle('open'); navDrawer.classList.toggle('open'); });
+  function closeNav() { hamburger.classList.remove('open'); navDrawer.classList.remove('open'); }
+
+  /* Reveal */
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

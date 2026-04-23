@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Reviews | BH Car Detailing Miami</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/style.css"/>
+<style>
+/* ── RATING HERO BAR ── */
+#rating-bar {
+  background: var(--black2);
+  border-bottom: 1px solid var(--border);
+  padding: 36px var(--px);
+}
+.rating-inner {
+  display: flex; flex-direction: column; gap: 24px;
+  max-width: 960px;
+}
+.rating-score {
+  display: flex; align-items: center; gap: 20px;
+}
+.rating-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(64px, 14vw, 96px);
+  color: var(--red); line-height: 1;
+}
+.rating-stars-col { display: flex; flex-direction: column; gap: 4px; }
+.rating-stars { color: #FFD700; font-size: clamp(20px, 5vw, 28px); letter-spacing: 4px; }
+.rating-count { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: rgba(245,242,238,0.4); }
+.rating-platforms { display: flex; gap: 12px; flex-wrap: wrap; }
+.rp-badge {
+  border: 1px solid var(--border); padding: 10px 18px;
+  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  color: rgba(245,242,238,0.5); display: flex; align-items: center; gap: 8px;
+}
+.rp-badge strong { color: var(--white); }
+
+/* ── REVIEWS GRID ── */
+#reviews-page { background: var(--black3); }
+.reviews-top { margin-bottom: 48px; display: flex; flex-direction: column; gap: 20px; }
+.reviews-grid { display: grid; grid-template-columns: 1fr; gap: 2px; margin-bottom: 28px; }
+.review-card {
+  background: var(--black2); padding: 28px 24px;
+  border: 1px solid var(--border);
+  position: relative;
+}
+.review-card::before {
+  content: '\201C';
+  position: absolute; top: 16px; right: 20px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 64px; color: rgba(200,16,46,0.12);
+  line-height: 1; pointer-events: none;
+}
+.review-stars { color: #FFD700; font-size: 15px; letter-spacing: 3px; margin-bottom: 14px; }
+.review-text {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 17px; font-style: italic;
+  line-height: 1.75; color: rgba(245,242,238,0.78);
+  margin-bottom: 20px;
+}
+.review-meta { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 8px; }
+.review-author { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--gray); }
+.review-vehicle { font-size: 11px; font-style: italic; color: rgba(200,16,46,0.7); letter-spacing: 0.5px; }
+.review-source { font-size: 10px; color: rgba(245,242,238,0.25); letter-spacing: 1px; text-transform: uppercase; margin-top: 8px; }
+
+/* ── LEAVE A REVIEW ── */
+#leave-review { background: var(--black2); }
+.leave-review-inner {
+  display: grid; grid-template-columns: 1fr;
+  gap: 48px; align-items: center;
+}
+.review-cta-text .section-sub { max-width: 100%; }
+.review-body { font-size: 15px; line-height: 1.85; color: rgba(245,242,238,0.55); margin-top: 18px; margin-bottom: 28px; }
+.review-platforms { display: flex; flex-direction: column; gap: 12px; }
+.rp-link {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 22px; background: var(--black3);
+  border: 1px solid var(--border); text-decoration: none; color: var(--white);
+  transition: border-color 0.25s; gap: 16px;
+}
+.rp-link:hover { border-color: rgba(200,16,46,0.4); }
+.rp-link-name { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1px; }
+.rp-link-sub { font-size: 11px; color: rgba(245,242,238,0.4); letter-spacing: 0.5px; margin-top: 2px; }
+.rp-link-arrow { color: var(--red); font-size: 18px; flex-shrink: 0; }
+
+@media (min-width: 640px) {
+  .reviews-grid { grid-template-columns: 1fr 1fr; }
+  .reviews-top { flex-direction: row; align-items: flex-end; }
+  .rating-inner { flex-direction: row; align-items: center; justify-content: space-between; }
+}
+@media (min-width: 1024px) {
+  .reviews-grid { grid-template-columns: repeat(3, 1fr); }
+  .leave-review-inner { grid-template-columns: 1fr 1fr; gap: 80px; }
+  .review-platforms { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo"><a href="index.html"><img src="Pics/BH LOGO PNG.png" alt="BH Car Detailing"/></a></div>
+  <ul class="nav-links">
+    <li><a href="services.html">Services</a></li>
+    <li><a href="gallery.html">Gallery</a></li>
+    <li><a href="reviews.html" class="active">Reviews</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="faq.html">FAQ</a></li>
+    <li><a href="tel:+19177831038" class="nav-phone">&#128222; (917) 783-1038</a></li>
+    <li><a href="book.html" class="nav-cta">Book Now</a></li>
+  </ul>
+  <button class="nav-hamburger" id="hamburger" aria-label="Toggle menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<div class="nav-drawer" id="navDrawer">
+  <ul>
+    <li><a href="services.html" onclick="closeNav()">Services</a></li>
+    <li><a href="gallery.html" onclick="closeNav()">Gallery</a></li>
+    <li><a href="reviews.html" class="active" onclick="closeNav()">Reviews</a></li>
+    <li><a href="about.html" onclick="closeNav()">About</a></li>
+    <li><a href="faq.html" onclick="closeNav()">FAQ</a></li>
+    <li><a href="contact.html" onclick="closeNav()">Contact</a></li>
+    <li><a href="tel:+19177831038">&#128222; (917) 783-1038</a></li>
+    <li><a href="book.html" class="drawer-cta" onclick="closeNav()">Book Now</a></li>
+  </ul>
+</div>
+
+<div class="float-bar">
+  <a href="tel:+19177831038" class="float-btn call"><span class="float-icon">&#128222;</span><span class="float-label">Call</span></a>
+  <a href="sms:+19177831038?body=Hi%20BH%20Car%20Detailing%2C%20I%27d%20like%20a%20quote!" class="float-btn sms"><span class="float-icon">&#128172;</span><span class="float-label">Text</span></a>
+  <a href="book.html" class="float-btn book"><span class="float-icon">&#128197;</span><span class="float-label">Book</span></a>
+</div>
+
+<!-- PAGE HERO -->
+<div class="page-hero">
+  <div class="page-hero-photo" style="background-image:url('Pics/IMG_6636.JPG');"></div>
+  <div class="page-hero-overlay"></div>
+  <div class="page-hero-grid"></div>
+  <div class="page-hero-content">
+    <div class="section-eyebrow">Client Reviews</div>
+    <h1 class="page-hero-title">WHAT CLIENTS<br/>ARE SAYING</h1>
+    <p class="page-hero-sub">Real feedback from real clients. We let the results do the talking.</p>
+  </div>
+</div>
+
+<!-- RATING BAR -->
+<div id="rating-bar">
+  <div class="rating-inner">
+    <div class="rating-score">
+      <div class="rating-num">5.0</div>
+      <div class="rating-stars-col">
+        <div class="rating-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <div class="rating-count">Google Rating &mdash; 30+ reviews</div>
+      </div>
+    </div>
+    <div class="rating-platforms">
+      <div class="rp-badge">Google &nbsp;<strong>5.0</strong></div>
+      <div class="rp-badge">Yelp &nbsp;<strong>5.0</strong></div>
+      <div class="rp-badge">Facebook &nbsp;<strong>5.0</strong></div>
+    </div>
+  </div>
+</div>
+
+<!-- REVIEWS GRID -->
+<section id="reviews-page">
+  <div class="reviews-top reveal">
+    <div>
+      <div class="section-eyebrow">Google Reviews</div>
+      <h2 class="section-title">VERIFIED CLIENT<br/>FEEDBACK</h2>
+    </div>
+    <a href="https://g.page/bhcardetailing" target="_blank" class="btn-primary">See All on Google</a>
+  </div>
+
+  <div class="reviews-grid">
+
+    <div class="review-card reveal">
+      <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+      <div class="review-text">"Best detailing service in Miami. Came to my house, did an incredible job on my Ferrari. The paint looked better than when I bought it. Absolutely flawless."</div>
+      <div class="review-meta">
+        <div>
+          <div class="review-author">— J. Martinez</div>
+          <div class="review-vehicle">Ferrari 488 GTB</div>
+        </div>
+      </div>
+      <div class="review-source">Google Review &bull; Brickell, Miami</div>
+    </div>
+
+    <div class="review-card reveal">
+      <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+      <div class="review-text">"Unreal attention to detail. My Porsche Turbo S has never looked this clean. They got every inch of the interior spotless. Highly recommend to anyone in Miami."</div>
+      <div class="review-meta">
+        <div>
+          <div class="review-author">— D. Chen</div>
+          <div class="review-vehicle">Porsche 911 Turbo S</div>
+        </div>
+      </div>
+      <div class="review-source">Google Review &bull; Miami Beach</div>
+    </div>
+
+    <div class="review-card reveal">
+      <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+      <div class="review-text">"Professional, on time, and the results were amazing. The ceramic coating on my Lambo has been holding up perfectly for months. Worth every penny."</div>
+      <div class="review-meta">
+        <div>
+          <div class="review-author">— A. Rodriguez</div>
+          <div class="review-vehicle">Lamborghini Hurac&aacute;n</div>
+        </div>
+      </div>
+      <div class="review-source">Google Review &bull; Coral Gables</div>
+    </div>
+
+    <div class="review-card reveal">
+      <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+      <div class="review-text">"They came to my office parking garage and knocked it out in 3 hours. My McLaren hasn't looked this good since day one. Will be doing monthly from now on."</div>
+      <div class="review-meta">
+        <div>
+          <div class="review-author">— M. Rivera</div>
+          <div class="review-vehicle">McLaren 720S</div>
+        </div>
+      </div>
+      <div class="review-source">Google Review &bull; Downtown Miami</div>
+    </div>
+
+    <div class="review-card reveal">
+      <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+      <div class="review-text">"Booked online, they showed up early, and the work was immaculate. My GT3 RS got the BH Detail and you can genuinely eat off the engine bay. Obsessive craftsmen."</div>
+      <div class="review-meta">
+        <div>
+          <div class="review-author">— T. Hoffman</div>
+          <div class="review-vehicle">Porsche GT3 RS</div>
+        </div>
+      </div>
+      <div class="review-source">Google Review &bull; Aventura</div>
+    </div>
+
+    <div class="review-card reveal">
+      <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+      <div class="review-text">"I've used a lot of detailers in Miami and BH is the only one I trust on my Rolls. They understand what 'premium' actually means. Discretion, precision, perfection."</div>
+      <div class="review-meta">
+        <div>
+          <div class="review-author">— S. Goldstein</div>
+          <div class="review-vehicle">Rolls-Royce Ghost</div>
+        </div>
+      </div>
+      <div class="review-source">Google Review &bull; Sunny Isles</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- LEAVE A REVIEW -->
+<section id="leave-review">
+  <div class="leave-review-inner">
+    <div class="review-cta-text reveal">
+      <div class="section-eyebrow">Share Your Experience</div>
+      <h2 class="section-title">HAD A GREAT<br/>DETAIL?</h2>
+      <div class="divider"></div>
+      <p class="review-body">
+        Your review means everything to a small business. It helps other Miami exotic owners find us — and it keeps our team motivated to deliver perfection, every single time.
+        <br/><br/>
+        Takes less than 60 seconds. Pick any platform below.
+      </p>
+      <a href="book.html" class="btn-primary">Book Your Next Detail</a>
+    </div>
+    <div class="reveal">
+      <div class="review-platforms">
+        <a href="https://g.page/bhcardetailing" target="_blank" class="rp-link">
+          <div>
+            <div class="rp-link-name">Google Reviews</div>
+            <div class="rp-link-sub">Search &ldquo;BH Car Detailing Miami&rdquo;</div>
+          </div>
+          <div class="rp-link-arrow">&rarr;</div>
+        </a>
+        <a href="https://www.facebook.com/share/1K1RH2eYC9/" target="_blank" class="rp-link">
+          <div>
+            <div class="rp-link-name">Facebook</div>
+            <div class="rp-link-sub">Leave a rating on our Facebook page</div>
+          </div>
+          <div class="rp-link-arrow">&rarr;</div>
+        </a>
+        <a href="https://instagram.com/bhdetails" target="_blank" class="rp-link">
+          <div>
+            <div class="rp-link-name">Instagram</div>
+            <div class="rp-link-sub">Tag us @bhdetails in your before &amp; after</div>
+          </div>
+          <div class="rp-link-arrow">&rarr;</div>
+        </a>
+        <a href="sms:+19177831038?body=Hey%20BH%2C%20just%20wanted%20to%20say%20the%20detail%20was%20amazing!" class="rp-link">
+          <div>
+            <div class="rp-link-name">Text Us Directly</div>
+            <div class="rp-link-sub">Send us your feedback — we read every message</div>
+          </div>
+          <div class="rp-link-arrow">&rarr;</div>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BOOK CTA -->
+<div class="book-cta-banner">
+  <div class="book-cta-title">READY TO JOIN<br/>OUR 5-STAR CLIENTS?</div>
+  <p class="book-cta-sub">Book your detail today and see the results for yourself.</p>
+  <div class="book-cta-actions">
+    <a href="book.html" class="btn-white">Book Your Detail</a>
+    <a href="tel:+19177831038" class="btn-outline-white">Call (917) 783-1038</a>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-top">
+    <div>
+      <div class="footer-logo"><img src="Pics/BH LOGO PNG.png" alt="BH Car Detailing"/></div>
+      <div class="footer-tagline">Miami's premier mobile detailing for luxury and exotic vehicles.</div>
+      <div class="footer-contact-item">&#128205; Miami, FL — Mobile across South Florida</div>
+      <div class="footer-contact-item">&#128222; <a href="tel:+19177831038">(917) 783-1038</a></div>
+      <div class="footer-contact-item">&#128172; <a href="sms:+19177831038?body=Hi%20BH%2C%20I%27d%20like%20a%20quote!">Text Us</a></div>
+      <div class="footer-contact-item">&#9993; <a href="mailto:info@bhcardetails.com">info@bhcardetails.com</a></div>
+    </div>
+    <div class="footer-cols">
+      <div class="footer-col"><h4>Services</h4><ul><li><a href="services.html">All Services</a></li><li><a href="book.html">Book Now</a></li></ul></div>
+      <div class="footer-col"><h4>Pages</h4><ul><li><a href="about.html">About</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="faq.html">FAQ</a></li><li><a href="contact.html">Contact</a></li></ul></div>
+      <div class="footer-col"><h4>Social</h4><ul><li><a href="https://instagram.com/bhdetails" target="_blank">Instagram @bhdetails</a></li><li><a href="https://tiktok.com/@bhdetails" target="_blank">TikTok @bhdetails</a></li><li><a href="https://g.page/bhcardetailing" target="_blank">Google Reviews</a></li></ul></div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">&copy; 2026 BH Car Detailing. All rights reserved.</div>
+    <div class="footer-legal"><a href="#">Privacy Policy</a><a href="#">Terms</a></div>
+  </div>
+</footer>
+
+<script>
+  const hamburger = document.getElementById('hamburger');
+  const navDrawer = document.getElementById('navDrawer');
+  hamburger.addEventListener('click', () => { hamburger.classList.toggle('open'); navDrawer.classList.toggle('open'); });
+  function closeNav() { hamburger.classList.remove('open'); navDrawer.classList.remove('open'); }
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

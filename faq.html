@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FAQ | BH Car Detailing Miami</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/style.css"/>
+<style>
+/* ── FAQ PAGE ── */
+#faq-page { background: var(--black2); }
+.faq-layout { display: grid; grid-template-columns: 1fr; gap: 48px; }
+.faq-sidebar-sticky { position: relative; }
+.faq-sidebar-title { margin-bottom: 24px; }
+.faq-contact-card {
+  background: var(--black3); border: 1px solid var(--border);
+  padding: 24px; margin-top: 28px;
+}
+.faq-contact-card h4 { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--gray); margin-bottom: 16px; }
+.faq-contact-link {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 0; border-bottom: 1px solid var(--border);
+  text-decoration: none; color: var(--white); font-size: 14px;
+  transition: color 0.2s;
+}
+.faq-contact-link:last-child { border-bottom: none; }
+.faq-contact-link:hover { color: var(--red); }
+.faq-contact-icon { font-size: 18px; width: 24px; flex-shrink: 0; }
+
+/* ── ACCORDION ── */
+.faq-category { margin-bottom: 36px; }
+.faq-category-title {
+  font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--red); margin-bottom: 2px; padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.faq-category-title::before { content: ''; width: 16px; height: 1px; background: var(--red); flex-shrink: 0; }
+.faq-list { display: flex; flex-direction: column; }
+.faq-item { border-bottom: 1px solid var(--border); }
+.faq-q {
+  width: 100%; background: none; border: none; color: var(--white);
+  text-align: left; padding: 18px 0; font-family: 'DM Sans', sans-serif;
+  font-size: 14px; font-weight: 400;
+  display: flex; justify-content: space-between; align-items: center;
+  cursor: pointer; gap: 16px; transition: color 0.2s; line-height: 1.4;
+}
+.faq-q:hover { color: var(--red); }
+.faq-icon {
+  width: 24px; height: 24px; flex-shrink: 0; border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; line-height: 1; transition: transform 0.3s, background 0.2s, border-color 0.2s;
+  font-family: 'DM Sans', sans-serif;
+}
+.faq-item.open .faq-icon { transform: rotate(45deg); background: var(--red); border-color: var(--red); }
+.faq-a {
+  max-height: 0; overflow: hidden;
+  transition: max-height 0.45s ease, padding 0.3s;
+  font-size: 14px; line-height: 1.85; color: rgba(245,242,238,0.58);
+}
+.faq-item.open .faq-a { max-height: 300px; padding-bottom: 20px; }
+.faq-a a { color: var(--red); text-decoration: none; }
+.faq-a a:hover { text-decoration: underline; }
+
+/* ── STILL HAVE QUESTIONS ── */
+#still-questions { background: var(--black3); }
+.sq-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 44px; }
+.sq-card {
+  background: var(--black2); border: 1px solid var(--border);
+  padding: 24px 20px; text-decoration: none; color: var(--white);
+  display: flex; align-items: center; gap: 16px;
+  transition: border-color 0.25s;
+}
+.sq-card:hover { border-color: rgba(200,16,46,0.4); }
+.sq-icon { font-size: 24px; flex-shrink: 0; }
+.sq-text-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--red); }
+.sq-text-value { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 0.5px; margin-top: 2px; }
+.sq-arrow { margin-left: auto; color: rgba(245,242,238,0.3); font-size: 18px; flex-shrink: 0; }
+.sq-card:hover .sq-arrow { color: var(--red); }
+
+@media (min-width: 1024px) {
+  .faq-layout { grid-template-columns: 1fr 2fr; gap: 80px; }
+  .faq-sidebar-sticky { position: sticky; top: 88px; }
+  .sq-grid { grid-template-columns: repeat(3, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo"><a href="index.html"><img src="Pics/BH LOGO PNG.png" alt="BH Car Detailing"/></a></div>
+  <ul class="nav-links">
+    <li><a href="services.html">Services</a></li>
+    <li><a href="gallery.html">Gallery</a></li>
+    <li><a href="reviews.html">Reviews</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="faq.html" class="active">FAQ</a></li>
+    <li><a href="tel:+19177831038" class="nav-phone">&#128222; (917) 783-1038</a></li>
+    <li><a href="book.html" class="nav-cta">Book Now</a></li>
+  </ul>
+  <button class="nav-hamburger" id="hamburger" aria-label="Toggle menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<div class="nav-drawer" id="navDrawer">
+  <ul>
+    <li><a href="services.html" onclick="closeNav()">Services</a></li>
+    <li><a href="gallery.html" onclick="closeNav()">Gallery</a></li>
+    <li><a href="reviews.html" onclick="closeNav()">Reviews</a></li>
+    <li><a href="about.html" onclick="closeNav()">About</a></li>
+    <li><a href="faq.html" class="active" onclick="closeNav()">FAQ</a></li>
+    <li><a href="contact.html" onclick="closeNav()">Contact</a></li>
+    <li><a href="tel:+19177831038">&#128222; (917) 783-1038</a></li>
+    <li><a href="book.html" class="drawer-cta" onclick="closeNav()">Book Now</a></li>
+  </ul>
+</div>
+
+<div class="float-bar">
+  <a href="tel:+19177831038" class="float-btn call"><span class="float-icon">&#128222;</span><span class="float-label">Call</span></a>
+  <a href="sms:+19177831038?body=Hi%20BH%20Car%20Detailing%2C%20I%27d%20like%20a%20quote!" class="float-btn sms"><span class="float-icon">&#128172;</span><span class="float-label">Text</span></a>
+  <a href="book.html" class="float-btn book"><span class="float-icon">&#128197;</span><span class="float-label">Book</span></a>
+</div>
+
+<!-- PAGE HERO -->
+<div class="page-hero">
+  <div class="page-hero-photo" style="background-image:url('Pics/IMG_6562.JPG');"></div>
+  <div class="page-hero-overlay"></div>
+  <div class="page-hero-grid"></div>
+  <div class="page-hero-content">
+    <div class="section-eyebrow">Common Questions</div>
+    <h1 class="page-hero-title">GOT<br/>QUESTIONS?</h1>
+    <p class="page-hero-sub">Everything you need to know before booking. Can't find your answer? Call or text us.</p>
+  </div>
+</div>
+
+<!-- FAQ -->
+<section id="faq-page">
+  <div class="faq-layout">
+
+    <!-- Sidebar -->
+    <div class="faq-sidebar-sticky reveal">
+      <div class="faq-sidebar-title">
+        <div class="section-eyebrow">FAQ</div>
+        <h2 class="section-title" style="font-size:clamp(32px,7vw,52px);">FIND YOUR<br/>ANSWER</h2>
+        <div class="divider"></div>
+        <p class="section-sub" style="font-size:15px;">Can't find what you're looking for? Reach out directly — we respond fast.</p>
+      </div>
+      <div class="faq-contact-card">
+        <h4>Contact Us</h4>
+        <a href="tel:+19177831038" class="faq-contact-link">
+          <span class="faq-contact-icon">&#128222;</span> Call (917) 783-1038
+        </a>
+        <a href="sms:+19177831038?body=Hi%20BH%2C%20I%20have%20a%20question!" class="faq-contact-link">
+          <span class="faq-contact-icon">&#128172;</span> Text (917) 783-1038
+        </a>
+        <a href="mailto:info@bhcardetails.com" class="faq-contact-link">
+          <span class="faq-contact-icon">&#9993;</span> info@bhcardetails.com
+        </a>
+        <a href="book.html" class="faq-contact-link" style="color:var(--red);">
+          <span class="faq-contact-icon">&#128197;</span> Book Online Now
+        </a>
+      </div>
+    </div>
+
+    <!-- Accordion -->
+    <div class="reveal">
+
+      <!-- SERVICE & BOOKING -->
+      <div class="faq-category">
+        <div class="faq-category-title">Service &amp; Booking</div>
+        <div class="faq-list">
+          <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+              How do I book a detail?
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-a">The easiest way is through our <a href="book.html">online booking wizard</a> — it takes under 3 minutes. Select your service, tell us about your vehicle, enter your contact info and address, then pick a time via Calendly. You can also call or text us at <a href="tel:+19177831038">(917) 783-1038</a>.</div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+              How far in advance do I need to book?
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-a">We recommend booking 24–48 hours in advance to secure your preferred time slot. Same-day bookings are sometimes available — call or text us to check. For ceramic coating or correction services, give us at least 3–5 days notice.</div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+              Which service should I choose for my car?
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-a">If it's your first detail with us, the <strong>Full Detail</strong> is the most popular starting point. If your car has swirls, scratches, or dull paint, look into <strong>Correction + Coating</strong>. Not sure? Text us a photo of your car and we'll recommend the right service for its condition.</div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+              Can I reschedule or cancel my booking?
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-a">Yes — use the link in your Calendly confirmation email to reschedule or cancel. We ask for at least 24 hours notice for cancellations or rescheduling. For same-day cancellations, please call or text us directly.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MOBILE SERVICE -->
+      <div class="faq-category">
+        <div class="faq-category-title">Mobile Service</div>
+        <div class="faq-list">
+          <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+              What areas do you serve?
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-a">We serve all of Miami-Dade County and into South Broward — including Brickell, Miami Beach, Coral Gables, Coconut Grove, Aventura, Sunny Isles, Surfside, Bal Harbour, North Miami, Hollywood, and Fort Lauderdale. Not sure if we cover your area? Just text us your zip code.</div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+              Do I need to provide any equipment or supplies?
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-a">All we need is access to water (a standard outdoor hose connection) and a 110v power outlet within reasonable distance of your vehicle. We bring every tool, product, bucket, vacuum, and supply needed. You don't have to do anything.</div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+              Can you detail my car in a parking garage?
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-a">Yes — we detail in driveways, garages, surface lots, and covered parking. For covered garages, we'll confirm water and power access during booking. Interior-only services can be done without any water source.</div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+              Do I need to be present during the detail?
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-a">We only ask that you're available to hand over access at the start and inspect the results at the end — that's it. You don't need to watch us work. Many clients go about their day while we take care of everything.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRICING & PAYMENT -->
+      <div class="faq-category">
+        <div class="faq-category-title">Pricing &amp; Payment</div>
+        <div class="faq-list">
+          <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+              Are your prices fixed or do they vary by vehicle?
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-a">Our prices are listed starting from a base rate. Final pricing can vary based on vehicle size (SUV vs. coupe), current condition (heavily soiled vehicles may require additional time), and any add-ons. We'll always confirm the final price before starting work.</div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+              When do I pay?
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-a">Payment is collected only after the job is complete and you have personally inspected and approved the results. We don't take deposits on standard services — you pay when you're satisfied.</div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+              What payment methods do you accept?
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-a">We accept Zelle, Venmo, Cash, Apple Pay, and major credit/debit cards. Payment details are confirmed during booking or at the time of service.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SERVICES & RESULTS -->
+      <div class="faq-category">
+        <div class="faq-category-title">Services &amp; Results</div>
+        <div class="faq-list">
+          <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+              How long does a detail take?
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-a">Timing depends on the service and your vehicle's current condition:<br/><br/>
+              Refresh: 45 min–1.5 hrs<br/>
+              Essential Detail: 1.5–2.5 hrs<br/>
+              Full Detail: 2.5–4 hrs<br/>
+              BH Detail: 3–5 hrs<br/>
+              Correction + Coating: 1–3 days<br/><br/>
+              We'll give you a precise estimate when you book.</div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+              What is paint correction and do I need it?
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-a">Paint correction is a machine-polishing process that removes swirl marks, light scratches, water spots, and oxidation from your paint's clear coat — restoring it to a mirror-like finish. If you see swirls in sunlight or your paint looks dull, you're a candidate. We'll assess your paint during a consultation.</div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+              How often should I detail my exotic?
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-a">For daily drivers: a full detail every 6–8 weeks and a maintenance refresh every 3–4 weeks is ideal. For exotics driven less frequently: a full detail every 3 months and a monthly check-in keeps the paint and interior in top condition. Ask us about our maintenance plans for recurring clients.</div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+              Are you insured to work on high-value vehicles?
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-a">Yes. BH Car Detailing carries full liability insurance. Your vehicle is fully covered from the moment we arrive until we pack up and leave. We've detailed Ferraris, Lamborghinis, McLarens, Rolls-Royces, and more — without incident.</div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+              What products do you use?
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-a">We use professional-grade, pH-neutral, paint-safe products throughout — brands trusted by detailers worldwide for high-end vehicles. No harsh chemicals, no shortcuts. If you have specific product preferences or restrictions for your vehicle, just let us know when you book.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end accordion -->
+  </div><!-- end faq-layout -->
+</section>
+
+<!-- STILL HAVE QUESTIONS -->
+<section id="still-questions">
+  <div class="reveal">
+    <div class="section-eyebrow">Need More Help?</div>
+    <h2 class="section-title">STILL HAVE<br/>QUESTIONS?</h2>
+    <p class="section-sub">We're a real team — reach out and you'll hear back from a person, not a bot.</p>
+  </div>
+  <div class="sq-grid">
+    <a href="tel:+19177831038" class="sq-card reveal">
+      <span class="sq-icon">&#128222;</span>
+      <div>
+        <div class="sq-text-label">Call Us</div>
+        <div class="sq-text-value">(917) 783-1038</div>
+      </div>
+      <span class="sq-arrow">&rarr;</span>
+    </a>
+    <a href="sms:+19177831038?body=Hi%20BH%2C%20I%20have%20a%20question!" class="sq-card reveal">
+      <span class="sq-icon">&#128172;</span>
+      <div>
+        <div class="sq-text-label">Text Us</div>
+        <div class="sq-text-value">Text (917) 783-1038</div>
+      </div>
+      <span class="sq-arrow">&rarr;</span>
+    </a>
+    <a href="book.html" class="sq-card reveal">
+      <span class="sq-icon">&#128197;</span>
+      <div>
+        <div class="sq-text-label">Ready to Go?</div>
+        <div class="sq-text-value">Book Online Now</div>
+      </div>
+      <span class="sq-arrow">&rarr;</span>
+    </a>
+  </div>
+</section>
+
+<!-- BOOK CTA -->
+<div class="book-cta-banner">
+  <div class="book-cta-title">READY TO<br/>BOOK YOUR DETAIL?</div>
+  <p class="book-cta-sub">We come to you. Results that speak for themselves.</p>
+  <div class="book-cta-actions">
+    <a href="book.html" class="btn-white">Book Online Now</a>
+    <a href="tel:+19177831038" class="btn-outline-white">Call (917) 783-1038</a>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-top">
+    <div>
+      <div class="footer-logo"><img src="Pics/BH LOGO PNG.png" alt="BH Car Detailing"/></div>
+      <div class="footer-tagline">Miami's premier mobile detailing for luxury and exotic vehicles.</div>
+      <div class="footer-contact-item">&#128205; Miami, FL — Mobile across South Florida</div>
+      <div class="footer-contact-item">&#128222; <a href="tel:+19177831038">(917) 783-1038</a></div>
+      <div class="footer-contact-item">&#128172; <a href="sms:+19177831038?body=Hi%20BH%2C%20I%27d%20like%20a%20quote!">Text Us</a></div>
+      <div class="footer-contact-item">&#9993; <a href="mailto:info@bhcardetails.com">info@bhcardetails.com</a></div>
+    </div>
+    <div class="footer-cols">
+      <div class="footer-col"><h4>Services</h4><ul><li><a href="services.html">All Services</a></li><li><a href="book.html">Book Now</a></li></ul></div>
+      <div class="footer-col"><h4>Pages</h4><ul><li><a href="about.html">About</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="reviews.html">Reviews</a></li><li><a href="contact.html">Contact</a></li></ul></div>
+      <div class="footer-col"><h4>Social</h4><ul><li><a href="https://instagram.com/bhdetails" target="_blank">Instagram @bhdetails</a></li><li><a href="https://tiktok.com/@bhdetails" target="_blank">TikTok @bhdetails</a></li><li><a href="https://g.page/bhcardetailing" target="_blank">Google Reviews</a></li></ul></div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">&copy; 2026 BH Car Detailing. All rights reserved.</div>
+    <div class="footer-legal"><a href="#">Privacy Policy</a><a href="#">Terms</a></div>
+  </div>
+</footer>
+
+<script>
+  function toggleFaq(btn) {
+    const item = btn.parentElement;
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+    if (!isOpen) item.classList.add('open');
+  }
+
+  const hamburger = document.getElementById('hamburger');
+  const navDrawer = document.getElementById('navDrawer');
+  hamburger.addEventListener('click', () => { hamburger.classList.toggle('open'); navDrawer.classList.toggle('open'); });
+  function closeNav() { hamburger.classList.remove('open'); navDrawer.classList.remove('open'); }
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
