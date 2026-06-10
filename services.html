@@ -541,23 +541,27 @@
     { key: 'xl',    label: 'XL / Oversized' },
   ];
 
-  const MULTIPLIERS = {
-    wash_detail: { sedan: 1.0, exotic: 1.4, suv: 1.5, van: 1.8, xl: 2.0 },
-    protection:  { sedan: 1.0, exotic: 1.2, suv: 1.25, van: 1.4, xl: 1.5 },
+  const PRICE_TABLE = {
+    'wash-ext':  { sedan: 40,  exotic: 55,  suv: 70,  van: 75,  xl: 85   },
+    'wash-int':  { sedan: 50,  exotic: 75,  suv: 90,  van: 95,  xl: 105  },
+    'wash-both': { sedan: 80,  exotic: 115, suv: 145, van: 155, xl: 175  },
+    'light-det': { sedan: 180, exotic: 220, suv: 240, van: 260, xl: 270  },
+    'full-det':  { sedan: 250, exotic: 290, suv: 350, van: 375, xl: 390  },
+    'ceramic':   { sedan: 750, exotic: 900, suv: 950, van: 1050, xl: 1100 },
+    'paint-cor': { sedan: 550, exotic: 700, suv: 850, van: 950, xl: 1050 },
   };
 
   const SERVICES = [
-    { id: 'wash-ext',  basePrice: 40,   category: 'wash_detail' },
-    { id: 'wash-int',  basePrice: 50,   category: 'wash_detail' },
-    { id: 'wash-both', basePrice: 80,   category: 'wash_detail' },
-    { id: 'light-det', basePrice: 180,  category: 'wash_detail' },
-    { id: 'full-det',  basePrice: 250,  category: 'wash_detail' },
-    { id: 'ceramic',   basePrice: 800,  category: 'protection'  },
-    { id: 'paint-cor', basePrice: 1100, category: 'protection'  },
+    { id: 'wash-ext'  },
+    { id: 'wash-int'  },
+    { id: 'wash-both' },
+    { id: 'light-det' },
+    { id: 'full-det'  },
+    { id: 'ceramic'   },
+    { id: 'paint-cor' },
   ];
 
-  const getPrice = (svc, sizeKey) =>
-    Math.ceil(svc.basePrice * MULTIPLIERS[svc.category][sizeKey]);
+  const getPrice = (svc, sizeKey) => PRICE_TABLE[svc.id][sizeKey];
 
   /* ── PRICE UPDATE ── */
   let currentSize = 'sedan';
