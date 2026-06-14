@@ -3,6 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-HS0SV535XW"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-HS0SV535XW');
+  </script>
+
   <title>Ceramic Coating Miami & South Florida — $750 | BH Car Detailing</title>
   <meta name="description" content="Professional ceramic coating in Miami & South Florida — $750. Clay bar decontamination, hydrophobic & UV protection, 1–2 years of showroom gloss. Mobile service, we come to you." />
   <link rel="canonical" href="https://bhcardetails.com/ceramic-coating.html" />
@@ -28,7 +38,7 @@
     "serviceType": "Ceramic Coating",
     "provider": { "@type": "AutoDetailing", "name": "BH Car Detailing", "telephone": "+19177831038", "url": "https://bhcardetails.com" },
     "areaServed": "South Florida",
-    "offers": { "@type": "Offer", "price":750", "priceCurrency": "USD" }
+    "offers": { "@type": "Offer", "price": "750", "priceCurrency": "USD" }
   }
   </script>
 </head>
@@ -168,11 +178,12 @@
           <p class="lead" style="font-size:0.95rem">First detail with BH? You get <strong style="color:var(--white)">10% off</strong> — just mention it.</p>
           <div class="contact-list">
             <a href="tel:+19177831038"><span class="ico">📞</span> (917) 783-1038 — call or text</a>
+            <a href="sms:+19177831038"><span class="ico">💬</span> Text us — usually instant</a>
             <a href="mailto:info@bhcardetails.com"><span class="ico">✉️</span> info@bhcardetails.com</a>
             <a href="https://www.instagram.com/bhdetails" target="_blank" rel="noopener"><span class="ico">📸</span> @bhdetails</a>
           </div>
         </div>
-        <form class="form reveal reveal-d1" action="https://formspree.io/f/xlgapllq" method="POST">
+        <form class="form reveal reveal-d1" action="https://formspree.io/f/xlgapllq" method="POST" data-success-msg="Thanks — we've got your request! We'll text or call you shortly (usually within the hour) with pricing and next steps. Prefer to lock in a time right now? Pick a slot below — no back-and-forth needed.">
           <input type="hidden" name="_subject" value="🛡️ CERAMIC COATING REQUEST — bhcardetails.com" />
           <input type="hidden" name="service" value="Ceramic Coating — $750" />
           <div class="form-row">
@@ -192,6 +203,7 @@
           <div class="field"><textarea name="message" aria-label="Vehicle year/make/model, paint condition, timing…" placeholder="Vehicle year/make/model, paint condition, timing…"></textarea></div>
           <button class="btn btn-primary btn-lg" type="submit">Request Ceramic Coating</button>
         </form>
+        <div class="calendly-embed" style="display:none"></div>
       </div>
     </div>
   </section>

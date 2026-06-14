@@ -46,6 +46,51 @@ $cities = @(
     hoods = "Royal Palm Yacht Club, Mizner Park, Boca West, Broken Sound and surrounding gated communities"
     intro1 = "In Boca Raton the country club lot looks like a concours, and pulling in with swirled paint gets noticed. BH delivers discreet, scheduled mobile detailing inside gated communities across Boca — we handle gate access, arrive in a clean professional setup, and work quietly at your home."
     intro2 = "Most of our Boca clients are on recurring maintenance plans: weekly, biweekly or monthly visits that keep every vehicle in the garage permanently showroom-ready, with paint correction and ceramic coating handled seasonally. Set it once and never think about it again."
+  },
+  @{
+    slug = "brickell"; city = "Brickell"
+    h1top = "Brickell Towers,"; h1accent = "Mirror Finish."
+    hero = "../assets/photos/IMG_1456-1200w.jpg"
+    side = "../assets/photos/IMG_6493-900w.jpg"
+    hoods = "Brickell Avenue, Mary Brickell Village, the Icon, Echo Brickell and the financial district high-rises"
+    intro1 = "Brickell is Miami's vertical city — towers full of exotics parked three levels underground, valet lines, and residents who expect the same polish from their car as from their building's lobby. BH brings the full mobile studio into those garages: quiet, fast and clean, with no mess left on a pristine garage floor."
+    intro2 = "Whether it's a quick refresh before a client dinner or a full ceramic coating on a car that rarely sees direct sun, we coordinate with building staff and valet, work around your schedule, and treat every level of the garage like it's the showroom it looks like."
+  },
+  @{
+    slug = "key-biscayne"; city = "Key Biscayne"
+    h1top = "Key Biscayne,"; h1accent = "Island Standard."
+    hero = "../assets/photos/IMG_1443-1200w.jpg"
+    side = "../assets/photos/IMG_6722-900w.jpg"
+    hoods = "Crandon Park, Mashta Island, Ocean Club, the Marina and the Village center"
+    intro1 = "Key Biscayne is its own world — one bridge in, one bridge out, and a level of privacy most neighborhoods can't match. BH treats it that way: a dedicated mobile appointment at your home, condo or marina slip, with the same quiet, professional setup whether we're working on a daily driver or a weekend exotic that rarely leaves the island."
+    intro2 = "The ocean air here is unforgiving on paint and chrome, so most Key residents pair regular hand washes with ceramic coating and a recurring maintenance plan — your car stays protected and presentable without you ever having to think about it."
+  },
+  @{
+    slug = "sunny-isles"; city = "Sunny Isles"
+    h1top = "Sunny Isles,"; h1accent = "Reflection Ready."
+    hero = "../assets/photos/IMG_1446-1200w.jpg"
+    side = "../assets/photos/IMG_1459-900w.jpg"
+    hoods = "Millionaire's Row, the barrier-island condo towers and the Golden Beach border"
+    intro1 = "Few stretches of road concentrate more glass, chrome and exotic paint per square mile than Sunny Isles. It's also one of the harshest environments for that paint — direct ocean exposure, salt air and constant sun. BH brings the full mobile studio into the towers here, working in resident garages and valet decks up and down Collins Avenue."
+    intro2 = "Because of the salt air, we recommend ceramic protection for anything that lives on the island full time — it's the difference between paint that holds its gloss for years and paint that dulls in months. Recurring maintenance plans keep every car in the building ready for a night out, any night."
+  },
+  @{
+    slug = "doral"; city = "Doral"
+    h1top = "Doral's Car Culture,"; h1accent = "Runs Deep."
+    hero = "../assets/photos/IMG_3725-1200w.jpg"
+    side = "../assets/photos/IMG_1462-900w.jpg"
+    hoods = "Downtown Doral, the Trump National corridor, Doral Isles and the warehouse and private-garage districts near the airport"
+    intro1 = "Doral has one of the largest concentrations of private car collections in South Florida — warehouse garages packed with exotics, classics and weekend builds that need more than an occasional rinse. BH comes to those garages and to the gated communities around Trump National with the same mobile studio setup, panel by panel, every time."
+    intro2 = "From keeping a daily-driver fleet clean for a household to a full paint correction and ceramic coating program across a private collection, we work around your schedule and your space — golf community driveway or warehouse bay, it's all the same to us."
+  },
+  @{
+    slug = "aventura"; city = "Aventura"
+    h1top = "Aventura,"; h1accent = "Curated Clean."
+    hero = "../assets/photos/IMG_1458-1200w.jpg"
+    side = "../assets/photos/IMG_6511-900w.jpg"
+    hoods = "Williams Island, Turnberry Isle, the Aventura Mall corridor and the Hallandale Beach border"
+    intro1 = "Aventura runs on curated everything — from the mall to the marinas to the golf courses at Turnberry. Your car shouldn't be the exception. BH brings concierge mobile detailing to the gated towers and golf communities here, working inside private garages and porte-cocheres without disrupting the building's flow."
+    intro2 = "Quick exterior refreshes between shopping trips, full interior resets after the school carpool, or a complete paint correction and ceramic coating on a new arrival — we handle all of it on-site, on your schedule, with the same care we'd give a car on the showroom floor."
   }
 )
 

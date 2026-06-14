@@ -321,6 +321,25 @@
   }
 
   /* ---------- Forms: AJAX submit to Formspree (no off-site redirect) ---------- */
+  const CALENDLY_URL = "https://calendly.com/bhcardetails/booknow?hide_event_type_details=1&hide_gdpr_banner=1";
+  let calendlyReady = null;
+  function loadCalendly() {
+    if (window.Calendly) return Promise.resolve();
+    if (calendlyReady) return calendlyReady;
+    calendlyReady = new Promise((resolve) => {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "https://assets.calendly.com/assets/external/widget.css";
+      document.head.appendChild(link);
+      const script = document.createElement("script");
+      script.src = "https://assets.calendly.com/assets/external/widget.js";
+      script.async = true;
+      script.onload = () => resolve();
+      document.body.appendChild(script);
+    });
+    return calendlyReady;
+  }
+
   document.querySelectorAll("form.form").forEach((form) => {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -348,7 +367,26 @@
         if (!res.ok) throw new Error("Form submission failed");
         form.reset();
         msg.classList.add("success");
-        msg.textContent = "Thanks — we've got your info and will be in touch shortly.";
+        msg.textContent =
+          form.dataset.successMsg ||
+          "Thanks — we've got your info! We'll text or call you shortly (usually within the hour) with your quote and next steps.";
+
+        if (typeof gtag === "function") gtag("event", "generate_lead");
+
+        const calendly = form.parentElement.querySelector(".calendly-embed");
+        if (calendly && !calendly.dataset.loaded) {
+          calendly.dataset.loaded = "true";
+          calendly.style.display = "block";
+          const widget = document.createElement("div");
+          widget.className = "calendly-inline-widget";
+          widget.style.minWidth = "320px";
+          widget.style.height = "700px";
+          calendly.appendChild(widget);
+          loadCalendly().then(() => {
+            window.Calendly && window.Calendly.initInlineWidget({ url: CALENDLY_URL, parentElement: widget });
+          });
+          calendly.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
       } catch (err) {
         msg.classList.add("error");
         msg.textContent = "Something went wrong sending that. Please call or text us at (917) 783-1038.";

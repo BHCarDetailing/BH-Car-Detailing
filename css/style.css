@@ -794,6 +794,10 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
 .form-msg.success { background: rgba(74, 222, 128, 0.12); border: 1px solid rgba(74, 222, 128, 0.35); color: #4ade80; }
 .form-msg.error { background: rgba(255, 65, 83, 0.12); border: 1px solid rgba(255, 65, 83, 0.35); color: var(--accent-bright); }
 
+.quote-grid .form-msg { grid-column: 2; }
+.quote-grid .calendly-embed { grid-column: 1 / -1; margin-top: 32px; }
+.quote-grid .calendly-embed .calendly-inline-widget { border-radius: var(--radius); overflow: hidden; }
+
 .contact-list { display: grid; gap: 22px; margin-top: 40px; }
 .contact-list a, .contact-list div { display: flex; align-items: center; gap: 16px; font-weight: 600; font-size: 1.05rem; transition: color 0.3s; }
 .contact-list a:hover { color: var(--accent); }
@@ -936,6 +940,7 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
 
   .why-grid, .quote-grid, .ba-wrap, .showcase, .ig-editorial { grid-template-columns: 1fr; }
   .quote-grid .form { order: -1; }
+  .quote-grid .form-msg { grid-column: 1; }
   .ig-feature { aspect-ratio: 16/10; }
   .process { grid-template-columns: 1fr; gap: 34px; text-align: left; }
   .process::before { display: none; }
