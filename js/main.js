@@ -70,40 +70,6 @@
     heroMedia.style.animation = "none"; /* scroll drives the zoom instead */
   }
 
-  /* ---------- Hero video: load + play after first paint, desktop only ---------- */
-  const heroVideo = document.querySelector(".hero-video");
-  if (heroVideo && matchMedia("(min-width: 768px)").matches) {
-    const loadHeroVideo = () => {
-      heroVideo.querySelectorAll("source").forEach((s) => {
-        s.src = s.dataset.src;
-      });
-      heroVideo.load();
-      heroVideo.play().catch(() => {});
-    };
-    if ("requestIdleCallback" in window) {
-      requestIdleCallback(loadHeroVideo, { timeout: 2000 });
-    } else {
-      setTimeout(loadHeroVideo, 1000);
-    }
-  }
-
-  /* ---------- Instagram embed: load script when section nears viewport ---------- */
-  const igSection = document.getElementById("as-seen-in");
-  if (igSection) {
-    const igObserver = new IntersectionObserver(
-      (entries, obs) => {
-        if (!entries.some((e) => e.isIntersecting)) return;
-        const script = document.createElement("script");
-        script.async = true;
-        script.src = "https://www.instagram.com/embed.js";
-        document.body.appendChild(script);
-        obs.disconnect();
-      },
-      { rootMargin: "400px 0px" }
-    );
-    igObserver.observe(igSection);
-  }
-
   /* ---------- Animated counters ---------- */
   const counters = document.querySelectorAll("[data-count]");
   if (counters.length) {
