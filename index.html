@@ -4,13 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-HS0SV535XW"></script>
+  <!-- Google tag (gtag.js) -- loaded on first interaction via js/main.js, to keep it out of the critical path -->
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-HS0SV535XW');
   </script>
 
   <!-- Google Search Console: get your HTML verification tag at
@@ -44,7 +41,133 @@
   <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png" />
   <link rel="icon" href="assets/favicon.ico" />
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
-  <link rel="stylesheet" href="css/style.css" />
+  <!-- Critical CSS: inlined so hero/nav render correctly on first paint, before css/style.css loads -->
+  <style>
+    :root {
+      --black: #000000;
+      --ink: #0a0a0a;
+      --ink-2: #111113;
+      --white: #ffffff;
+      --gray: #f5f5f5;
+      --silver: #c7c7c7;
+      --muted: #8a8a8e;
+      --line-dark: rgba(255, 255, 255, 0.1);
+      --line-light: rgba(0, 0, 0, 0.08);
+      --accent: #c8102e;
+      --accent-bright: #ff4153;
+      --font-sans: "Manrope", -apple-system, "Segoe UI", sans-serif;
+      --font-serif: "Playfair Display", Georgia, serif;
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --radius: 18px;
+      --nav-h: 76px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+    body { font-family: var(--font-sans); background: var(--black); color: var(--white); line-height: 1.6; font-size: 16px; overflow-x: hidden; }
+    img, video { max-width: 100%; display: block; }
+    a { color: inherit; text-decoration: none; }
+    ul { list-style: none; }
+    button { font-family: inherit; cursor: pointer; }
+    ::selection { background: var(--accent); color: var(--white); }
+    h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
+    .display { font-size: clamp(2.6rem, 7vw, 5.5rem); text-transform: uppercase; letter-spacing: -0.03em; }
+    .h2 { font-size: clamp(2rem, 4.5vw, 3.4rem); text-transform: uppercase; }
+    .h3 { font-size: clamp(1.2rem, 2vw, 1.5rem); }
+    .accent {
+      font-family: var(--font-serif); font-style: italic; font-weight: 600; text-transform: none; letter-spacing: 0;
+      background: linear-gradient(115deg, var(--accent-bright) 10%, var(--accent) 55%, #7e0a1d 95%);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; padding-right: 0.08em;
+    }
+    .section-light .accent, .on-light .accent {
+      background: linear-gradient(115deg, var(--accent) 25%, #8f0a16 90%);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .eyebrow { display: inline-flex; align-items: center; gap: 12px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.32em; text-transform: uppercase; color: var(--muted); margin-bottom: 22px; }
+    .eyebrow::before { content: ""; width: 34px; height: 1px; background: currentColor; opacity: 0.6; }
+    .lead { color: var(--muted); font-size: clamp(1rem, 1.4vw, 1.15rem); max-width: 560px; }
+    .container { width: min(1240px, 92vw); margin: 0 auto; }
+    .section { padding: clamp(80px, 11vw, 150px) 0; }
+    .section-light { background: var(--gray); color: var(--ink); }
+    .section-light .lead { color: #5e5e63; }
+    .section-white { background: var(--white); color: var(--ink); }
+    .section-white .lead { color: #5e5e63; }
+    .section-head { margin-bottom: clamp(44px, 6vw, 80px); max-width: 760px; }
+    .section-head.center { margin-left: auto; margin-right: auto; text-align: center; }
+    .section-head.center .lead { margin: 18px auto 0; }
+    .section-head.center .eyebrow { justify-content: center; }
+    .section-head .lead { margin-top: 18px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 17px 36px; border-radius: 100px;
+      font-weight: 700; font-size: 0.95rem; letter-spacing: 0.04em; border: 1px solid transparent; transition: all 0.45s var(--ease); white-space: nowrap;
+    }
+    .btn-primary { background: var(--white); color: var(--black); }
+    .btn-primary:hover { background: var(--accent); color: var(--white); transform: translateY(-2px); box-shadow: 0 18px 40px -12px rgba(200, 16, 46, 0.5); }
+    .btn-dark { background: var(--black); color: var(--white); }
+    .btn-dark:hover { background: var(--accent); transform: translateY(-2px); box-shadow: 0 18px 40px -12px rgba(200, 16, 46, 0.5); }
+    .btn-ghost { border-color: rgba(255, 255, 255, 0.35); color: var(--white); background: transparent; }
+    .btn-ghost:hover { border-color: var(--white); background: rgba(255, 255, 255, 0.08); transform: translateY(-2px); }
+    .btn-ghost-dark { border-color: rgba(0, 0, 0, 0.25); color: var(--ink); background: transparent; }
+    .btn-ghost-dark:hover { border-color: var(--ink); transform: translateY(-2px); }
+    .btn-sm { padding: 12px 26px; font-size: 0.85rem; }
+    .btn-lg { padding: 21px 52px; font-size: 1.05rem; }
+    .nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 900; height: var(--nav-h); display: flex; align-items: center;
+      background: rgba(10, 10, 12, 0.82); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(200, 16, 46, 0.28); transition: background 0.5s var(--ease), box-shadow 0.5s var(--ease), border-color 0.5s var(--ease);
+    }
+    .nav.scrolled { background: rgba(0, 0, 0, 0.97); border-bottom-color: rgba(200, 16, 46, 0.55); box-shadow: 0 12px 34px -14px rgba(0, 0, 0, 0.75); }
+    .nav-inner { display: flex; align-items: center; justify-content: space-between; width: min(1320px, 94vw); margin: 0 auto; }
+    .logo { display: inline-flex; align-items: center; background: var(--white); padding: 8px 16px; border-radius: 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22); transition: transform 0.4s var(--ease), box-shadow 0.4s var(--ease); }
+    .logo:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28); }
+    .logo-img { height: 44px; width: auto; display: block; }
+    .footer .logo { padding: 14px 24px; border-radius: 14px; }
+    .footer .logo-img { height: 76px; }
+    .nav-links { display: flex; align-items: center; gap: 44px; }
+    .nav-links a:not(.btn) { font-size: 0.82rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.75); position: relative; padding: 6px 0; transition: color 0.3s; }
+    .nav-links a:not(.btn):hover { color: var(--white); }
+    .nav-links a:not(.btn)::after { content: ""; position: absolute; left: 0; bottom: 0; width: 0; height: 1px; background: var(--accent); transition: width 0.4s var(--ease); }
+    .nav-links a:not(.btn):hover::after { width: 100%; }
+    .nav-toggle { display: none; background: none; border: 0; width: 44px; height: 44px; position: relative; z-index: 1001; }
+    .nav-toggle span { display: block; width: 26px; height: 2px; background: var(--white); margin: 6px auto; transition: 0.4s var(--ease); border-radius: 2px; }
+    .nav-toggle.open span:nth-child(1) { transform: translateY(8px) rotate(45deg); }
+    .nav-toggle.open span:nth-child(2) { opacity: 0; }
+    .nav-toggle.open span:nth-child(3) { transform: translateY(-8px) rotate(-45deg); }
+    .hero { position: relative; min-height: 100svh; display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden; isolation: isolate; }
+    .hero-media { position: absolute; inset: -6%; z-index: -2; background-size: cover; background-position: center; animation: kenburns 22s var(--ease) infinite alternate; will-change: transform; }
+    .hero-media video { width: 100%; height: 100%; object-fit: cover; }
+    @keyframes kenburns { from { transform: scale(1); } to { transform: scale(1.1); } }
+    .hero-overlay { position: absolute; inset: 0; z-index: -1; background: linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 45%, rgba(0,0,0,0.85) 100%); }
+    .hero-content { padding: 160px 24px 110px; max-width: 880px; }
+    .hero h1 { margin-bottom: 26px; }
+    .hero-sub { color: rgba(255,255,255,0.78); font-size: clamp(1rem, 1.6vw, 1.25rem); max-width: 580px; margin: 0 auto 38px; font-weight: 500; }
+    .hero-cta { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+    .hero-trust { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; margin-top: 38px; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.03em; color: rgba(255,255,255,0.7); }
+    .hero-trust-stars { color: #f5c542; letter-spacing: 3px; font-size: 0.85rem; }
+    .hero-trust-sep { color: rgba(255,255,255,0.25); }
+    .hero-scroll { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 0.65rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--silver); }
+    .hero-scroll::after { content: ""; width: 1px; height: 44px; background: linear-gradient(var(--silver), transparent); animation: scrollPulse 2s var(--ease) infinite; }
+    @keyframes scrollPulse { 0% { transform: scaleY(0); transform-origin: top; } 50% { transform: scaleY(1); transform-origin: top; } 51% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+    .reveal { opacity: 0; transform: translateY(36px); transition: opacity 0.9s var(--ease), transform 0.9s var(--ease); }
+    .reveal.in { opacity: 1; transform: none; }
+    @media (prefers-reduced-motion: reduce) {
+      .reveal { opacity: 1; transform: none; transition: none; }
+      .hero-media { animation: none; }
+      html { scroll-behavior: auto; }
+    }
+    @media (max-width: 860px) {
+      .nav-links {
+        position: fixed; top: 0; left: 0; right: 0; height: 100vh; height: 100dvh; overflow-y: auto;
+        background: rgba(0,0,0,0.96); backdrop-filter: blur(20px); flex-direction: column; justify-content: center;
+        gap: 30px; padding: 90px 24px; opacity: 0; pointer-events: none; transition: opacity 0.45s var(--ease); z-index: 1000;
+      }
+      .nav-links.open { opacity: 1; pointer-events: auto; }
+      .nav-links a:not(.btn) { font-size: 1.05rem; }
+      .nav-toggle { display: block; }
+    }
+  </style>
+  <link rel="preload" as="style" href="css/style.css" />
+  <link href="css/style.css" rel="stylesheet" media="print" onload="this.media='all'" />
+  <noscript><link href="css/style.css" rel="stylesheet" /></noscript>
 
   <script type="application/ld+json">
   {
@@ -66,8 +189,8 @@
       { "@type": "Offer", "name": "Full Car Wash", "price": "118", "priceCurrency": "USD" },
       { "@type": "Offer", "name": "Light Detail", "price": "180", "priceCurrency": "USD" },
       { "@type": "Offer", "name": "Full Detail", "price": "250", "priceCurrency": "USD" },
-      { "@type": "Offer", "name": "Ceramic Coating", "price": "800", "priceCurrency": "USD" },
-      { "@type": "Offer", "name": "Paint Correction", "price": "1100", "priceCurrency": "USD" }
+      { "@type": "Offer", "name": "Ceramic Coating", "price": "750", "priceCurrency": "USD" },
+      { "@type": "Offer", "name": "Paint Correction", "price": "550", "priceCurrency": "USD" }
     ]
   }
   </script>
@@ -91,7 +214,7 @@
     <div class="modal-backdrop"></div>
     <div class="modal-card">
       <button class="modal-close" aria-label="Close">&times;</button>
-      <img class="modal-logo" src="assets/logo.png" alt="BH Car Detailing" />
+      <picture><source type="image/webp" srcset="assets/logo.webp" /><img class="modal-logo" src="assets/logo.png" alt="BH Car Detailing" width="283" height="220" /></picture>
       <p class="modal-kicker">First-Time Client Offer</p>
       <div class="modal-off">10<em>%</em> OFF</div>
       <p class="sub">Your first detail with BH. Leave your info and we'll text you your code &amp; a free quote — no spam, ever.</p>
@@ -118,7 +241,7 @@
   <!-- ================= NAV ================= -->
   <header class="nav">
     <div class="nav-inner">
-      <a href="index.html" class="logo"><img class="logo-img" src="assets/logo.png" alt="BH Car Detailing" /></a>
+      <a href="index.html" class="logo"><picture><source type="image/webp" srcset="assets/logo.webp" /><img class="logo-img" src="assets/logo.png" alt="BH Car Detailing" width="283" height="220" /></picture></a>
       <nav class="nav-links">
         <a href="index.html">Home</a>
         <a href="#services">Services</a>
@@ -136,9 +259,9 @@
   <!-- ================= HERO ================= -->
   <section class="hero">
     <div class="hero-media" style="background-image:url('assets/photos/IMG_1448-1200w.jpg')">
-      <video class="hero-video" autoplay muted loop playsinline preload="auto" poster="assets/photos/IMG_1448-1200w.jpg">
-        <source src="assets/hero.webm" type="video/webm" />
-        <source src="assets/hero.mp4" type="video/mp4" />
+      <video class="hero-video" muted loop playsinline preload="none" poster="assets/photos/IMG_1448-1200w.jpg">
+        <source data-src="assets/hero.webm" type="video/webm" />
+        <source data-src="assets/hero.mp4" type="video/mp4" />
       </video>
     </div>
     <div class="hero-overlay"></div>
@@ -198,7 +321,7 @@
           <cite>— Maxwell, Founder of BH Car Detailing</cite>
         </blockquote>
         <div class="stats reveal" style="grid-template-columns:repeat(3,1fr)">
-          <div class="stat"><div class="num"><span data-count="100" data-suffix="+">0</span></div><div class="label">Exotic Vehicles Detailed</div></div>
+          <div class="stat"><div class="num"><span data-count="100" data-suffix="+">100+</span></div><div class="label">Exotic Vehicles Detailed</div></div>
           <div class="stat"><div class="num">5<em>★</em></div><div class="label">Customer Experience</div></div>
           <div class="stat"><div class="num">24/7</div><div class="label">Service Availability</div></div>
         </div>
@@ -431,21 +554,21 @@
         <!-- set 1 -->
         <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"Great services and amazing people — polite, quick and efficient. Price is very justified, and I'm glad to say I've been working with Max for a couple months and he keeps my car looking fresh out of the lot!"</blockquote><div class="t-who"><div class="t-avatar">J</div><div><strong>Jonathan M.</strong><span>BMW · 2 months ago</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
         <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"Max did an amazing detail on my car! If you or anyone you know are looking for a high-end detail, do yourself a favor and hire Max. Phenomenal job!"</blockquote><div class="t-who"><div class="t-avatar">D</div><div><strong>David T.</strong><span>6 reviews · 4 months ago</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
-        <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"I had an amazing experience at Berko's Car Detailing. They did such a great job on my car — it looks brand new inside and out. Every detail was cleaned so carefully."</blockquote><div class="t-who"><div class="t-avatar">D</div><div><strong>Dana A.</strong><span>Local Guide · 13 reviews</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
+        <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"I had an amazing experience at BH Car Detailing. They did such a great job on my car — it looks brand new inside and out. Every detail was cleaned so carefully."</blockquote><div class="t-who"><div class="t-avatar">D</div><div><strong>Dana A.</strong><span>Local Guide · 13 reviews</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
         <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"By far the best car wash I've gotten. Max is incredibly knowledgeable with all things when it comes to cleaning your car the right way. 10/10, highly recommend!"</blockquote><div class="t-who"><div class="t-avatar">J</div><div><strong>Jared R.</strong><span>7 reviews · 10 months ago</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
         <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"Got my car detailed with Max last week and he made it look brand new. The car was so shiny and the interior was so fresh with the scent he put in. Overall a 10/10 job and will definitely recommend to friends."</blockquote><div class="t-who"><div class="t-avatar">J</div><div><strong>Jonathan K.</strong><span>6 reviews · 11 months ago</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
         <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"My experience with Max was great! He is very professional & responsible and offered to go above and beyond what he had to do. From beginning to end, delivered exceptional, Grade A customer service — not so easy to find in this area. Highly recommend this business."</blockquote><div class="t-who"><div class="t-avatar">K</div><div><strong>Katherine C.</strong><span>5 reviews · 1 photo</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
         <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"Ask for Max — he did a great job on my car and I would really recommend him to anyone. The exterior looks perfect and shiny, and the interior looks like I just bought it. Thank you for the great service!"</blockquote><div class="t-who"><div class="t-avatar">E</div><div><strong>Eytan B.</strong><span>7 reviews · a year ago</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
-        <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"Got my car detailed with Max and it was superb — the car looks as shiny as when I first bought it. I recommend getting it detailed with Berko's."</blockquote><div class="t-who"><div class="t-avatar">Y</div><div><strong>Yair T.</strong><span>5 reviews · a year ago</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
+        <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"Got my car detailed with Max and it was superb — the car looks as shiny as when I first bought it. I recommend getting it detailed with BH."</blockquote><div class="t-who"><div class="t-avatar">Y</div><div><strong>Yair T.</strong><span>5 reviews · a year ago</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
         <!-- set 2 (duplicate for seamless loop) -->
         <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"Great services and amazing people — polite, quick and efficient. Price is very justified, and I'm glad to say I've been working with Max for a couple months and he keeps my car looking fresh out of the lot!"</blockquote><div class="t-who"><div class="t-avatar">J</div><div><strong>Jonathan M.</strong><span>BMW · 2 months ago</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
         <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"Max did an amazing detail on my car! If you or anyone you know are looking for a high-end detail, do yourself a favor and hire Max. Phenomenal job!"</blockquote><div class="t-who"><div class="t-avatar">D</div><div><strong>David T.</strong><span>6 reviews · 4 months ago</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
-        <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"I had an amazing experience at Berko's Car Detailing. They did such a great job on my car — it looks brand new inside and out. Every detail was cleaned so carefully."</blockquote><div class="t-who"><div class="t-avatar">D</div><div><strong>Dana A.</strong><span>Local Guide · 13 reviews</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
+        <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"I had an amazing experience at BH Car Detailing. They did such a great job on my car — it looks brand new inside and out. Every detail was cleaned so carefully."</blockquote><div class="t-who"><div class="t-avatar">D</div><div><strong>Dana A.</strong><span>Local Guide · 13 reviews</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
         <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"By far the best car wash I've gotten. Max is incredibly knowledgeable with all things when it comes to cleaning your car the right way. 10/10, highly recommend!"</blockquote><div class="t-who"><div class="t-avatar">J</div><div><strong>Jared R.</strong><span>7 reviews · 10 months ago</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
         <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"Got my car detailed with Max last week and he made it look brand new. The car was so shiny and the interior was so fresh with the scent he put in. Overall a 10/10 job and will definitely recommend to friends."</blockquote><div class="t-who"><div class="t-avatar">J</div><div><strong>Jonathan K.</strong><span>6 reviews · 11 months ago</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
         <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"My experience with Max was great! He is very professional & responsible and offered to go above and beyond what he had to do. From beginning to end, delivered exceptional, Grade A customer service — not so easy to find in this area. Highly recommend this business."</blockquote><div class="t-who"><div class="t-avatar">K</div><div><strong>Katherine C.</strong><span>5 reviews · 1 photo</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
         <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"Ask for Max — he did a great job on my car and I would really recommend him to anyone. The exterior looks perfect and shiny, and the interior looks like I just bought it. Thank you for the great service!"</blockquote><div class="t-who"><div class="t-avatar">E</div><div><strong>Eytan B.</strong><span>7 reviews · a year ago</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
-        <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"Got my car detailed with Max and it was superb — the car looks as shiny as when I first bought it. I recommend getting it detailed with Berko's."</blockquote><div class="t-who"><div class="t-avatar">Y</div><div><strong>Yair T.</strong><span>5 reviews · a year ago</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
+        <div class="t-card"><div class="t-stars">★★★★★</div><blockquote>"Got my car detailed with Max and it was superb — the car looks as shiny as when I first bought it. I recommend getting it detailed with BH."</blockquote><div class="t-who"><div class="t-avatar">Y</div><div><strong>Yair T.</strong><span>5 reviews · a year ago</span></div></div><div class="t-verified"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Verified Google Review</div></div>
       </div>
     </div>
   </section>
@@ -607,7 +730,7 @@
     <div class="container">
       <div class="footer-grid">
         <div>
-          <a href="index.html" class="logo"><img class="logo-img" src="assets/logo.png" alt="BH Car Detailing" /></a>
+          <a href="index.html" class="logo"><picture><source type="image/webp" srcset="assets/logo.webp" /><img class="logo-img" src="assets/logo.png" alt="BH Car Detailing" width="283" height="220" /></picture></a>
           <p>Concierge-level mobile detailing for luxury, exotic and daily-driven vehicles across South Florida.</p>
         </div>
         <div>
@@ -638,7 +761,7 @@
   </footer>
 
   <!-- Lightbox -->
-  <div class="lightbox"><button class="lightbox-close" aria-label="Close">&times;</button><img src="" alt="Gallery image full size" /></div>
+  <div class="lightbox"><button class="lightbox-close" aria-label="Close">&times;</button><img alt="Gallery image full size" /></div>
 
   <!-- Sticky mobile CTA -->
   <div class="sticky-cta">
@@ -646,7 +769,6 @@
     <a href="#book" class="btn btn-primary">Book Now</a>
   </div>
 
-  <script async src="//www.instagram.com/embed.js"></script>
   <script src="js/main.js" defer></script>
 </body>
 </html>

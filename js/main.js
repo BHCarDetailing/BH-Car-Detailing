@@ -70,6 +70,40 @@
     heroMedia.style.animation = "none"; /* scroll drives the zoom instead */
   }
 
+  /* ---------- Hero video: load + play after first paint, desktop only ---------- */
+  const heroVideo = document.querySelector(".hero-video");
+  if (heroVideo && matchMedia("(min-width: 768px)").matches) {
+    const loadHeroVideo = () => {
+      heroVideo.querySelectorAll("source").forEach((s) => {
+        s.src = s.dataset.src;
+      });
+      heroVideo.load();
+      heroVideo.play().catch(() => {});
+    };
+    if ("requestIdleCallback" in window) {
+      requestIdleCallback(loadHeroVideo, { timeout: 2000 });
+    } else {
+      setTimeout(loadHeroVideo, 1000);
+    }
+  }
+
+  /* ---------- Instagram embed: load script when section nears viewport ---------- */
+  const igSection = document.getElementById("as-seen-in");
+  if (igSection) {
+    const igObserver = new IntersectionObserver(
+      (entries, obs) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        const script = document.createElement("script");
+        script.async = true;
+        script.src = "https://www.instagram.com/embed.js";
+        document.body.appendChild(script);
+        obs.disconnect();
+      },
+      { rootMargin: "400px 0px" }
+    );
+    igObserver.observe(igSection);
+  }
+
   /* ---------- Animated counters ---------- */
   const counters = document.querySelectorAll("[data-count]");
   if (counters.length) {
@@ -209,8 +243,8 @@
       washFull: { name: "Full Car Wash", price: "$80", per: "per session", desc: "Hand wash & dry outside, light vacuum and clean windows inside. The perfect reset." },
       light: { name: "Light Detail", price: "$180", per: "per session", desc: "Full interior scrub — jambs, sills, crevices, fabric & carpet — plus hand wash, wheels and a 3-month spray sealant." },
       full: { name: "Full Detail", price: "$250", per: "per session", desc: "Our complete restoration detail: deep carpet & fabric extraction, scuff removal, wheel wells, 3-month wax + 6-month paint sealant." },
-      correction: { name: "Paint Correction", price: "$1,100", per: "per vehicle", desc: "Single-stage machine polish that removes swirl marks, light scratches and defects — restoring true clarity and gloss." },
-      ceramic: { name: "Ceramic Coating", price: "$800", per: "per vehicle", desc: "Clay bar decontamination + professional-grade ceramic. Hydrophobic, UV-resistant protection that lasts 1–2 years." },
+      correction: { name: "Paint Correction", price: "$550", per: "per vehicle", desc: "Single-stage machine polish that removes swirl marks, light scratches and defects — restoring true clarity and gloss." },
+      ceramic: { name: "Ceramic Coating", price: "$750", per: "per vehicle", desc: "Clay bar decontamination + professional-grade ceramic. Hydrophobic, UV-resistant protection that lasts 1–2 years." },
       maintenance: { name: "Maintenance Plan", price: "Custom", per: "weekly · biweekly · monthly", desc: "A recurring plan tailored to your vehicle and schedule, so it never falls out of showroom condition." },
     };
 
@@ -401,4 +435,21 @@
 
   /* ---------- Footer year ---------- */
   document.querySelectorAll("[data-year]").forEach((el) => (el.textContent = new Date().getFullYear()));
+
+  /* ---------- GA4: load gtag.js on first interaction (or after 5s, whichever first) ---------- */
+  let gaLoaded = false;
+  function loadGA() {
+    if (gaLoaded) return;
+    gaLoaded = true;
+    const script = document.createElement("script");
+    script.async = true;
+    script.src = "https://www.googletagmanager.com/gtag/js?id=G-HS0SV535XW";
+    document.head.appendChild(script);
+    gtag("js", new Date());
+    gtag("config", "G-HS0SV535XW");
+  }
+  ["scroll", "click", "keydown", "touchstart", "mousemove"].forEach((evt) =>
+    window.addEventListener(evt, loadGA, { once: true, passive: true })
+  );
+  setTimeout(loadGA, 5000);
 })();

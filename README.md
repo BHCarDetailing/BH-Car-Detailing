@@ -7,8 +7,8 @@ Premium black/white/silver redesign. Static HTML/CSS/JS — no build step, deplo
 | Page | Purpose |
 |---|---|
 | `index.html` | Main site — hero, services + pricing, package recommender, gallery, ceramic, why BH, process, reviews, areas, Instagram, booking |
-| `ceramic-coating.html` | Dedicated ceramic page ($800) with comparison table |
-| `paint-correction.html` | Dedicated correction page ($1,100) with before/after slider |
+| `ceramic-coating.html` | Dedicated ceramic page ($750) with comparison table |
+| `paint-correction.html` | Dedicated correction page ($550) with before/after slider |
 | `areas/*.html` | Local SEO landing pages: Miami, Miami Beach, Coral Gables, Fort Lauderdale, Boca Raton |
 
 ## Things to do before launch

@@ -4,13 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-HS0SV535XW"></script>
+  <!-- Google tag (gtag.js) -- loaded on first interaction via js/main.js, to keep it out of the critical path -->
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-HS0SV535XW');
   </script>
 
   <title>Paint Correction Miami & South Florida — $550 | BH Car Detailing</title>
@@ -44,7 +41,7 @@
     "serviceType": "Paint Correction",
     "provider": { "@type": "AutoDetailing", "name": "BH Car Detailing", "telephone": "+19177831038", "url": "https://bhcardetails.com" },
     "areaServed": "South Florida",
-    "offers": { "@type": "Offer", "price": "1100", "priceCurrency": "USD" }
+    "offers": { "@type": "Offer", "price": "550", "priceCurrency": "USD" }
   }
   </script>
 </head>
@@ -52,7 +49,7 @@
 
   <header class="nav">
     <div class="nav-inner">
-      <a href="index.html" class="logo"><img class="logo-img" src="assets/logo.png" alt="BH Car Detailing" /></a>
+      <a href="index.html" class="logo"><picture><source type="image/webp" srcset="assets/logo.webp" /><img class="logo-img" src="assets/logo.png" alt="BH Car Detailing" width="283" height="220" /></picture></a>
       <nav class="nav-links">
         <a href="index.html">Home</a>
         <a href="index.html#services">Services</a>
