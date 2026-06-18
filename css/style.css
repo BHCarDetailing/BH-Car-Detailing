@@ -259,7 +259,7 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
 
 .hero-overlay {
   position: absolute; inset: 0; z-index: -1;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 45%, rgba(0,0,0,0.85) 100%);
+  background: linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.93) 100%);
 }
 
 .hero-content { padding: 160px 24px 110px; max-width: 880px; }
@@ -286,6 +286,27 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
 }
 .hero-trust-stars { color: #f5c542; letter-spacing: 3px; font-size: 0.85rem; }
 .hero-trust-sep { color: rgba(255,255,255,0.25); }
+
+/* Hero split: text + instant quote form */
+.hero-content.hero-split {
+  display: grid; grid-template-columns: 1.05fr 0.95fr; gap: clamp(40px, 6vw, 90px);
+  align-items: center; text-align: left; max-width: 1180px; padding: 150px 24px 90px;
+}
+.hero-split .hero-sub { margin: 0 0 38px; }
+.hero-split .hero-cta, .hero-split .hero-trust { justify-content: flex-start; }
+.hero-quote {
+  background: rgba(10,10,12,0.72); border: 1px solid rgba(255,255,255,0.14); border-radius: var(--radius);
+  padding: clamp(28px, 3.4vw, 40px); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 40px 100px -30px rgba(0,0,0,0.6);
+}
+.hero-quote h3 { font-size: clamp(1.3rem, 2vw, 1.6rem); }
+.hero-quote .lead-sm { color: rgba(255,255,255,0.65); font-size: 0.92rem; margin: 8px 0 24px; }
+.hero-quote .form { display: grid; gap: 14px; }
+.hero-quote-note { margin-top: 16px; text-align: center; font-size: 0.78rem; color: rgba(255,255,255,0.45); }
+@media (max-width: 900px) {
+  .hero-content.hero-split { grid-template-columns: 1fr; text-align: center; padding-top: 130px; }
+  .hero-split .hero-cta, .hero-split .hero-trust { justify-content: center; }
+}
 
 .hero-scroll {
   position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%);
