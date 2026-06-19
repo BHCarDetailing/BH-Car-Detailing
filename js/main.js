@@ -43,10 +43,17 @@
   );
   document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
 
-  /* ---------- Hero: zoom + fade as user scrolls ---------- */
+  /* ---------- Hero: zoom + fade as user scrolls (desktop only — on mobile,
+     focusing a form field auto-scrolls the page to clear the keyboard, which
+     would otherwise fade/translate the hero content away mid-typing) ---------- */
   const heroMedia = document.querySelector(".hero-media");
   const heroContent = document.querySelector(".hero-content");
-  if (heroMedia && heroContent && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  if (
+    heroMedia &&
+    heroContent &&
+    matchMedia("(min-width: 861px)").matches &&
+    !matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
     let ticking = false;
     window.addEventListener(
       "scroll",
