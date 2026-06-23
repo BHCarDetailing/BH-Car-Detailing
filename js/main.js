@@ -385,7 +385,10 @@
           calendly.dataset.loaded = "true";
           calendly.style.display = "block";
           const widget = document.createElement("div");
-          widget.className = "calendly-inline-widget";
+          /* Not "calendly-inline-widget" — Calendly's widget.js auto-scans for that exact
+             class on script load and crashes (parseOptions: null.split) when it finds one
+             with no data-url, since this codebase initializes it manually instead. */
+          widget.className = "calendly-inline-target";
           widget.style.minWidth = "320px";
           widget.style.height = "700px";
           calendly.appendChild(widget);
