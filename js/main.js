@@ -412,7 +412,7 @@
   /* ---------- Footer year ---------- */
   document.querySelectorAll("[data-year]").forEach((el) => (el.textContent = new Date().getFullYear()));
 
-  /* ---------- GA4: load gtag.js on first interaction (or after 5s, whichever first) ---------- */
+  /* ---------- GA4 + Google Ads: load gtag.js on first interaction (or after 5s, whichever first) ---------- */
   let gaLoaded = false;
   function loadGA() {
     if (gaLoaded) return;
@@ -423,6 +423,7 @@
     document.head.appendChild(script);
     gtag("js", new Date());
     gtag("config", "G-HS0SV535XW");
+    gtag("config", "AW-18229436014");
   }
   ["scroll", "click", "keydown", "touchstart", "mousemove"].forEach((evt) =>
     window.addEventListener(evt, loadGA, { once: true, passive: true })
