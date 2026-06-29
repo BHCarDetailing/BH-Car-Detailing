@@ -327,6 +327,15 @@
     render(0);
   }
 
+  /* ---------- Phone fields: digits only ---------- */
+  document.querySelectorAll('input[type="tel"]').forEach((input) => {
+    input.setAttribute("inputmode", "numeric");
+    input.addEventListener("input", () => {
+      const digitsOnly = input.value.replace(/\D/g, "");
+      if (digitsOnly !== input.value) input.value = digitsOnly;
+    });
+  });
+
   /* ---------- Forms: AJAX submit to Formspree (no off-site redirect) ---------- */
   const CALENDLY_URL = "https://calendly.com/bhcardetails/booknow?hide_event_type_details=1&hide_gdpr_banner=1";
   let calendlyReady = null;
