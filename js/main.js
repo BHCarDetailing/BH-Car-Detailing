@@ -464,4 +464,35 @@
     window.addEventListener(evt, loadGA, { once: true, passive: true })
   );
   setTimeout(loadGA, 5000);
+
+  /* ---------- Google Ads conversion: fire when a Calendly booking is completed ----------
+     Booking happens inside the Calendly embed (#book + the post-form widget). Calendly
+     posts a window message {event:"calendly.event_scheduled"} the moment an appointment is
+     booked, which is our real "purchase". We listen for it and report the Google Ads
+     conversion (AW-18229436014 / label Q2rjCJ686sccEO68vPRD, value $1). A guard prevents
+     double-counting if Calendly fires the message more than once. */
+  let bookingConversionSent = false;
+  function reportBookingConversion() {
+    if (bookingConversionSent) return;
+    bookingConversionSent = true;
+    loadGA(); // make sure gtag.js + the AW- config are loaded before we send
+    if (typeof gtag === "function") {
+      gtag("event", "conversion", {
+        send_to: "AW-18229436014/Q2rjCJ686sccEO68vPRD",
+        value: 1.0,
+        currency: "USD",
+      });
+    }
+  }
+  window.addEventListener("message", function (e) {
+    if (
+      e &&
+      e.origin === "https://calendly.com" &&
+      e.data &&
+      typeof e.data.event === "string" &&
+      e.data.event === "calendly.event_scheduled"
+    ) {
+      reportBookingConversion();
+    }
+  });
 })();
