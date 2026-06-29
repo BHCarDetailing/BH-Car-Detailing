@@ -333,7 +333,7 @@
   function loadCalendly() {
     if (window.Calendly) return Promise.resolve();
     if (calendlyReady) return calendlyReady;
-    calendlyReady = new Promise((resolve) => {
+    calendlyReady = new Promise((resolve, reject) => {
       const link = document.createElement("link");
       link.rel = "stylesheet";
       link.href = "https://assets.calendly.com/assets/external/widget.css";
@@ -342,6 +342,7 @@
       script.src = "https://assets.calendly.com/assets/external/widget.js";
       script.async = true;
       script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Calendly script failed to load"));
       document.body.appendChild(script);
     });
     return calendlyReady;
@@ -350,14 +351,29 @@
   /* ---------- Static Calendly widget in the #book section ---------- */
   const bookCalendly = document.getElementById("book-calendly-widget");
   if (bookCalendly) {
+    const bookFallback = document.getElementById("book-calendly-fallback");
+    const showBookFallback = () => bookFallback && (bookFallback.style.display = "flex");
+    const hideBookFallback = () => bookFallback && (bookFallback.style.display = "none");
     const bcio = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
           if (!e.isIntersecting) return;
           bcio.unobserve(bookCalendly);
-          loadCalendly().then(() => {
-            window.Calendly && window.Calendly.initInlineWidget({ url: CALENDLY_URL, parentElement: bookCalendly });
-          });
+          const fallbackTimer = setTimeout(showBookFallback, 8000);
+          loadCalendly()
+            .then(() => {
+              if (!window.Calendly) throw new Error("Calendly failed to initialize");
+              window.Calendly.initInlineWidget({ url: CALENDLY_URL, parentElement: bookCalendly });
+              clearTimeout(fallbackTimer);
+              setTimeout(() => {
+                if (bookCalendly.querySelector("iframe")) hideBookFallback();
+                else showBookFallback();
+              }, 8000);
+            })
+            .catch(() => {
+              clearTimeout(fallbackTimer);
+              showBookFallback();
+            });
         });
       },
       { rootMargin: "300px 0px" }
