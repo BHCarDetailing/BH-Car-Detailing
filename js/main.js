@@ -347,6 +347,24 @@
     return calendlyReady;
   }
 
+  /* ---------- Static Calendly widget in the #book section ---------- */
+  const bookCalendly = document.getElementById("book-calendly-widget");
+  if (bookCalendly) {
+    const bcio = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (!e.isIntersecting) return;
+          bcio.unobserve(bookCalendly);
+          loadCalendly().then(() => {
+            window.Calendly && window.Calendly.initInlineWidget({ url: CALENDLY_URL, parentElement: bookCalendly });
+          });
+        });
+      },
+      { rootMargin: "300px 0px" }
+    );
+    bcio.observe(bookCalendly);
+  }
+
   document.querySelectorAll("form.form").forEach((form) => {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();

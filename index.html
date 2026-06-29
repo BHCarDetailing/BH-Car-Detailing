@@ -697,13 +697,13 @@
       <div class="reveal">
         <span class="eyebrow" style="justify-content:center">Ready When You Are</span>
         <h2>Ready To Transform<br /><em class="accent">Your Vehicle?</em></h2>
-        <p>Book your detail today — or grab a free quote in under a minute.</p>
+        <p>Pick a date and time below — confirmed instantly, no back-and-forth.</p>
       </div>
 
       <div class="quote-grid" style="text-align:left;margin-top:20px">
         <div class="reveal">
-          <h3 class="h3" style="margin-bottom:10px">Get a Free Quote</h3>
-          <p class="lead" style="font-size:0.95rem">Tell us about your vehicle and we'll text you a quote — usually within the hour. First-time clients: mention the <strong style="color:var(--white)">10% off</strong> offer or <a href="#" data-open-promo style="color:var(--accent);text-decoration:underline;text-underline-offset:3px">claim it here</a>.</p>
+          <h3 class="h3" style="margin-bottom:10px">Book Your Detail</h3>
+          <p class="lead" style="font-size:0.95rem">Choose a day and time that works for you and we'll confirm right away. First-time clients get <strong style="color:var(--white)">10% off</strong> — <a href="#" data-open-promo style="color:var(--accent);text-decoration:underline;text-underline-offset:3px">claim it here</a>.</p>
           <div class="contact-list">
             <a href="tel:+19177831038"><span class="ico">📞</span> (917) 783-1038 — call or text</a>
             <a href="sms:+19177831038"><span class="ico">💬</span> Text us — usually instant</a>
@@ -712,43 +712,7 @@
             <div><span class="ico">🕐</span> Available 24/7 · All of South Florida</div>
           </div>
         </div>
-        <form class="form reveal reveal-d1" action="https://formspree.io/f/xlgapllq" method="POST" data-success-msg="Thanks — we've got your request! We'll text or call you shortly (usually within the hour) with pricing and next steps. Prefer to lock in a time right now? Pick a slot below — no back-and-forth needed.">
-          <input type="hidden" name="_subject" value="💬 NEW QUOTE REQUEST — bhcardetails.com" />
-          <div class="form-row">
-            <div class="field"><input type="text" name="name" aria-label="Name" placeholder="Name" required /></div>
-            <div class="field"><input type="tel" name="phone" aria-label="Phone" placeholder="Phone" required /></div>
-          </div>
-          <div class="field"><input type="email" name="email" aria-label="Email" placeholder="Email" /></div>
-          <div class="form-row">
-            <div class="field">
-              <select aria-label="Service" name="service" required>
-                <option value="" disabled selected>Service</option>
-                <option>Exterior Wash Starts @ $60</option>
-                <option>Interior Wash Starts @ $70</option>
-                <option>Full Wash Starts @ $118</option>
-                <option>Light Detail Starts @ $180</option>
-                <option>Full Detail Starts @ $250</option>
-                <option>Paint Correction Starts @ $550</option>
-                <option>Ceramic Coating Starts @ $750</option>
-                <option>Maintenance Plan</option>
-                <option>Not sure — recommend for me</option>
-              </select>
-            </div>
-            <div class="field">
-              <select aria-label="Vehicle type" name="vehicle" required>
-                <option value="" disabled selected>Vehicle type</option>
-                <option>Sedan / Coupe / Convertible</option>
-                <option>SUV / Crossover</option>
-                <option>Truck / Oversized</option>
-                <option>Exotic / Luxury</option>
-              </select>
-            </div>
-          </div>
-          <div class="field"><input type="text" name="location" aria-label="City / Neighborhood" placeholder="City / Neighborhood" /></div>
-          <div class="field"><textarea name="message" aria-label="Anything we should know? (condition, add-ons, timing…)" placeholder="Anything we should know? (condition, add-ons, timing…)"></textarea></div>
-          <button class="btn btn-primary btn-lg" type="submit">Get My Free Quote</button>
-        </form>
-        <div class="calendly-embed" style="display:none"></div>
+        <div class="calendly-embed-inline reveal reveal-d1" id="book-calendly-widget"></div>
       </div>
     </div>
   </section>

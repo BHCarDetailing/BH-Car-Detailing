@@ -818,6 +818,8 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
 .quote-grid .form-msg { grid-column: 2; }
 .quote-grid .calendly-embed { grid-column: 1 / -1; margin-top: 32px; }
 .quote-grid .calendly-embed .calendly-inline-target { border-radius: var(--radius); overflow: hidden; }
+.calendly-embed-inline { min-height: 700px; border-radius: var(--radius); overflow: hidden; background: rgba(255, 255, 255, 0.04); }
+.calendly-embed-inline .calendly-spinner { margin-top: 280px; }
 
 .contact-list { display: grid; gap: 22px; margin-top: 40px; }
 .contact-list a, .contact-list div { display: flex; align-items: center; gap: 16px; font-weight: 600; font-size: 1.05rem; transition: color 0.3s; }
@@ -970,7 +972,7 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
   .nav-toggle { display: block; }
 
   .why-grid, .quote-grid, .ba-wrap, .showcase, .ig-editorial { grid-template-columns: 1fr; }
-  .quote-grid .form { order: -1; }
+  .quote-grid .form, .quote-grid .calendly-embed-inline { order: -1; }
   .quote-grid .form-msg { grid-column: 1; }
   .ig-feature { aspect-ratio: 16/10; }
   .process { grid-template-columns: 1fr; gap: 34px; text-align: left; }
