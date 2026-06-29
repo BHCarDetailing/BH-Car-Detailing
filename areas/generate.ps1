@@ -120,6 +120,15 @@ $cities = @(
     intro2 = "Beach air and afternoon storms don't discriminate, so we build most Hollywood clients a recurring wash or detail schedule, with paint correction and ceramic coating available for anything that needs to look as good as the view."
   },
   @{
+    slug = "bay-harbor"; city = "Bay Harbor Islands"
+    h1top = "Bay Harbor Islands,"; h1accent = "Boutique Clean."
+    hero = "../assets/photos/IMG_6562-1200w.jpg"
+    side = "../assets/photos/IMG_1461-900w.jpg"
+    hoods = "the Bay Harbor business district, the residential islands along Camino Real and Broad Causeway, and the Bal Harbour border"
+    intro1 = "Bay Harbor Islands packs serious car culture into two tiny islands — luxury sedans and weekend exotics parked along quiet, palm-lined streets just minutes from Bal Harbour. BH brings the full mobile studio right to your driveway or building garage here, working quickly and quietly in a town where everyone notices a clean car."
+    intro2 = "Being surrounded by water on both sides means salt air reaches every vehicle here, island-side or causeway-side. Most Bay Harbor clients pair a recurring wash schedule with ceramic coating so the car never has to play catch-up."
+  },
+  @{
     slug = "hallandale"; city = "Hallandale Beach"
     h1top = "Hallandale Beach,"; h1accent = "Detailed Right."
     hero = "../assets/photos/IMG_6513-1200w.jpg"
