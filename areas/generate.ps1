@@ -91,6 +91,42 @@ $cities = @(
     hoods = "Williams Island, Turnberry Isle, the Aventura Mall corridor and the Hallandale Beach border"
     intro1 = "Aventura runs on curated everything — from the mall to the marinas to the golf courses at Turnberry. Your car shouldn't be the exception. BH brings concierge mobile detailing to the gated towers and golf communities here, working inside private garages and porte-cocheres without disrupting the building's flow."
     intro2 = "Quick exterior refreshes between shopping trips, full interior resets after the school carpool, or a complete paint correction and ceramic coating on a new arrival — we handle all of it on-site, on your schedule, with the same care we'd give a car on the showroom floor."
+  },
+  @{
+    slug = "surfside"; city = "Surfside"
+    h1top = "Surfside,"; h1accent = "Quietly Exceptional."
+    hero = "../assets/photos/IMG_1457-1200w.jpg"
+    side = "../assets/photos/IMG_6515-900w.jpg"
+    hoods = "the Surfside business district, Indian Creek-adjacent streets and the boutique condo corridor along Collins Avenue"
+    intro1 = "Surfside is small, walkable and quietly wealthy — a stretch of boutique condo towers and single-family streets tucked between Bal Harbour and Miami Beach. BH brings the full mobile studio right to your building or driveway here, with the same discretion residents expect from everything else in town."
+    intro2 = "Ocean proximity means salt air is working on your paint every day, even a few blocks back from the water. Most Surfside clients pair a recurring wash schedule with ceramic protection so the car never falls behind the building's own upkeep."
+  },
+  @{
+    slug = "south-beach"; city = "South Beach"
+    h1top = "South Beach,"; h1accent = "Showroom Ready."
+    hero = "../assets/photos/IMG_6507-1200w.jpg"
+    side = "../assets/photos/IMG_1456-900w.jpg"
+    hoods = "Ocean Drive, Lincoln Road, the Art Deco District and the South of Fifth condo corridor"
+    intro1 = "South Beach moves at valet speed — double-parked exotics outside Ocean Drive hotels, condo garages stacked three deep, and a paint job that's judged the second you pull up. BH works inside that pace: fast, clean mobile details at your building, valet stand or garage, scheduled around your night out or your next shoot."
+    intro2 = "Between the salt air and the constant foot traffic, South Beach paint takes a beating fast. We recommend ceramic coating for anything garaged within blocks of the beach, and recurring details for cars that live the SoBe lifestyle full time."
+  },
+  @{
+    slug = "hollywood"; city = "Hollywood"
+    h1top = "Hollywood,"; h1accent = "Beach-Town Clean."
+    hero = "../assets/photos/IMG_6493-1200w.jpg"
+    side = "../assets/photos/IMG_8502-900w.jpg"
+    hoods = "Hollywood Beach, the Broadwalk corridor, Hollywood Lakes and Emerald Hills"
+    intro1 = "Hollywood has that rare mix of laid-back beach town and serious car culture — classics parked along the Broadwalk, daily drivers in Hollywood Lakes, weekend exotics tucked into Emerald Hills garages. BH brings the mobile studio to all of it, working at your home or office with the same standard whether it's a daily driver or a Bentley."
+    intro2 = "Beach air and afternoon storms don't discriminate, so we build most Hollywood clients a recurring wash or detail schedule, with paint correction and ceramic coating available for anything that needs to look as good as the view."
+  },
+  @{
+    slug = "hallandale"; city = "Hallandale Beach"
+    h1top = "Hallandale Beach,"; h1accent = "Detailed Right."
+    hero = "../assets/photos/IMG_6513-1200w.jpg"
+    side = "../assets/photos/IMG_1443-900w.jpg"
+    hoods = "the Three Islands, Golden Isles, the Village at Gulfstream Park area and the beachfront condo corridor"
+    intro1 = "Hallandale Beach sits right between Aventura and Hollywood, with its own dense run of waterfront towers and gated island communities. BH brings the full mobile setup into those garages and driveways — quiet, professional and quick, whether it's a quick refresh before Gulfstream Park or a full detail at home on the Isles."
+    intro2 = "Waterfront living means constant exposure to salt air and sun, so ceramic coating and a recurring maintenance plan are the most popular combination here — your car stays protected without you ever having to think about it."
   }
 )
 

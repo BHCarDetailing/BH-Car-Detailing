@@ -348,31 +348,30 @@
     return calendlyReady;
   }
 
-  /* ---------- Static Calendly widget in the #book section ---------- */
+  /* ---------- Static Calendly widget in the #book section ----------
+     Calendly's own postMessage events ("calendly.event_type_viewed",
+     page-height reports, etc.) fire even when the embed is visibly stuck
+     internally — there's no reliable signal from the parent page that
+     tells us the calendar actually rendered. So we don't try to detect
+     success/failure at all: the always-visible link below the embed
+     (in the HTML) is the real fallback. We only show the overlay for the
+     one case we *can* detect for certain — the widget script itself
+     failing to load (blocked by an ad blocker, offline, etc.). */
   const bookCalendly = document.getElementById("book-calendly-widget");
   if (bookCalendly) {
     const bookFallback = document.getElementById("book-calendly-fallback");
-    const showBookFallback = () => bookFallback && (bookFallback.style.display = "flex");
-    const hideBookFallback = () => bookFallback && (bookFallback.style.display = "none");
     const bcio = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
           if (!e.isIntersecting) return;
           bcio.unobserve(bookCalendly);
-          const fallbackTimer = setTimeout(showBookFallback, 8000);
           loadCalendly()
             .then(() => {
               if (!window.Calendly) throw new Error("Calendly failed to initialize");
               window.Calendly.initInlineWidget({ url: CALENDLY_URL, parentElement: bookCalendly });
-              clearTimeout(fallbackTimer);
-              setTimeout(() => {
-                if (bookCalendly.querySelector("iframe")) hideBookFallback();
-                else showBookFallback();
-              }, 8000);
             })
             .catch(() => {
-              clearTimeout(fallbackTimer);
-              showBookFallback();
+              if (bookFallback) bookFallback.style.display = "flex";
             });
         });
       },
