@@ -349,14 +349,12 @@
   }
 
   /* ---------- Static Calendly widget in the #book section ----------
-     Calendly's own postMessage events ("calendly.event_type_viewed",
-     page-height reports, etc.) fire even when the embed is visibly stuck
-     internally — there's no reliable signal from the parent page that
-     tells us the calendar actually rendered. So we don't try to detect
-     success/failure at all: the always-visible link below the embed
-     (in the HTML) is the real fallback. We only show the overlay for the
-     one case we *can* detect for certain — the widget script itself
-     failing to load (blocked by an ad blocker, offline, etc.). */
+     Uses Calendly's own declarative embed pattern (a data-url'd
+     .calendly-inline-widget element + widget.js, exactly like the code
+     Calendly's UI hands out) instead of the manual initInlineWidget()
+     API — widget.js auto-scans the DOM for that element on load and
+     wires it up itself. We only lazy-load the script on scroll-into-view
+     and show a fallback if the script itself fails to load. */
   const bookCalendly = document.getElementById("book-calendly-widget");
   if (bookCalendly) {
     const bookFallback = document.getElementById("book-calendly-fallback");
@@ -365,14 +363,9 @@
         entries.forEach((e) => {
           if (!e.isIntersecting) return;
           bcio.unobserve(bookCalendly);
-          loadCalendly()
-            .then(() => {
-              if (!window.Calendly) throw new Error("Calendly failed to initialize");
-              window.Calendly.initInlineWidget({ url: CALENDLY_URL, parentElement: bookCalendly });
-            })
-            .catch(() => {
-              if (bookFallback) bookFallback.style.display = "flex";
-            });
+          loadCalendly().catch(() => {
+            if (bookFallback) bookFallback.style.display = "flex";
+          });
         });
       },
       { rootMargin: "300px 0px" }
