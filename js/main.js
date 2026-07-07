@@ -212,13 +212,13 @@
   const quiz = document.getElementById("quiz");
   if (quiz) {
     const PACKAGES = {
-      washExt: { name: "Exterior Car Wash", price: "$40", per: "per session", desc: "A meticulous hand wash & dry to keep your paint clean between details." },
-      washFull: { name: "Full Car Wash", price: "$80", per: "per session", desc: "Hand wash & dry outside, light vacuum and clean windows inside. The perfect reset." },
-      light: { name: "Light Detail", price: "$180", per: "per session", desc: "Full interior scrub — jambs, sills, crevices, fabric & carpet — plus hand wash, wheels and a 3-month spray sealant." },
-      full: { name: "Full Detail", price: "$250", per: "per session", desc: "Our complete restoration detail: deep carpet & fabric extraction, scuff removal, wheel wells, 3-month wax + 6-month paint sealant." },
-      correction: { name: "Paint Correction", price: "$550", per: "per vehicle", desc: "Single-stage machine polish that removes swirl marks, light scratches and defects — restoring true clarity and gloss." },
-      ceramic: { name: "Ceramic Coating", price: "$750", per: "per vehicle", desc: "Clay bar decontamination + professional-grade ceramic. Hydrophobic, UV-resistant protection that lasts 1–2 years." },
-      maintenance: { name: "Maintenance Plan", price: "Custom", per: "weekly · biweekly · monthly", desc: "A recurring plan tailored to your vehicle and schedule, so it never falls out of showroom condition." },
+      washExt: { name: "Exterior Car Wash", desc: "A meticulous hand wash & dry to keep your paint clean between details." },
+      washFull: { name: "Full Car Wash", desc: "Hand wash & dry outside, light vacuum and clean windows inside. The perfect reset." },
+      light: { name: "Light Detail", desc: "Full interior scrub — jambs, sills, crevices, fabric & carpet — plus hand wash, wheels and a 3-month spray sealant." },
+      full: { name: "Full Detail", desc: "Our complete restoration detail: deep carpet & fabric extraction, scuff removal, wheel wells, 3-month wax + 6-month paint sealant." },
+      correction: { name: "Paint Correction", desc: "Single-stage machine polish that removes swirl marks, light scratches and defects — restoring true clarity and gloss." },
+      ceramic: { name: "Ceramic Coating", desc: "Clay bar decontamination + professional-grade ceramic. Hydrophobic, UV-resistant protection that lasts 1–2 years." },
+      maintenance: { name: "Maintenance Plan", desc: "A recurring plan tailored to your vehicle and schedule, so it never falls out of showroom condition." },
     };
 
     const QUESTIONS = [
@@ -303,7 +303,6 @@
         resultEl.innerHTML =
           "<span class='eyebrow'>The Best Option For You</span>" +
           "<h3>" + p.name + "</h3>" +
-          "<div class='price'>" + p.price + "<small>" + p.per + "</small></div>" +
           "<p>" + p.desc + "</p>" +
           "<div class='actions'>" +
           "<a class='btn btn-primary' href='#book'>Book This Package</a>" +
@@ -381,6 +380,24 @@
     );
     bcio.observe(bookCalendly);
   }
+
+  /* ---------- Per-package "Book" buttons: open a Calendly popup ----------
+     Each button carries a data-calendly URL for its own event type. We open
+     Calendly's popup widget on click; if the widget script can't load we fall
+     back to the element's own href (a new tab to the same booking URL). */
+  document.querySelectorAll("[data-calendly]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      const base = el.getAttribute("data-calendly");
+      if (!base) return;
+      e.preventDefault();
+      const url = base + (base.indexOf("?") > -1 ? "&" : "?") + "hide_gdpr_banner=1";
+      const open = () => window.Calendly && window.Calendly.initPopupWidget({ url });
+      if (window.Calendly) { open(); return; }
+      loadCalendly()
+        .then(open)
+        .catch(() => window.open(base, "_blank", "noopener"));
+    });
+  });
 
   document.querySelectorAll("form.form").forEach((form) => {
     form.addEventListener("submit", async (e) => {

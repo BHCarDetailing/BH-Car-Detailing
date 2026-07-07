@@ -195,19 +195,16 @@
     "url": "https://bhcardetails.com",
     "telephone": "+19177831038",
     "email": "info@bhcardetails.com",
-    "priceRange": "$60 - $750",
     "address": { "@type": "PostalAddress", "addressLocality": "Miami", "addressRegion": "FL", "addressCountry": "US" },
     "areaServed": ["Miami FL", "Brickell FL", "Key Biscayne FL", "Miami Beach FL", "South Beach FL", "Surfside FL", "Bay Harbor Islands FL", "Sunny Isles Beach FL", "Coral Gables FL", "Doral FL", "Aventura FL", "Hallandale Beach FL", "Hollywood FL", "Fort Lauderdale FL", "Boca Raton FL", "South Florida"],
     "openingHours": "Mo-Su 00:00-24:00",
     "sameAs": ["https://www.instagram.com/bhdetails", "https://www.tiktok.com/@bhdetails"],
     "makesOffer": [
-      { "@type": "Offer", "name": "Exterior Car Wash", "price": "60", "priceCurrency": "USD" },
-      { "@type": "Offer", "name": "Interior Car Wash", "price": "70", "priceCurrency": "USD" },
-      { "@type": "Offer", "name": "Full Car Wash", "price": "118", "priceCurrency": "USD" },
-      { "@type": "Offer", "name": "Light Detail", "price": "180", "priceCurrency": "USD" },
-      { "@type": "Offer", "name": "Full Detail", "price": "250", "priceCurrency": "USD" },
-      { "@type": "Offer", "name": "Ceramic Coating", "price": "750", "priceCurrency": "USD" },
-      { "@type": "Offer", "name": "Paint Correction", "price": "550", "priceCurrency": "USD" }
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Mobile Car Wash" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Light Detail" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Full Detail" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Ceramic Coating" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Paint Correction" } }
     ]
   }
   </script>
@@ -217,7 +214,7 @@
     "@type": "FAQPage",
     "mainEntity": [
       { "@type": "Question", "name": "Do you really come to me?", "acceptedAnswer": { "@type": "Answer", "text": "Yes — BH is 100% mobile. We bring everything: water, power and professional-grade products. Your home, office or garage anywhere in South Florida becomes our studio." } },
-      { "@type": "Question", "name": "How much does a detail cost?", "acceptedAnswer": { "@type": "Answer", "text": "Washes start at $60, details start at $180 ($250 for a Full Detail), ceramic coating is $750 and paint correction is $550. Prices shown are for sedans, coupes and convertibles. First-time clients get 10% off." } },
+      { "@type": "Question", "name": "How do I get a price?", "acceptedAnswer": { "@type": "Answer", "text": "Pick the package that fits your vehicle and book a time — we confirm your exact rate before we arrive. Rates depend on your vehicle's size and condition, and first-time clients get 10% off." } },
       { "@type": "Question", "name": "How long does it take?", "acceptedAnswer": { "@type": "Answer", "text": "A wash is under an hour. A Light or Full Detail typically runs 2 to 4 hours. Paint correction and ceramic coating are usually a full-day appointment." } },
       { "@type": "Question", "name": "Do you work on exotic and luxury cars?", "acceptedAnswer": { "@type": "Answer", "text": "It is our specialty. We have cared for Ferrari, Lamborghini, McLaren, Rolls-Royce, Bentley, Porsche and AMG builds, and we give daily drivers the same attention." } }
     ]
@@ -348,185 +345,84 @@
       <div class="trust-stars reveal">★★★★★</div>
       <h2 class="trust-head reveal">5.0 Rating on Google</h2>
       <p class="trust-sub reveal">Trusted by enthusiasts, collectors and daily drivers across South Florida — from weekend exotics to the car you drive every day.</p>
-      <div class="trust-brands reveal">
-        <span>Ferrari</span>
-        <span>Lamborghini</span>
-        <span>Porsche</span>
-        <span>Rolls-Royce</span>
-        <span>Bentley</span>
-        <span>McLaren</span>
-        <span>Bugatti</span>
-        <span>Pagani</span>
-        <span>Mercedes-AMG</span>
+      <div class="brand-marquee reveal" aria-label="Brands we detail">
+        <div class="brand-track">
+          <span>Lamborghini</span><span>Porsche</span><span>Rolls-Royce</span><span>Bentley</span><span>McLaren</span><span>Maserati</span><span>Mercedes-AMG</span><span>Range Rover</span><span>Aston Martin</span><span>Bugatti</span><span>Audi RS</span><span>Ferrari</span>
+          <span aria-hidden="true">Lamborghini</span><span aria-hidden="true">Porsche</span><span aria-hidden="true">Rolls-Royce</span><span aria-hidden="true">Bentley</span><span aria-hidden="true">McLaren</span><span aria-hidden="true">Maserati</span><span aria-hidden="true">Mercedes-AMG</span><span aria-hidden="true">Range Rover</span><span aria-hidden="true">Aston Martin</span><span aria-hidden="true">Bugatti</span><span aria-hidden="true">Audi RS</span><span aria-hidden="true">Ferrari</span>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- ================= FEATURED SERVICES ================= -->
-  <section class="section section-white" id="services">
-    <div class="container">
-      <div class="section-head reveal">
-        <span class="eyebrow">Featured Services</span>
-        <h2 class="h2">Choose Your <em class="accent">Package.</em></h2>
-        <p class="lead">Transparent pricing, professional-grade products. Prices shown for sedans, coupes &amp; convertibles — larger vehicles adjusted at booking.</p>
-      </div>
-
-      <div class="feat-grid reveal">
-        <!-- Full Detail — Most Popular -->
-        <article class="feat-card popular">
-          <div class="feat-img">
-            <picture>
-              <source type="image/webp" srcset="assets/photos/IMG_6511-600w.webp 600w, assets/photos/IMG_6511-900w.webp 900w, assets/photos/IMG_6511-1200w.webp 1200w" sizes="(max-width:860px) 100vw, 50vw" />
-              <img src="assets/photos/IMG_6511-900w.jpg" alt="Full detail on a performance car by BH Car Detailing" loading="lazy" width="900" height="900" />
-            </picture>
-          </div>
-          <div class="feat-body">
-            <span class="feat-tag">Most Popular</span>
-            <h3>Full Detail</h3>
-            <p>Our complete restoration detail — deep carpet &amp; fabric extraction, scuff removal, wheel wells, plus 3-month wax and 6-month paint sealant.</p>
-            <details class="feat-more">
-              <summary>What's included</summary>
-              <ul>
-                <li>Everything in Light Detail</li>
-                <li>Deep carpet &amp; fabric scrub</li>
-                <li>Scuff removal</li>
-                <li>Wheel wells cleaned</li>
-                <li>3-month wax + 6-month paint sealant</li>
-              </ul>
-            </details>
-            <div class="feat-meta">
-              <div class="feat-price">$250<small>per session</small></div>
-              <a href="#book" class="btn btn-dark btn-sm">Book</a>
-            </div>
-          </div>
-        </article>
-
-        <!-- Light Detail -->
-        <article class="feat-card">
-          <div class="feat-img">
-            <picture>
-              <source type="image/webp" srcset="assets/photos/IMG_6490-600w.webp 600w, assets/photos/IMG_6490-900w.webp 900w, assets/photos/IMG_6490-1200w.webp 1200w" sizes="(max-width:860px) 100vw, 50vw" />
-              <img src="assets/photos/IMG_6490-900w.jpg" alt="Light detail on a luxury sedan by BH Car Detailing" loading="lazy" width="900" height="900" />
-            </picture>
-          </div>
-          <div class="feat-body">
-            <h3>Light Detail</h3>
-            <p>A full interior scrub plus a careful hand wash — the reset your vehicle needs between full details.</p>
-            <details class="feat-more">
-              <summary>What's included</summary>
-              <ul>
-                <li>Vacuum, wipe down &amp; windows</li>
-                <li>Door jambs &amp; sills scrubbed</li>
-                <li>Crevices blown out, fabric &amp; carpet scrubbed</li>
-                <li>Hand wash + bug splatter treatment</li>
-                <li>Tires &amp; rims cleaned</li>
-                <li>3-month spray sealant</li>
-              </ul>
-            </details>
-            <div class="feat-meta">
-              <div class="feat-price">$180<small>per session</small></div>
-              <a href="#book" class="btn btn-dark btn-sm">Book</a>
-            </div>
-          </div>
-        </article>
-
-        <!-- Paint Correction -->
-        <article class="feat-card">
-          <div class="feat-img">
-            <picture>
-              <source type="image/webp" srcset="assets/photos/IMG_6637-600w.webp 600w, assets/photos/IMG_6637-900w.webp 900w, assets/photos/IMG_6637-1200w.webp 1200w" sizes="(max-width:860px) 100vw, 50vw" />
-              <img src="assets/photos/IMG_6637-900w.jpg" alt="Machine polishing during paint correction by BH Car Detailing" loading="lazy" width="900" height="900" />
-            </picture>
-          </div>
-          <div class="feat-body">
-            <h3>Paint Correction</h3>
-            <p>Single-stage machine polish that removes swirl marks, light scratches and defects — restoring true clarity and depth before any coating.</p>
-            <div class="feat-meta">
-              <div class="feat-price">$550<small>per vehicle</small></div>
-              <a href="paint-correction.html" class="btn btn-dark btn-sm">Explore Paint Correction</a>
-            </div>
-          </div>
-        </article>
-
-        <!-- Ceramic Coating -->
-        <article class="feat-card">
-          <div class="feat-img">
-            <picture>
-              <source type="image/webp" srcset="assets/photos/IMG_6556-600w.webp 600w, assets/photos/IMG_6556-900w.webp 900w, assets/photos/IMG_6556-1200w.webp 1200w" sizes="(max-width:860px) 100vw, 50vw" />
-              <img src="assets/photos/IMG_6556-900w.jpg" alt="Ceramic coated Porsche GT3 RS with deep gloss by BH Car Detailing" loading="lazy" width="900" height="900" />
-            </picture>
-          </div>
-          <div class="feat-body">
-            <h3>Ceramic Coating</h3>
-            <p>Clay bar decontamination plus professional-grade ceramic — hydrophobic, UV-resistant protection that holds its gloss for 1–2 years.</p>
-            <div class="feat-meta">
-              <div class="feat-price">$750<small>per vehicle</small></div>
-              <a href="ceramic-coating.html" class="btn btn-dark btn-sm">Explore Ceramic Coating</a>
-            </div>
-          </div>
-        </article>
-
-        <!-- Wash Packages -->
-        <article class="feat-card">
-          <div class="feat-img">
-            <picture>
-              <source type="image/webp" srcset="assets/photos/IMG_1462-600w.webp 600w, assets/photos/IMG_1462-900w.webp 900w, assets/photos/IMG_1462-1200w.webp 1200w" sizes="(max-width:860px) 100vw, 50vw" />
-              <img src="assets/photos/IMG_1462-900w.jpg" alt="Exterior hand wash on a luxury vehicle by BH Car Detailing" loading="lazy" width="900" height="900" />
-            </picture>
-          </div>
-          <div class="feat-body">
-            <h3>Wash Packages</h3>
-            <p>A meticulous hand wash &amp; dry — never a tunnel, never a brush. The fastest way to keep your paint clean between details.</p>
-            <details class="feat-more">
-              <summary>Choose your wash</summary>
-              <ul>
-                <li>Exterior Wash — $60 per session</li>
-                <li>Interior Wash — $70 per session</li>
-                <li>Full Wash (in &amp; out) — $118 per session</li>
-              </ul>
-            </details>
-            <div class="feat-meta">
-              <div class="feat-price">From $60<small>per session</small></div>
-              <a href="#book" class="btn btn-dark btn-sm">Book</a>
-            </div>
-          </div>
-        </article>
-
-        <!-- Maintenance Plans -->
-        <article class="feat-card">
-          <div class="feat-img">
-            <picture>
-              <source type="image/webp" srcset="assets/photos/IMG_1460-600w.webp 600w, assets/photos/IMG_1460-900w.webp 900w, assets/photos/IMG_1460-1200w.webp 1200w" sizes="(max-width:860px) 100vw, 50vw" />
-              <img src="assets/photos/IMG_1460-900w.jpg" alt="Maintained luxury vehicle cared for by BH Car Detailing" loading="lazy" width="900" height="900" />
-            </picture>
-          </div>
-          <div class="feat-body">
-            <h3>Maintenance Plans</h3>
-            <p>Weekly, biweekly or monthly care tailored to your vehicle and schedule — so it never falls out of showroom condition.</p>
-            <div class="feat-meta">
-              <div class="feat-price">Custom<small>weekly · biweekly · monthly</small></div>
-              <a href="#book" class="btn btn-dark btn-sm">Get Quote</a>
-            </div>
-            <a href="maintenance-plans.html" style="font-size:0.85rem;font-weight:700;text-decoration:underline;text-underline-offset:3px">View Plan Tiers →</a>
-          </div>
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <!-- ================= BEST OPTION FOR YOU ================= -->
-  <section class="section" id="best-option">
+  <!-- ================= PROCESS ================= -->
+  <section class="section section-light" id="process">
     <div class="container">
       <div class="section-head center reveal">
-        <span class="eyebrow">Not Sure Where To Start?</span>
-        <h2 class="h2">The Best Option <em class="accent">For You.</em></h2>
-        <p class="lead">Answer three quick questions and we'll match your vehicle with the right package — no guesswork, no upselling.</p>
+        <span class="eyebrow">How It Works</span>
+        <h2 class="h2">Effortless, <em class="accent">By Design.</em></h2>
       </div>
-      <div class="quiz reveal" id="quiz">
-        <div class="quiz-progress"><i class="on"></i><i></i><i></i></div>
-        <div class="quiz-step"></div>
-        <div class="quiz-result"></div>
+      <div class="process reveal">
+        <div class="step"><div class="dot">📅</div><div><h4>Book</h4><p>Pick your package and time. Online, call or text — 60 seconds.</p></div></div>
+        <div class="step"><div class="dot">🚐</div><div><h4>Arrival</h4><p>We arrive at your home, office or garage, fully equipped.</p></div></div>
+        <div class="step"><div class="dot">🧼</div><div><h4>Detail</h4><p>Methodical, panel-by-panel care with premium products.</p></div></div>
+        <div class="step"><div class="dot">🔍</div><div><h4>Inspection</h4><p>A final walkthrough together — nothing gets missed.</p></div></div>
+        <div class="step"><div class="dot">🔑</div><div><h4>Delivery</h4><p>Keys back. Showroom condition. Photos for the group chat.</p></div></div>
       </div>
+    </div>
+  </section>
+
+  <!-- ================= PACKAGES — comparison checklist ================= -->
+  <section class="section section-white" id="services">
+    <div class="container">
+      <div class="section-head center reveal">
+        <span class="eyebrow">Compare Packages</span>
+        <h2 class="h2">Find Your <em class="accent">Detail.</em></h2>
+        <p class="lead">Every package side by side — interior and exterior. Pick the one that fits your vehicle and book in a couple of taps.</p>
+      </div>
+      <div class="pkg-wrap reveal">
+        <table class="pkg-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th><span class="pkg-name">Mobile Car Wash<span class="pkg-short">Wash</span></span></th>
+              <th class="pkg-col-popular"><span class="pkg-name">Light Detail<span class="pkg-short">Light</span></span><span class="pkg-pop-tag">Most Popular</span></th>
+              <th><span class="pkg-name">Full Detail<span class="pkg-short">Full</span></span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="pkg-group"><td colspan="4">Exterior</td></tr>
+            <tr><td class="pkg-feat">Foam bath &amp; hand wash</td><td class="pkg-check">✓</td><td class="pkg-col-popular pkg-check">✓</td><td class="pkg-check">✓</td></tr>
+            <tr><td class="pkg-feat">Spray sealant / drying aid</td><td class="pkg-check">✓</td><td class="pkg-col-popular pkg-check">✓</td><td class="pkg-check">✓</td></tr>
+            <tr><td class="pkg-feat">Tires &amp; rims cleaned + dressed</td><td class="pkg-dash">—</td><td class="pkg-col-popular pkg-check">✓</td><td class="pkg-check">✓</td></tr>
+            <tr><td class="pkg-feat">Door jambs &amp; gas cap cleaned</td><td class="pkg-dash">—</td><td class="pkg-col-popular pkg-check">✓</td><td class="pkg-check">✓</td></tr>
+            <tr><td class="pkg-feat">Exterior glass streak-free finish</td><td class="pkg-dash">—</td><td class="pkg-col-popular pkg-check">✓</td><td class="pkg-check">✓</td></tr>
+            <tr><td class="pkg-feat">Wheel wells cleaned</td><td class="pkg-dash">—</td><td class="pkg-col-popular pkg-dash">—</td><td class="pkg-check">✓</td></tr>
+            <tr><td class="pkg-feat">Wax &amp; ceramic seal (3 months)</td><td class="pkg-dash">—</td><td class="pkg-col-popular pkg-dash">—</td><td class="pkg-check">✓</td></tr>
+            <tr><td class="pkg-feat">Clay bar decontamination</td><td class="pkg-dash">—</td><td class="pkg-col-popular pkg-dash">—</td><td class="pkg-check">✓</td></tr>
+            <tr class="pkg-group"><td colspan="4">Interior</td></tr>
+            <tr><td class="pkg-feat">Two-stage vacuum</td><td class="pkg-check">✓</td><td class="pkg-col-popular pkg-check">✓</td><td class="pkg-check">✓</td></tr>
+            <tr><td class="pkg-feat">Floor mats cleaned</td><td class="pkg-check">✓</td><td class="pkg-col-popular pkg-check">✓</td><td class="pkg-check">✓</td></tr>
+            <tr><td class="pkg-feat">Full air purge blow-out</td><td class="pkg-dash">—</td><td class="pkg-col-popular pkg-check">✓</td><td class="pkg-check">✓</td></tr>
+            <tr><td class="pkg-feat">Plastic, vinyl &amp; leather wiped down</td><td class="pkg-dash">—</td><td class="pkg-col-popular pkg-check">✓</td><td class="pkg-check">✓</td></tr>
+            <tr><td class="pkg-feat">Interior glass streak-free finish</td><td class="pkg-dash">—</td><td class="pkg-col-popular pkg-check">✓</td><td class="pkg-check">✓</td></tr>
+            <tr><td class="pkg-feat">Cloth seats shampooed &amp; extracted</td><td class="pkg-dash">—</td><td class="pkg-col-popular pkg-dash">—</td><td class="pkg-check">✓</td></tr>
+            <tr><td class="pkg-feat">Leather scrubbed &amp; conditioned</td><td class="pkg-dash">—</td><td class="pkg-col-popular pkg-dash">—</td><td class="pkg-check">✓</td></tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td></td>
+              <td><a class="btn btn-dark btn-sm" data-calendly="https://calendly.com/bhcardetails/mobile-wash" href="https://calendly.com/bhcardetails/mobile-wash" target="_blank" rel="noopener">Book</a></td>
+              <td class="pkg-col-popular"><a class="btn btn-dark btn-sm" data-calendly="https://calendly.com/bhcardetails/light-detail" href="https://calendly.com/bhcardetails/light-detail" target="_blank" rel="noopener">Book</a></td>
+              <td><a class="btn btn-dark btn-sm" data-calendly="https://calendly.com/bhcardetails/full-detail" href="https://calendly.com/bhcardetails/full-detail" target="_blank" rel="noopener">Book</a></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="pkg-focus reveal">
+        <h4>Full Detail — Choose Your Focus</h4>
+        <p>Includes exterior clay bar decontamination <em>or</em> interior deep-clean — your choice at booking. Add both when you book.</p>
+      </div>
+      <p class="pkg-fine reveal">★ Starting packages are set for sedans, coupes &amp; convertibles. Heavily soiled vehicles, SUVs, trucks, and exotics or technical vehicles may be adjusted at booking.</p>
     </div>
   </section>
 
@@ -557,25 +453,8 @@
         <ul class="why-list reveal">
           <li>Licensed, insured &amp; professional-grade products only</li>
           <li>Trusted with Bugatti, Pagani &amp; seven-figure builds</li>
-          <li>Transparent pricing — no surprises at your door</li>
+          <li>Straightforward booking — no surprises at your door</li>
         </ul>
-      </div>
-    </div>
-  </section>
-
-  <!-- ================= PROCESS ================= -->
-  <section class="section section-white" id="process">
-    <div class="container">
-      <div class="section-head center reveal">
-        <span class="eyebrow">How It Works</span>
-        <h2 class="h2">Effortless, <em class="accent">By Design.</em></h2>
-      </div>
-      <div class="process reveal">
-        <div class="step"><div class="dot">📅</div><div><h4>Book</h4><p>Pick your package and time. Online, call or text — 60 seconds.</p></div></div>
-        <div class="step"><div class="dot">🚐</div><div><h4>Arrival</h4><p>We arrive at your home, office or garage, fully equipped.</p></div></div>
-        <div class="step"><div class="dot">🧼</div><div><h4>Detail</h4><p>Methodical, panel-by-panel care with premium products.</p></div></div>
-        <div class="step"><div class="dot">🔍</div><div><h4>Inspection</h4><p>A final walkthrough together — nothing gets missed.</p></div></div>
-        <div class="step"><div class="dot">🔑</div><div><h4>Delivery</h4><p>Keys back. Showroom condition. Photos for the group chat.</p></div></div>
       </div>
     </div>
   </section>
@@ -634,27 +513,52 @@
   <!-- ================= SERVICE AREAS ================= -->
   <section class="section section-light" id="areas">
     <div class="container">
-      <div class="section-head reveal">
+      <div class="section-head center reveal">
         <span class="eyebrow">Service Areas</span>
         <h2 class="h2">We Come <em class="accent">To You.</em></h2>
         <p class="lead">Fully mobile across South Florida — your driveway, office or garage becomes our studio.</p>
       </div>
-      <div class="areas-grid reveal">
-        <a class="area-card" href="areas/miami.html">Miami Mobile Detailing <span>→</span></a>
-        <a class="area-card" href="areas/brickell.html">Brickell Mobile Detailing <span>→</span></a>
-        <a class="area-card" href="areas/key-biscayne.html">Key Biscayne Mobile Detailing <span>→</span></a>
-        <a class="area-card" href="areas/miami-beach.html">Miami Beach Mobile Detailing <span>→</span></a>
-        <a class="area-card" href="areas/south-beach.html">South Beach Mobile Detailing <span>→</span></a>
-        <a class="area-card" href="areas/surfside.html">Surfside Mobile Detailing <span>→</span></a>
-        <a class="area-card" href="areas/bay-harbor.html">Bay Harbor Islands Mobile Detailing <span>→</span></a>
-        <a class="area-card" href="areas/sunny-isles.html">Sunny Isles Mobile Detailing <span>→</span></a>
-        <a class="area-card" href="areas/coral-gables.html">Coral Gables Mobile Detailing <span>→</span></a>
-        <a class="area-card" href="areas/doral.html">Doral Mobile Detailing <span>→</span></a>
-        <a class="area-card" href="areas/aventura.html">Aventura Mobile Detailing <span>→</span></a>
-        <a class="area-card" href="areas/hallandale.html">Hallandale Beach Mobile Detailing <span>→</span></a>
-        <a class="area-card" href="areas/hollywood.html">Hollywood Mobile Detailing <span>→</span></a>
-        <a class="area-card" href="areas/fort-lauderdale.html">Fort Lauderdale Mobile Detailing <span>→</span></a>
-        <a class="area-card" href="areas/boca-raton.html">Boca Raton Mobile Detailing <span>→</span></a>
+      <div class="areas-panel reveal">
+        <div class="areas-chips">
+          <a class="area-chip" href="areas/miami.html">Miami</a>
+          <a class="area-chip" href="areas/brickell.html">Brickell</a>
+          <a class="area-chip" href="areas/key-biscayne.html">Key Biscayne</a>
+          <a class="area-chip" href="areas/miami-beach.html">Miami Beach</a>
+          <a class="area-chip" href="areas/south-beach.html">South Beach</a>
+          <a class="area-chip" href="areas/surfside.html">Surfside</a>
+          <a class="area-chip" href="areas/bay-harbor.html">Bay Harbor Islands</a>
+          <a class="area-chip" href="areas/sunny-isles.html">Sunny Isles</a>
+          <a class="area-chip" href="areas/coral-gables.html">Coral Gables</a>
+          <a class="area-chip" href="areas/doral.html">Doral</a>
+          <a class="area-chip" href="areas/aventura.html">Aventura</a>
+          <a class="area-chip" href="areas/hallandale.html">Hallandale Beach</a>
+          <a class="area-chip" href="areas/hollywood.html">Hollywood</a>
+          <a class="area-chip" href="areas/fort-lauderdale.html">Fort Lauderdale</a>
+          <a class="area-chip" href="areas/boca-raton.html">Boca Raton</a>
+        </div>
+        <ul class="areas-where">
+          <li>Your home or office parking</li>
+          <li>Apartment complexes (with permission)</li>
+          <li>Office buildings &amp; commercial lots</li>
+          <li>Available 7 days a week, 9am – 6pm</li>
+        </ul>
+        <p class="areas-note">A travel fee applies for locations more than 15 miles from Sunny Isles. We'll confirm any applicable fees when you book.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= BEST OPTION FOR YOU ================= -->
+  <section class="section" id="best-option">
+    <div class="container">
+      <div class="section-head center reveal">
+        <span class="eyebrow">Not Sure Where To Start?</span>
+        <h2 class="h2">The Best Option <em class="accent">For You.</em></h2>
+        <p class="lead">Answer three quick questions and we'll match your vehicle with the right package — no guesswork, no upselling.</p>
+      </div>
+      <div class="quiz reveal" id="quiz">
+        <div class="quiz-progress"><i class="on"></i><i></i><i></i></div>
+        <div class="quiz-step"></div>
+        <div class="quiz-result"></div>
       </div>
     </div>
   </section>
@@ -697,8 +601,8 @@
           <p>Yes — BH is 100% mobile. We bring everything: water, power and professional-grade products. Your home, office or garage anywhere in South Florida becomes our studio. You don't have to drive anywhere or wait in a lobby.</p>
         </details>
         <details class="faq-item">
-          <summary>How much does a detail cost?</summary>
-          <p>Washes start at $60, details start at $180 ($250 for a Full Detail), ceramic coating is $750 and paint correction is $550. Prices shown are for sedans, coupes and convertibles — larger vehicles are adjusted at booking. First-time clients get 10% off.</p>
+          <summary>How do I get a price?</summary>
+          <p>Pick the package that fits your vehicle and book a time — we confirm your exact rate before we arrive. Starting packages are set for sedans, coupes and convertibles; heavily soiled vehicles, SUVs, trucks and exotics may be adjusted at booking. First-time clients get 10% off.</p>
         </details>
         <details class="faq-item">
           <summary>How long does it take?</summary>
