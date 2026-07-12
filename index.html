@@ -66,6 +66,7 @@
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+    [id] { scroll-margin-top: 92px; }
     body { font-family: var(--font-sans); background: var(--black); color: var(--white); line-height: 1.6; font-size: 16px; overflow-x: hidden; }
     img, video { max-width: 100%; display: block; }
     a { color: inherit; text-decoration: none; }
@@ -163,6 +164,7 @@
     }
     .hero-scroll { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 0.65rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--silver); }
     .hero-scroll::after { content: ""; width: 1px; height: 44px; background: linear-gradient(var(--silver), transparent); animation: scrollPulse 2s var(--ease) infinite; }
+    @media (max-width: 900px) { .hero-scroll { display: none; } }
     @keyframes scrollPulse { 0% { transform: scaleY(0); transform-origin: top; } 50% { transform: scaleY(1); transform-origin: top; } 51% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
     .reveal { opacity: 0; transform: translateY(36px); transition: opacity 0.9s var(--ease), transform 0.9s var(--ease); }
     .reveal.in { opacity: 1; transform: none; }
@@ -411,9 +413,9 @@
           <tfoot>
             <tr>
               <td></td>
-              <td><a class="btn btn-dark btn-sm" data-calendly="https://calendly.com/bhcardetails/mobile-wash" href="https://calendly.com/bhcardetails/mobile-wash" target="_blank" rel="noopener">Book</a></td>
-              <td class="pkg-col-popular"><a class="btn btn-dark btn-sm" data-calendly="https://calendly.com/bhcardetails/light-detail" href="https://calendly.com/bhcardetails/light-detail" target="_blank" rel="noopener">Book</a></td>
-              <td><a class="btn btn-dark btn-sm" data-calendly="https://calendly.com/bhcardetails/full-detail" href="https://calendly.com/bhcardetails/full-detail" target="_blank" rel="noopener">Book</a></td>
+              <td><a class="btn btn-dark btn-sm" href="#book">Book</a></td>
+              <td class="pkg-col-popular"><a class="btn btn-dark btn-sm" href="#book">Book</a></td>
+              <td><a class="btn btn-dark btn-sm" href="#book">Book</a></td>
             </tr>
           </tfoot>
         </table>
@@ -423,6 +425,41 @@
         <p>Includes exterior clay bar decontamination <em>or</em> interior deep-clean — your choice at booking. Add both when you book.</p>
       </div>
       <p class="pkg-fine reveal">★ Starting packages are set for sedans, coupes &amp; convertibles. Heavily soiled vehicles, SUVs, trucks, and exotics or technical vehicles may be adjusted at booking.</p>
+    </div>
+  </section>
+
+  <!-- ================= BIG CTA + BOOKING ================= -->
+  <section class="section cta" id="book">
+    <div class="container">
+      <div class="reveal">
+        <span class="eyebrow" style="justify-content:center">Ready When You Are</span>
+        <h2>Ready To Transform<br /><em class="accent">Your Vehicle?</em></h2>
+        <p>Pick a date and time below — confirmed instantly, no back-and-forth.</p>
+      </div>
+
+      <div class="quote-grid" style="text-align:left;margin-top:20px">
+        <div class="reveal">
+          <h3 class="h3" style="margin-bottom:10px">Book Your Detail</h3>
+          <p class="lead" style="font-size:0.95rem">Choose a day and time that works for you and we'll confirm right away. First-time clients get <strong style="color:var(--white)">10% off</strong> — <a href="#" data-open-promo style="color:var(--accent);text-decoration:underline;text-underline-offset:3px">claim it here</a>.</p>
+          <div class="contact-list">
+            <a href="tel:+19177831038"><span class="ico">📞</span> (917) 783-1038 — call or text</a>
+            <a href="mailto:info@bhcardetails.com"><span class="ico">✉️</span> info@bhcardetails.com</a>
+            <a href="https://www.instagram.com/bhdetails" target="_blank" rel="noopener"><span class="ico">📸</span> @bhdetails</a>
+            <div><span class="ico">🕐</span> Available 24/7 · All of South Florida</div>
+          </div>
+        </div>
+        <div class="reveal reveal-d1">
+          <div class="calendly-embed-inline calendly-inline-widget" data-url="https://calendly.com/bhcardetails/booknow?hide_gdpr_banner=1" id="book-calendly-widget" style="min-width:320px;height:700px">
+            <div class="calendly-fallback" id="book-calendly-fallback" style="display:none">
+              <p class="lead" style="font-size:0.9rem;margin-bottom:18px">The calendar's taking a while to load.</p>
+              <a href="https://calendly.com/bhcardetails/booknow" target="_blank" rel="noopener" class="btn btn-primary">Open Booking Calendar</a>
+            </div>
+          </div>
+          <div style="margin-top:18px;text-align:center">
+            <a href="https://calendly.com/bhcardetails/booknow" target="_blank" rel="noopener" class="btn btn-ghost">Having trouble? Open Booking Calendar in a New Tab</a>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -612,41 +649,6 @@
           <summary>Do you work on exotic and luxury cars?</summary>
           <p>It's our specialty. We've cared for Ferrari, Lamborghini, McLaren, Rolls-Royce, Bentley, Porsche and AMG builds — and we give daily drivers that exact same attention to detail.</p>
         </details>
-      </div>
-    </div>
-  </section>
-
-  <!-- ================= BIG CTA + BOOKING ================= -->
-  <section class="section cta" id="book">
-    <div class="container">
-      <div class="reveal">
-        <span class="eyebrow" style="justify-content:center">Ready When You Are</span>
-        <h2>Ready To Transform<br /><em class="accent">Your Vehicle?</em></h2>
-        <p>Pick a date and time below — confirmed instantly, no back-and-forth.</p>
-      </div>
-
-      <div class="quote-grid" style="text-align:left;margin-top:20px">
-        <div class="reveal">
-          <h3 class="h3" style="margin-bottom:10px">Book Your Detail</h3>
-          <p class="lead" style="font-size:0.95rem">Choose a day and time that works for you and we'll confirm right away. First-time clients get <strong style="color:var(--white)">10% off</strong> — <a href="#" data-open-promo style="color:var(--accent);text-decoration:underline;text-underline-offset:3px">claim it here</a>.</p>
-          <div class="contact-list">
-            <a href="tel:+19177831038"><span class="ico">📞</span> (917) 783-1038 — call or text</a>
-            <a href="mailto:info@bhcardetails.com"><span class="ico">✉️</span> info@bhcardetails.com</a>
-            <a href="https://www.instagram.com/bhdetails" target="_blank" rel="noopener"><span class="ico">📸</span> @bhdetails</a>
-            <div><span class="ico">🕐</span> Available 24/7 · All of South Florida</div>
-          </div>
-        </div>
-        <div class="reveal reveal-d1">
-          <div class="calendly-embed-inline calendly-inline-widget" data-url="https://calendly.com/bhcardetails/booknow?hide_gdpr_banner=1" id="book-calendly-widget" style="min-width:320px;height:700px">
-            <div class="calendly-fallback" id="book-calendly-fallback" style="display:none">
-              <p class="lead" style="font-size:0.9rem;margin-bottom:18px">The calendar's taking a while to load.</p>
-              <a href="https://calendly.com/bhcardetails/booknow" target="_blank" rel="noopener" class="btn btn-primary">Open Booking Calendar</a>
-            </div>
-          </div>
-          <div style="margin-top:18px;text-align:center">
-            <a href="https://calendly.com/bhcardetails/booknow" target="_blank" rel="noopener" class="btn btn-ghost">Having trouble? Open Booking Calendar in a New Tab</a>
-          </div>
-        </div>
       </div>
     </div>
   </section>

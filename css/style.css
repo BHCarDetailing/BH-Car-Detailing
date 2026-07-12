@@ -25,6 +25,8 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+/* Offset anchor jumps (e.g. Book → #book) so the target heading clears the fixed nav */
+[id] { scroll-margin-top: 92px; }
 
 body {
   font-family: var(--font-sans);
