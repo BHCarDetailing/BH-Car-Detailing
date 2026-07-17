@@ -9,8 +9,8 @@ authRoutes.post("/login", async (c) => {
   const ip = c.req.header("CF-Connecting-IP") ?? "local";
   if (await loginRateLimited(c.env.DB, ip)) return c.json({ error: "too_many_attempts" }, 429);
 
-  const body = await c.req.json<{ password?: string }>().catch(() => ({}) as { password?: string });
-  if (!body.password || !(await timingSafeEqualStr(body.password, c.env.ADMIN_PASSWORD))) {
+  const body = (await c.req.json().catch(() => null)) as { password?: string } | null;
+  if (typeof body?.password !== "string" || !(await timingSafeEqualStr(body.password, c.env.ADMIN_PASSWORD))) {
     await recordAttempt(c.env.DB, "login:" + ip);
     return c.json({ error: "invalid_password" }, 401);
   }

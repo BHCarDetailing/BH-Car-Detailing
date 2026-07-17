@@ -40,6 +40,14 @@ describe("login endpoint", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Set-Cookie")).toContain("bh_session=");
   });
+  it("returns 401 (not 500) for a null JSON body and counts the attempt", async () => {
+    const res = await SELF.fetch("http://x/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "null",
+    });
+    expect(res.status).toBe(401);
+  });
 });
 
 describe("requireAuth", () => {
