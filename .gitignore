@@ -8,3 +8,4 @@ dist/
 crm/public/
 .DS_Store
 Thumbs.db
+.superpowers/

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__4c9e34b0-7655-4a54-a58d-648b57e8efe7__list_websites",
+      "mcp__4c9e34b0-7655-4a54-a58d-648b57e8efe7__list_workspaces"
+    ]
+  }
+}
