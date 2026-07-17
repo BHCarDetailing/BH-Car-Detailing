@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bh-crm",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bh-crm",
+      "database_id": "00000000-0000-0000-0000-000000000000", // placeholder — replaced by real id at deploy (Task 12)
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "ALLOWED_ORIGINS": "http://localhost:4173,http://127.0.0.1:4173",
+    "HOME_TZ": "America/New_York"
+  },
+  "observability": { "enabled": true }
+}
