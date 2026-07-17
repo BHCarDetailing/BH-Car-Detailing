@@ -5,6 +5,9 @@ describe("normalizeEmail", () => {
   it("lowercases and trims", () => expect(normalizeEmail("  Bob@Email.COM ")).toBe("bob@email.com"));
   it("rejects non-emails", () => expect(normalizeEmail("not-an-email")).toBeNull());
   it("passes empty through as null", () => expect(normalizeEmail("")).toBeNull());
+  it("rejects garbage with multiple @", () => { expect(normalizeEmail("@@@@@")).toBeNull(); expect(normalizeEmail("a@@b.com")).toBeNull(); });
+  it("requires a dotted domain", () => expect(normalizeEmail("a@b")).toBeNull());
+  it("null and undefined are null", () => { expect(normalizeEmail(null)).toBeNull(); expect(normalizeEmail(undefined)).toBeNull(); });
 });
 
 describe("normalizePhone", () => {
@@ -12,6 +15,8 @@ describe("normalizePhone", () => {
   it("11-digit with 1 keeps it", () => expect(normalizePhone("1 917 783 1038")).toBe("+19177831038"));
   it("international with + kept as digits", () => expect(normalizePhone("+44 20 7946 0958")).toBe("+442079460958"));
   it("garbage is null", () => expect(normalizePhone("123")).toBeNull());
+  it("international 10-digit with + is preserved", () => expect(normalizePhone("+65 1234 5678")).toBe("+6512345678"));
+  it("null and undefined are null", () => { expect(normalizePhone(null)).toBeNull(); expect(normalizePhone(undefined)).toBeNull(); });
 });
 
 describe("cleanName", () => {
