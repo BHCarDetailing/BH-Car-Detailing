@@ -30,5 +30,5 @@ Bulk import:
 - Node is at C:\Program Files\nodejs — bash sessions need:
   export PATH="/c/Program Files/nodejs:$PATH"
 - From crm/: `npm run dev` (wrangler dev on :8787), `npm test` (vitest), `npm run migrate:local`.
-- Admin SPA source in `crm/admin/`, builds into `crm/public/` (served by the Worker).
+- Admin SPA (arrives in a later task): source will live in `crm/admin/`, building into `crm/public/` (served by the Worker).
 - When you add or change an endpoint: update `src/routes/agent.ts` schema AND this file.

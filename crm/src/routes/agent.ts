@@ -18,7 +18,9 @@ agentRoutes.get("/schema", (c) =>
     endpoints: [
       { method: "GET", path: "/api/health", description: "Liveness check (public)" },
       { method: "POST", path: "/api/lead", description: "Public lead capture (CORS-gated). Body: {name, phone, email, vehicle, message?, source, source_detail, ts, website}" },
+      { method: "OPTIONS", path: "/api/lead", description: "CORS preflight for the public lead endpoint" },
       { method: "POST", path: "/api/auth/login", description: "Body {password} -> session cookie" },
+      { method: "POST", path: "/api/auth/logout", description: "Clears the session cookie" },
       { method: "GET", path: "/api/contacts", description: "List. Query: search, stage, source, tag, limit (<=200), offset. Returns {items, total}" },
       { method: "POST", path: "/api/contacts", description: "Create. Body: {first_name?, last_name?, email?, phone?, address?, city?, stage?, source?, tags?, custom?}" },
       { method: "GET", path: "/api/contacts/:id", description: "Full contact + vehicles + parsed tags/custom" },

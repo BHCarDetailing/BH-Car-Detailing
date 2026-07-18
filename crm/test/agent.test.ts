@@ -13,6 +13,8 @@ describe("agent schema", () => {
     const s = (await res.json()) as { endpoints: Array<{ method: string; path: string }> };
     const paths = s.endpoints.map((e) => `${e.method} ${e.path}`);
     expect(paths).toContain("POST /api/lead");
+    expect(paths).toContain("POST /api/auth/logout");
+    expect(paths).toContain("OPTIONS /api/lead");
     expect(paths).toContain("GET /api/contacts");
     expect(paths).toContain("POST /api/contacts/bulk");
     expect(paths).toContain("GET /api/stats");
