@@ -35,7 +35,7 @@ publicRoutes.post("/lead", async (c) => {
   if (!body) return c.json({ ok: false, error: "bad_json" }, 400, h);
 
   // Spam checks — pretend success so bots learn nothing.
-  const ts = Number(body.ts);
+  const ts = typeof body.ts === "number" ? body.ts : NaN;
   if (typeof body.website === "string" && body.website !== "") return c.json({ ok: true }, 200, h);
   if (!Number.isFinite(ts) || Date.now() - ts < 2000) return c.json({ ok: true }, 200, h);
 
@@ -46,13 +46,13 @@ publicRoutes.post("/lead", async (c) => {
     c.env.DB, "SELECT COUNT(*) AS n FROM rl_events WHERE bucket = ? AND ts > ?", "lead:" + ip, cutoff);
   if ((rl?.n ?? 0) >= 10) return c.json({ ok: true }, 200, h);
 
-  const email = normalizeEmail(body.email as string | undefined);
-  const phone = normalizePhone(body.phone as string | undefined);
+  const email = normalizeEmail(typeof body.email === "string" ? body.email : undefined);
+  const phone = normalizePhone(typeof body.phone === "string" ? body.phone : undefined);
   if (!email && !phone) return c.json({ ok: false, error: "contact_info_required" }, 400, h);
 
   await run(c.env.DB, "INSERT INTO rl_events (bucket, ts) VALUES (?, ?)", "lead:" + ip, Date.now());
 
-  const name = cleanName(body.name as string | undefined);
+  const name = cleanName(typeof body.name === "string" ? body.name : undefined);
   const [first, ...rest] = (name ?? "").split(" ");
   const last = rest.join(" ");
   const source = typeof body.source === "string" ? body.source.slice(0, 50) : "website";

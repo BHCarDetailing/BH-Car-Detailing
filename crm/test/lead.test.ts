@@ -91,4 +91,21 @@ describe("POST /api/lead", () => {
     expect(res.status).toBe(204);
     expect(res.headers.get("Access-Control-Allow-Origin")).toBe(ORIGIN);
   });
+
+  it("non-string email/phone/name do not crash — 400 when no contact info", async () => {
+    const res = await post(leadBody({ email: 12345, phone: { nested: true }, name: 42 }));
+    expect(res.status).toBe(400);
+  });
+
+  it("non-string email with valid phone still stores the contact", async () => {
+    const res = await post(leadBody({ email: 12345, phone: "(305) 555-0177", name: "Guard Test" }));
+    expect(res.status).toBe(200);
+  });
+
+  it("ts null is treated as spam (nothing stored)", async () => {
+    await post(leadBody({ email: "tsnull@example.com", ts: null }));
+    const { env } = await import("cloudflare:test");
+    const { one } = await import("../src/lib/db");
+    expect(await one(env.DB, "SELECT id FROM contacts WHERE email = ?", "tsnull@example.com")).toBeNull();
+  });
 });
