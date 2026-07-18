@@ -16,7 +16,7 @@ activityWriteRoutes.post("/:id/activities", async (c) => {
   const id = c.req.param("id");
   const exists = await one(c.env.DB, "SELECT id FROM contacts WHERE id = ?", id);
   if (!exists) return c.json({ error: "not_found" }, 404);
-  const b = await c.req.json<{ type?: string; title?: string; payload?: unknown }>().catch(() => ({}) as { type?: string; title?: string; payload?: unknown });
+  const b = ((await c.req.json().catch(() => null)) ?? {}) as { type?: string; title?: string; payload?: unknown };
   if (!b.type || !MANUAL_ACTIVITY_TYPES.has(b.type) || !b.title) {
     return c.json({ error: "invalid_activity" }, 400);
   }
@@ -33,7 +33,7 @@ customFieldRoutes.get("/", async (c) =>
 );
 
 customFieldRoutes.post("/", async (c) => {
-  const b = await c.req.json<{ key?: string; label?: string; type?: string; options?: string[]; sort?: number }>().catch(() => ({}) as Record<string, never>);
+  const b = ((await c.req.json().catch(() => null)) ?? {}) as { key?: string; label?: string; type?: string; options?: string[]; sort?: number };
   if (!b.key || !/^[a-z0-9_]{1,40}$/.test(b.key) || !b.label || !b.type || !FIELD_TYPES.has(b.type)) {
     return c.json({ error: "invalid_field" }, 400);
   }
@@ -67,8 +67,8 @@ bulkRoutes.post("/bulk", async (c) => {
 
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
-    const email = normalizeEmail(r.email as string);
-    const phone = normalizePhone(r.phone as string);
+    const email = normalizeEmail(typeof r.email === "string" ? r.email : undefined);
+    const phone = normalizePhone(typeof r.phone === "string" ? r.phone : undefined);
     if (!email && !phone) { errors.push({ index: i, error: "contact_info_required" }); continue; }
     const stage = (r.stage as string) ?? "new";
     if (!STAGES.includes(stage as (typeof STAGES)[number])) { errors.push({ index: i, error: "invalid_stage" }); continue; }
@@ -88,8 +88,8 @@ bulkRoutes.post("/bulk", async (c) => {
            email = COALESCE(email, ?), phone = COALESCE(phone, ?),
            address = COALESCE(address, ?), city = COALESCE(city, ?), updated_at = ?
          WHERE id = ?`,
-        cleanName(r.first_name as string) ?? null, cleanName(r.last_name as string) ?? null,
-        email, phone, (r.address as string) ?? null, (r.city as string) ?? null, now, contactId
+        cleanName(typeof r.first_name === "string" ? r.first_name : undefined) ?? null, cleanName(typeof r.last_name === "string" ? r.last_name : undefined) ?? null,
+        email, phone, typeof r.address === "string" ? r.address : null, typeof r.city === "string" ? r.city : null, now, contactId
       );
     } else {
       created++;
@@ -101,8 +101,8 @@ bulkRoutes.post("/bulk", async (c) => {
             email_opt_in, created_at, updated_at)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,1,?,?)`,
         contactId,
-        cleanName(r.first_name as string) ?? null, cleanName(r.last_name as string) ?? null,
-        email, phone, (r.address as string) ?? null, (r.city as string) ?? null,
+        cleanName(typeof r.first_name === "string" ? r.first_name : undefined) ?? null, cleanName(typeof r.last_name === "string" ? r.last_name : undefined) ?? null,
+        email, phone, typeof r.address === "string" ? r.address : null, typeof r.city === "string" ? r.city : null,
         stage, (r.source as string) ?? "import",
         JSON.stringify(Array.isArray(r.tags) ? r.tags : []),
         JSON.stringify(typeof r.custom === "object" && r.custom ? r.custom : {}),

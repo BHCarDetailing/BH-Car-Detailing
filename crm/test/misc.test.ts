@@ -26,6 +26,14 @@ describe("manual activities", () => {
     });
     expect(res.status).toBe(400);
   });
+
+  it("activities POST with null JSON body returns 400", async () => {
+    const { id } = (await (await SELF.fetch("http://x/api/contacts", {
+      method: "POST", headers: AUTH, body: JSON.stringify({ first_name: "NB", email: "nb-act@x.com" }),
+    })).json()) as { id: string };
+    const res = await SELF.fetch(`http://x/api/contacts/${id}/activities`, { method: "POST", headers: AUTH, body: "null" });
+    expect(res.status).toBe(400);
+  });
 });
 
 describe("custom fields", () => {
@@ -45,6 +53,11 @@ describe("custom fields", () => {
     const res = await SELF.fetch("http://x/api/custom-fields", {
       method: "POST", headers: AUTH, body: JSON.stringify({ key: "Bad Key!", label: "x", type: "text" }),
     });
+    expect(res.status).toBe(400);
+  });
+
+  it("custom-fields POST with null JSON body returns 400", async () => {
+    const res = await SELF.fetch("http://x/api/custom-fields", { method: "POST", headers: AUTH, body: "null" });
     expect(res.status).toBe(400);
   });
 });
@@ -72,5 +85,20 @@ describe("bulk import", () => {
   it("bulk with null JSON body returns 400", async () => {
     const res = await SELF.fetch("http://x/api/contacts/bulk", { method: "POST", headers: AUTH, body: "null" });
     expect(res.status).toBe(400);
+  });
+
+  it("bulk row with numeric email becomes an error row, not a crash", async () => {
+    const res = await SELF.fetch("http://x/api/contacts/bulk", {
+      method: "POST", headers: AUTH,
+      body: JSON.stringify({ contacts: [
+        { first_name: "Good", email: "good-guard@x.com" },
+        { first_name: "Bad", email: 12345 },
+      ] }),
+    });
+    expect(res.status).toBe(200);
+    const out = (await res.json()) as { created: number; errors: Array<{ index: number }> };
+    expect(out.created).toBe(1);
+    expect(out.errors.length).toBe(1);
+    expect(out.errors[0].index).toBe(1);
   });
 });
