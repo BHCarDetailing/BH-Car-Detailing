@@ -4,6 +4,7 @@ import { authRoutes } from "./routes/auth";
 import { publicRoutes } from "./routes/public";
 import { contactRoutes, statsRoutes } from "./routes/contacts";
 import { activityWriteRoutes, bulkRoutes, customFieldRoutes } from "./routes/misc";
+import { agentRoutes } from "./routes/agent";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -14,5 +15,6 @@ app.route("/api/contacts", activityWriteRoutes); // POST /api/contacts/:id/activ
 app.route("/api/contacts", contactRoutes);
 app.route("/api/custom-fields", customFieldRoutes);
 app.route("/api/stats", statsRoutes);
+app.route("/api/agent", agentRoutes);
 
 export default app;
