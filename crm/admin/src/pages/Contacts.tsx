@@ -11,13 +11,21 @@ export default function Contacts() {
   const stage = params.get("stage") ?? "";
 
   useEffect(() => {
+    let stale = false;
     const q = new URLSearchParams();
     if (search) q.set("search", search);
     if (stage) q.set("stage", stage);
     q.set("limit", "100");
     api<{ items: Contact[]; total: number }>(`/api/contacts?${q}`)
-      .then((r) => { setItems(r.items); setTotal(r.total); })
+      .then((r) => {
+        if (stale) return;
+        setItems(r.items);
+        setTotal(r.total);
+      })
       .catch(() => {});
+    return () => {
+      stale = true;
+    };
   }, [search, stage]);
 
   function update(key: string, value: string) {

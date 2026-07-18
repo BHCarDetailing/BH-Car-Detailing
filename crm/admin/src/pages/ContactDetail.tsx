@@ -8,6 +8,7 @@ export default function ContactDetail() {
   const [contact, setContact] = useState<Contact | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [note, setNote] = useState("");
+  const [actionError, setActionError] = useState("");
 
   const load = useCallback(() => {
     if (!id) return;
@@ -17,18 +18,28 @@ export default function ContactDetail() {
   useEffect(load, [load]);
 
   async function setStage(stage: Stage) {
-    await api(`/api/contacts/${id}`, { method: "PATCH", body: JSON.stringify({ stage }) });
+    setActionError("");
+    try {
+      await api(`/api/contacts/${id}`, { method: "PATCH", body: JSON.stringify({ stage }) });
+    } catch {
+      setActionError("Couldn't update the stage — try again.");
+    }
     load();
   }
 
   async function addNote(e: React.FormEvent) {
     e.preventDefault();
     if (!note.trim()) return;
-    await api(`/api/contacts/${id}/activities`, {
-      method: "POST",
-      body: JSON.stringify({ type: "note", title: note.trim() }),
-    });
-    setNote("");
+    setActionError("");
+    try {
+      await api(`/api/contacts/${id}/activities`, {
+        method: "POST",
+        body: JSON.stringify({ type: "note", title: note.trim() }),
+      });
+      setNote("");
+    } catch {
+      setActionError("Couldn't save the note — try again.");
+    }
     load();
   }
 
@@ -52,6 +63,8 @@ export default function ContactDetail() {
             {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
+
+        {actionError && <p className="text-sm text-red-600">{actionError}</p>}
 
         <div className="flex gap-2">
           {contact.phone && (
