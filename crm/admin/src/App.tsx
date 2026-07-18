@@ -1,10 +1,9 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import Contacts from "./pages/Contacts";
+import ContactDetail from "./pages/ContactDetail";
 import Layout from "./components/Layout";
-
-function Placeholder({ name }: { name: string }) {
-  return <div className="p-8 text-neutral-500">{name} — coming in the next task.</div>;
-}
 
 export default function App() {
   return (
@@ -12,9 +11,9 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route element={<Layout />}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Placeholder name="Dashboard" />} />
-        <Route path="/contacts" element={<Placeholder name="Contacts" />} />
-        <Route path="/contacts/:id" element={<Placeholder name="Contact" />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/contacts" element={<Contacts />} />
+        <Route path="/contacts/:id" element={<ContactDetail />} />
       </Route>
     </Routes>
   );
