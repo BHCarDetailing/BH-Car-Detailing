@@ -6,7 +6,8 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "test": "vitest run",
-    "migrate:local": "wrangler d1 migrations apply bh-crm --local"
+    "migrate:local": "wrangler d1 migrations apply bh-crm --local",
+    "build:admin": "cd admin && npm install && npm run build"
   },
   "dependencies": {
     "hono": "^4.6.0"

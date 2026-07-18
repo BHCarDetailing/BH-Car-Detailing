@@ -2,6 +2,11 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "bh-crm",
   "main": "src/index.ts",
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/u/*"]
+  },
   "compatibility_date": "2026-07-01",
   "d1_databases": [
     {
