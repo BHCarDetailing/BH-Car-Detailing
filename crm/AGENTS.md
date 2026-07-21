@@ -25,6 +25,8 @@ Log a call:
     "http://127.0.0.1:8787/api/contacts/<id>/activities"
 Bulk import:
   POST /api/contacts/bulk  {"contacts":[{"first_name":"...","email":"...","source":"hubspot-import"}]}
+Jobs: GET/POST /api/jobs, GET/PATCH/DELETE /api/jobs/:id — statuses: draft|quoted|scheduled|in_progress|completed|paid|cancelled; price_cents is integer cents.
+Tasks: GET/POST /api/tasks, GET/PATCH/DELETE /api/tasks/:id — status open|done|dismissed.
 
 ## Development (Windows box)
 - Node is at C:\Program Files\nodejs — bash sessions need:
