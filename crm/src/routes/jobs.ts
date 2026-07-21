@@ -123,3 +123,9 @@ jobRoutes.delete("/:id", async (c) => {
   await run(c.env.DB, "DELETE FROM jobs WHERE id = ?", c.req.param("id"));
   return c.json({ ok: true });
 });
+
+jobRoutes.post("/:id/confirm", async (c) => {
+  const { sendJobConfirmation } = await import("../lib/reminders");
+  const out = await sendJobConfirmation(c.env, c.req.param("id"));
+  return c.json(out, out.status === "not_found" ? 404 : 200);
+});

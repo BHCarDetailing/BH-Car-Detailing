@@ -7,6 +7,7 @@ import { activityWriteRoutes, bulkRoutes, customFieldRoutes } from "./routes/mis
 import { agentRoutes } from "./routes/agent";
 import { jobRoutes } from "./routes/jobs";
 import { taskRoutes } from "./routes/tasks";
+import { runReminders } from "./lib/reminders";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -21,4 +22,9 @@ app.route("/api/jobs", jobRoutes);
 app.route("/api/tasks", taskRoutes);
 app.route("/api/agent", agentRoutes);
 
-export default app;
+export default {
+  fetch: app.fetch,
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(runReminders(env, Date.now()).then(() => undefined));
+  },
+};

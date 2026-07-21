@@ -38,6 +38,7 @@ agentRoutes.get("/schema", (c) =>
       { method: "GET", path: "/api/jobs/:id", description: "Job + contact + parsed services" },
       { method: "PATCH", path: "/api/jobs/:id", description: "Update job; status change logs job_status_changed, scheduling logs job_scheduled" },
       { method: "DELETE", path: "/api/jobs/:id", description: "Delete a job" },
+      { method: "POST", path: "/api/jobs/:id/confirm", description: "Send booking confirmation email to the contact (log-only until Resend configured); stamps confirmation_sent_at" },
       { method: "GET", path: "/api/tasks", description: "List tasks. Query: status (open|done|dismissed), contact_id, due_before. Returns {items}" },
       { method: "POST", path: "/api/tasks", description: "Create task. Body {title, contact_id?, job_id?, notes?, due_at?}" },
       { method: "PATCH", path: "/api/tasks/:id", description: "Update task; status=done stamps done_at" },
