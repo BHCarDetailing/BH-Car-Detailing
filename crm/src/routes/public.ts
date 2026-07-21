@@ -1,10 +1,12 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import type { Env } from "../types";
-import { nowIso, one, run, uuid } from "../lib/db";
+import { all, nowIso, one, run, uuid } from "../lib/db";
 import { cleanName, normalizeEmail, normalizePhone, vehicleSizeClass } from "../lib/normalize";
 import { logActivity } from "../lib/activity";
 import { verifyTwilioSignature } from "../lib/sms";
+import { timingSafeEqualStr } from "../lib/auth";
+import { buildIcs, type IcsJob } from "../lib/ics";
 
 export const publicRoutes = new Hono<{ Bindings: Env }>();
 
@@ -22,6 +24,26 @@ function corsHeaders(c: Context<{ Bindings: Env }>): Record<string, string> {
 }
 
 publicRoutes.get("/health", (c) => c.json({ ok: true, ts: nowIso() }));
+
+// --- iCloud/Google calendar subscription feed (token-guarded, no PII in path) ---
+publicRoutes.get("/calendar/:file", async (c) => {
+  const token = c.req.param("file").replace(/\.ics$/i, "");
+  const row = await one<{ value: string }>(c.env.DB, "SELECT value FROM settings WHERE key = 'ics_feed_token'");
+  if (!row?.value || !(await timingSafeEqualStr(token, row.value))) return c.text("not found", 404);
+  const jobs = await all<IcsJob>(
+    c.env.DB,
+    `SELECT j.id, j.title, j.status, j.scheduled_start, j.scheduled_end, j.address, j.price_cents,
+            ct.first_name, ct.last_name, ct.phone
+     FROM jobs j JOIN contacts ct ON ct.id = j.contact_id
+     WHERE j.scheduled_start IS NOT NULL
+       AND j.status IN ('scheduled','in_progress','completed','paid')
+     ORDER BY j.scheduled_start ASC`
+  );
+  return c.body(buildIcs(jobs), 200, {
+    "Content-Type": "text/calendar; charset=utf-8",
+    "Cache-Control": "no-cache",
+  });
+});
 
 publicRoutes.options("/lead", (c) =>
   new Response(null, {
