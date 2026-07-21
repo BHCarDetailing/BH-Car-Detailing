@@ -399,6 +399,42 @@
     });
   });
 
+  /* ---------- CRM bridge: mirror every lead into the BH CRM backend ---------- */
+  var CRM_ENDPOINT = "http://127.0.0.1:8787/api/lead"; /* TODO(deploy): switch to the workers.dev URL in Task 12 */
+  var PAGE_LOADED_AT = Date.now();
+
+  function crmSource(form) {
+    var path = location.pathname;
+    var area = path.match(/\/areas\/([a-z-]+)\.html$/);
+    if (area) return "area:" + area[1];
+    if (form.closest("#promo-modal")) return "promo-popup";
+    if (path.indexOf("ceramic") !== -1) return "page:ceramic-coating";
+    if (path.indexOf("paint-correction") !== -1) return "page:paint-correction";
+    if (path.indexOf("maintenance") !== -1) return "page:maintenance-plans";
+    return "hero-quote";
+  }
+
+  function postToCrm(form) {
+    try {
+      var fd = new FormData(form);
+      fetch(CRM_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: fd.get("name") || "",
+          phone: fd.get("phone") || "",
+          email: fd.get("email") || "",
+          vehicle: fd.get("vehicle") || "",
+          message: fd.get("message") || "",
+          source: crmSource(form),
+          source_detail: location.pathname + location.search,
+          ts: PAGE_LOADED_AT,
+          website: "",
+        }),
+      }).catch(function () {});
+    } catch (e) { /* never break the user-facing submit */ }
+  }
+
   document.querySelectorAll("form.form").forEach((form) => {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -424,6 +460,7 @@
           headers: { Accept: "application/json" },
         });
         if (!res.ok) throw new Error("Form submission failed");
+        postToCrm(form);
         form.reset();
         msg.classList.add("success");
         msg.textContent =
