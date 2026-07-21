@@ -39,6 +39,7 @@ export default function Contacts() {
     <div className="space-y-4 p-4 md:p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Contacts <span className="text-base font-normal text-neutral-400">({total})</span></h1>
+        <Link to="/import" className="min-h-[44px] rounded-md bg-neutral-900 px-4 py-2 text-sm text-white">Import</Link>
       </div>
       <div className="flex flex-wrap gap-3">
         <input
