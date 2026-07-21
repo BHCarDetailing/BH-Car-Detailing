@@ -1,11 +1,11 @@
 /* ============================================================
-   BH CAR DETAILING — Interactions
+   BH CAR DETAILING ΓÇö Interactions
    ============================================================ */
 
 (function () {
   "use strict";
 
-  /* ---------- Nav: transparent → solid on scroll ---------- */
+  /* ---------- Nav: transparent ΓåÆ solid on scroll ---------- */
   const nav = document.querySelector(".nav");
   const onScroll = () => nav && nav.classList.toggle("scrolled", window.scrollY > 40);
   onScroll();
@@ -43,7 +43,7 @@
   );
   document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
 
-  /* ---------- Hero: zoom + fade as user scrolls (desktop only — on mobile,
+  /* ---------- Hero: zoom + fade as user scrolls (desktop only ΓÇö on mobile,
      focusing a form field auto-scrolls the page to clear the keyboard, which
      would otherwise fade/translate the hero content away mid-typing) ---------- */
   const heroMedia = document.querySelector(".hero-media");
@@ -214,10 +214,10 @@
     const PACKAGES = {
       washExt: { name: "Exterior Car Wash", desc: "A meticulous hand wash & dry to keep your paint clean between details." },
       washFull: { name: "Full Car Wash", desc: "Hand wash & dry outside, light vacuum and clean windows inside. The perfect reset." },
-      light: { name: "Light Detail", desc: "Full interior scrub — jambs, sills, crevices, fabric & carpet — plus hand wash, wheels and a 3-month spray sealant." },
+      light: { name: "Light Detail", desc: "Full interior scrub ΓÇö jambs, sills, crevices, fabric & carpet ΓÇö plus hand wash, wheels and a 3-month spray sealant." },
       full: { name: "Full Detail", desc: "Our complete restoration detail: deep carpet & fabric extraction, scuff removal, wheel wells, 3-month wax + 6-month paint sealant." },
-      correction: { name: "Paint Correction", desc: "Single-stage machine polish that removes swirl marks, light scratches and defects — restoring true clarity and gloss." },
-      ceramic: { name: "Ceramic Coating", desc: "Clay bar decontamination + professional-grade ceramic. Hydrophobic, UV-resistant protection that lasts 1–2 years." },
+      correction: { name: "Paint Correction", desc: "Single-stage machine polish that removes swirl marks, light scratches and defects ΓÇö restoring true clarity and gloss." },
+      ceramic: { name: "Ceramic Coating", desc: "Clay bar decontamination + professional-grade ceramic. Hydrophobic, UV-resistant protection that lasts 1ΓÇô2 years." },
       maintenance: { name: "Maintenance Plan", desc: "A recurring plan tailored to your vehicle and schedule, so it never falls out of showroom condition." },
     };
 
@@ -225,7 +225,7 @@
       {
         q: "What does your vehicle need most right now?",
         options: [
-          { label: "A clean — it just needs a proper wash", value: "wash" },
+          { label: "A clean ΓÇö it just needs a proper wash", value: "wash" },
           { label: "A full refresh, inside and out", value: "detail" },
           { label: "Fix swirls, scratches & dull paint", value: "paint" },
           { label: "Long-term protection & gloss", value: "protect" },
@@ -234,9 +234,9 @@
       {
         q: "How is the interior looking?",
         options: [
-          { label: "Pretty clean — light dust at most", value: "light" },
-          { label: "Lived-in — needs a real scrub", value: "medium" },
-          { label: "Rough — stains, odors, heavy buildup", value: "heavy" },
+          { label: "Pretty clean ΓÇö light dust at most", value: "light" },
+          { label: "Lived-in ΓÇö needs a real scrub", value: "medium" },
+          { label: "Rough ΓÇö stains, odors, heavy buildup", value: "heavy" },
         ],
       },
       {
@@ -360,7 +360,7 @@
      Uses Calendly's own declarative embed pattern (a data-url'd
      .calendly-inline-widget element + widget.js, exactly like the code
      Calendly's UI hands out) instead of the manual initInlineWidget()
-     API — widget.js auto-scans the DOM for that element on load and
+     API ΓÇö widget.js auto-scans the DOM for that element on load and
      wires it up itself. We only lazy-load the script on scroll-into-view
      and show a fallback if the script itself fails to load. */
   const bookCalendly = document.getElementById("book-calendly-widget");
@@ -399,6 +399,42 @@
     });
   });
 
+  /* ---------- CRM bridge: mirror every lead into the BH CRM backend ---------- */
+  var CRM_ENDPOINT = "https://bh-crm.bhcardetails.workers.dev/api/lead";
+  var PAGE_LOADED_AT = Date.now();
+
+  function crmSource(form) {
+    var path = location.pathname;
+    var area = path.match(/\/areas\/([a-z-]+)\.html$/);
+    if (area) return "area:" + area[1];
+    if (form.closest("#promo-modal")) return "promo-popup";
+    if (path.indexOf("ceramic") !== -1) return "page:ceramic-coating";
+    if (path.indexOf("paint-correction") !== -1) return "page:paint-correction";
+    if (path.indexOf("maintenance") !== -1) return "page:maintenance-plans";
+    return "hero-quote";
+  }
+
+  function postToCrm(form) {
+    try {
+      var fd = new FormData(form);
+      fetch(CRM_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: fd.get("name") || "",
+          phone: fd.get("phone") || "",
+          email: fd.get("email") || "",
+          vehicle: fd.get("vehicle") || "",
+          message: fd.get("message") || "",
+          source: crmSource(form),
+          source_detail: location.pathname + location.search,
+          ts: PAGE_LOADED_AT,
+          website: "",
+        }),
+      }).catch(function () {});
+    } catch (e) { /* never break the user-facing submit */ }
+  }
+
   document.querySelectorAll("form.form").forEach((form) => {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -414,10 +450,11 @@
       msg.textContent = "";
       if (btn) {
         btn.disabled = true;
-        btn.textContent = "Sending…";
+        btn.textContent = "SendingΓÇª";
       }
 
       try {
+        postToCrm(form);
         const res = await fetch(form.action, {
           method: "POST",
           body: new FormData(form),
@@ -428,7 +465,7 @@
         msg.classList.add("success");
         msg.textContent =
           form.dataset.successMsg ||
-          "Thanks — we've got your info! We'll text or call you shortly (usually within the hour) with your quote and next steps.";
+          "Thanks ΓÇö we've got your info! We'll text or call you shortly (usually within the hour) with your quote and next steps.";
 
         if (typeof gtag === "function") gtag("event", "generate_lead");
 
@@ -437,7 +474,7 @@
           calendly.dataset.loaded = "true";
           calendly.style.display = "block";
           const widget = document.createElement("div");
-          /* Not "calendly-inline-widget" — Calendly's widget.js auto-scans for that exact
+          /* Not "calendly-inline-widget" ΓÇö Calendly's widget.js auto-scans for that exact
              class on script load and crashes (parseOptions: null.split) when it finds one
              with no data-url, since this codebase initializes it manually instead. */
           widget.className = "calendly-inline-target";
