@@ -454,13 +454,13 @@
       }
 
       try {
+        postToCrm(form);
         const res = await fetch(form.action, {
           method: "POST",
           body: new FormData(form),
           headers: { Accept: "application/json" },
         });
         if (!res.ok) throw new Error("Form submission failed");
-        postToCrm(form);
         form.reset();
         msg.classList.add("success");
         msg.textContent =

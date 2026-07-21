@@ -6,6 +6,7 @@ import { loginRateLimited, recordAttempt, signSession, timingSafeEqualStr } from
 export const authRoutes = new Hono<{ Bindings: Env }>();
 
 authRoutes.post("/login", async (c) => {
+  if (!c.env.ADMIN_PASSWORD || !c.env.SESSION_SECRET) return c.json({ error: "server_misconfigured" }, 500);
   const ip = c.req.header("CF-Connecting-IP") ?? "local";
   if (await loginRateLimited(c.env.DB, ip)) return c.json({ error: "too_many_attempts" }, 429);
 

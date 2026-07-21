@@ -10,7 +10,14 @@ export default defineWorkersConfig(async () => {
         workers: {
           singleWorker: true,
           wrangler: { configPath: "./wrangler.jsonc" },
-          miniflare: { bindings: { TEST_MIGRATIONS: migrations } },
+          miniflare: {
+            bindings: {
+              TEST_MIGRATIONS: migrations,
+              ADMIN_PASSWORD: "dev-password",
+              SESSION_SECRET: "dev-session-secret-change-me-0123456789",
+              AGENT_API_KEY: "dev-agent-key",
+            },
+          },
         },
       },
     },

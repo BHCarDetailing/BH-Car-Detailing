@@ -6,6 +6,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "migrate:local": "wrangler d1 migrations apply bh-crm --local",
     "build:admin": "cd admin && npm install && npm run build"
   },

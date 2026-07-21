@@ -12,8 +12,9 @@ async function hmacHex(secret: string, data: string): Promise<string> {
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** Constant-time-ish string compare: hash both sides, compare digests. */
-export async function timingSafeEqualStr(a: string, b: string): Promise<boolean> {
+/** Constant-time-ish string compare: hash both sides, compare digests. Fails closed on missing/empty input. */
+export async function timingSafeEqualStr(a: unknown, b: unknown): Promise<boolean> {
+  if (typeof a !== "string" || typeof b !== "string" || a.length === 0 || b.length === 0) return false;
   const [ha, hb] = await Promise.all([
     crypto.subtle.digest("SHA-256", enc.encode(a)),
     crypto.subtle.digest("SHA-256", enc.encode(b)),

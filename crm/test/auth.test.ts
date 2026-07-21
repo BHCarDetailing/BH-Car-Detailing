@@ -1,6 +1,6 @@
 import { SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { signSession, verifySession } from "../src/lib/auth";
+import { signSession, timingSafeEqualStr, verifySession } from "../src/lib/auth";
 
 describe("session signing", () => {
   it("round-trips a valid session", async () => {
@@ -47,6 +47,15 @@ describe("login endpoint", () => {
       body: "null",
     });
     expect(res.status).toBe(401);
+  });
+});
+
+describe("timingSafeEqualStr fail-closed", () => {
+  it("rejects empty and missing values", async () => {
+    expect(await timingSafeEqualStr("", "")).toBe(false);
+    expect(await timingSafeEqualStr("x", "")).toBe(false);
+    expect(await timingSafeEqualStr("", "x")).toBe(false);
+    expect(await timingSafeEqualStr("x", undefined)).toBe(false);
   });
 });
 

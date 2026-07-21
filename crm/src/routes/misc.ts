@@ -103,7 +103,7 @@ bulkRoutes.post("/bulk", async (c) => {
         contactId,
         cleanName(typeof r.first_name === "string" ? r.first_name : undefined) ?? null, cleanName(typeof r.last_name === "string" ? r.last_name : undefined) ?? null,
         email, phone, typeof r.address === "string" ? r.address : null, typeof r.city === "string" ? r.city : null,
-        stage, (r.source as string) ?? "import",
+        stage, typeof r.source === "string" ? r.source : "import",
         JSON.stringify(Array.isArray(r.tags) ? r.tags : []),
         JSON.stringify(typeof r.custom === "object" && r.custom ? r.custom : {}),
         now, now
@@ -122,7 +122,7 @@ bulkRoutes.post("/bulk", async (c) => {
     await logActivity(c.env.DB, {
       contactId, type: "import",
       title: existing ? "Merged by import" : "Created by import",
-      payload: { source: (r.source as string) ?? "import" },
+      payload: { source: typeof r.source === "string" ? r.source : "import" },
       actor: "agent",
     });
   }
