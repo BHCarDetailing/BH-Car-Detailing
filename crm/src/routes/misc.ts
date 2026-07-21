@@ -52,6 +52,24 @@ customFieldRoutes.delete("/:key", async (c) => {
   return c.json({ ok: true });
 });
 
+export const settingsRoutes = new Hono<{ Bindings: Env }>();
+settingsRoutes.use("*", requireAuth());
+
+settingsRoutes.get("/", async (c) => {
+  const rows = await all<{ key: string; value: string }>(c.env.DB, "SELECT key, value FROM settings");
+  const settings: Record<string, string> = {};
+  for (const r of rows) settings[r.key] = r.value;
+  return c.json({ settings });
+});
+
+settingsRoutes.put("/", async (c) => {
+  const b = ((await c.req.json().catch(() => null)) ?? {}) as { key?: string; value?: unknown };
+  if (!b.key || !/^[a-z0-9_]{1,60}$/.test(b.key)) return c.json({ error: "invalid_key" }, 400);
+  const value = typeof b.value === "string" ? b.value : JSON.stringify(b.value ?? "");
+  await run(c.env.DB, "INSERT INTO settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", b.key, value);
+  return c.json({ ok: true });
+});
+
 export const bulkRoutes = new Hono<{ Bindings: Env }>();
 bulkRoutes.use("*", requireAuth());
 

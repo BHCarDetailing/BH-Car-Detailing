@@ -19,6 +19,27 @@ function actorOf(c: { req: { header: (n: string) => string | undefined } }): str
   return c.req.header("Authorization")?.startsWith("Bearer ") ? "agent" : "human";
 }
 
+// Bridge touch-log: the tap-to-text / tap-to-call buttons fire this so the CRM
+// records the outreach even though the actual send happens in the phone's apps.
+contactRoutes.post("/:id/touch", async (c) => {
+  const id = c.req.param("id");
+  const b = ((await c.req.json().catch(() => null)) ?? {}) as Record<string, unknown>;
+  const channel = b.channel === "call" ? "call" : "sms";
+  const contact = await one<{ id: string; stage: string }>(c.env.DB, "SELECT id, stage FROM contacts WHERE id = ?", id);
+  if (!contact) return c.json({ error: "not_found" }, 404);
+  await logActivity(c.env.DB, {
+    contactId: id,
+    type: channel === "call" ? "call_logged" : "sms_logged",
+    title: channel === "call" ? "Called (from CRM)" : "Texted (from CRM)",
+    payload: { via: "bridge", direction: "outbound" },
+    actor: actorOf(c),
+  });
+  if (contact.stage === "new") {
+    await run(c.env.DB, "UPDATE contacts SET stage = 'contacted' WHERE id = ? AND stage = 'new'", id);
+  }
+  return c.json({ ok: true });
+});
+
 contactRoutes.get("/", async (c) => {
   const q = c.req.query();
   const limit = Math.min(Number(q.limit) > 0 ? Number(q.limit) : 50, 200);

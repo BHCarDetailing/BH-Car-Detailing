@@ -27,6 +27,9 @@ Bulk import:
   POST /api/contacts/bulk  {"contacts":[{"first_name":"...","email":"...","source":"hubspot-import"}]}
 Jobs: GET/POST /api/jobs, GET/PATCH/DELETE /api/jobs/:id — statuses: draft|quoted|scheduled|in_progress|completed|paid|cancelled; price_cents is integer cents.
 Tasks: GET/POST /api/tasks, GET/PATCH/DELETE /api/tasks/:id — status open|done|dismissed.
+Messages (SMS): GET /api/messages?contact_id= (thread), POST /api/messages {contact_id, body} (send; log-only until Twilio set), GET /api/messages/inbox. Bridge: POST /api/contacts/:id/touch {channel: sms|call}.
+Twilio webhooks (public, signature-verified, fail closed): POST /api/twilio/inbound, POST /api/twilio/status. Secrets: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER or TWILIO_MESSAGING_SERVICE_SID.
+Settings: GET /api/settings, PUT /api/settings {key, value} — e.g. sms_template.
 
 ## Development (Windows box)
 - Node is at C:\Program Files\nodejs — bash sessions need:

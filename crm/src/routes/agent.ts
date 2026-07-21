@@ -43,6 +43,10 @@ agentRoutes.get("/schema", (c) =>
       { method: "POST", path: "/api/tasks", description: "Create task. Body {title, contact_id?, job_id?, notes?, due_at?}" },
       { method: "PATCH", path: "/api/tasks/:id", description: "Update task; status=done stamps done_at" },
       { method: "DELETE", path: "/api/tasks/:id", description: "Delete a task" },
+      { method: "GET", path: "/api/messages", description: "SMS thread for a contact. Query: contact_id (required), limit. Ascending. Returns {items}" },
+      { method: "POST", path: "/api/messages", description: "Send SMS to a contact. Body {contact_id, body}. Logs sms_logged, advances new->contacted. Log-only until Twilio configured" },
+      { method: "GET", path: "/api/messages/inbox", description: "Latest SMS per contact, newest first. Returns {items}" },
+      { method: "POST", path: "/api/contacts/:id/touch", description: "Log a bridge tap-to-text/call. Body {channel: sms|call}. Logs activity, advances new->contacted" },
       { method: "GET", path: "/api/agent/schema", description: "This document" },
     ],
   })

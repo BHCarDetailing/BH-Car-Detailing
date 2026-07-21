@@ -53,6 +53,15 @@ export interface Job {
   phone?: string | null;
 }
 
+export interface SmsMessage {
+  id: string;
+  contact_id: string;
+  body_text: string | null;
+  direction: string; // 'outbound' | 'inbound'
+  status: string;
+  created_at: string;
+}
+
 export interface Stats {
   byStage: Record<Stage, number>;
   recent: Array<{ id: number; type: string; title: string; created_at: string; contact_id: string; first_name: string | null; last_name: string | null }>;

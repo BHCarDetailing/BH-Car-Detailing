@@ -1,13 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../api";
-import { fullName, STAGES, type Activity, type Contact, type Job, type Stage } from "../types";
+import { fullName, STAGES, type Activity, type Contact, type Job, type SmsMessage, type Stage } from "../types";
+
+function touch(contactId: string, channel: "sms" | "call") {
+  // Fire-and-forget: log the bridge outreach; the sms:/tel: link opens the phone's app.
+  api(`/api/contacts/${contactId}/touch`, { method: "POST", body: JSON.stringify({ channel }) }).catch(() => {});
+}
 
 export default function ContactDetail() {
   const { id } = useParams<{ id: string }>();
   const [contact, setContact] = useState<Contact | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [messages, setMessages] = useState<SmsMessage[]>([]);
   const [note, setNote] = useState("");
   const [actionError, setActionError] = useState("");
 
@@ -16,6 +22,7 @@ export default function ContactDetail() {
     api<Contact>(`/api/contacts/${id}`).then(setContact).catch(() => {});
     api<{ items: Activity[] }>(`/api/contacts/${id}/activities`).then((r) => setActivities(r.items)).catch(() => {});
     api<{ items: Job[] }>(`/api/jobs?contact_id=${id}`).then((r) => setJobs(r.items)).catch(() => {});
+    api<{ items: SmsMessage[] }>(`/api/messages?contact_id=${id}`).then((r) => setMessages(r.items)).catch(() => {});
   }, [id]);
   useEffect(load, [load]);
 
@@ -71,12 +78,20 @@ export default function ContactDetail() {
         <div className="flex flex-wrap gap-2">
           {contact.phone && (
             <>
-              <a href={`sms:${contact.phone}`} className="rounded-md bg-neutral-900 px-4 py-2 text-sm text-white min-h-[44px] flex items-center">Text {contact.phone}</a>
-              <a href={`tel:${contact.phone}`} className="rounded-md bg-neutral-200 px-4 py-2 text-sm min-h-[44px] flex items-center">Call</a>
+              <a href={`sms:${contact.phone}`} onClick={() => touch(id!, "sms")} className="rounded-md bg-neutral-900 px-4 py-2 text-sm text-white min-h-[44px] flex items-center">Text {contact.phone}</a>
+              <a href={`tel:${contact.phone}`} onClick={() => touch(id!, "call")} className="rounded-md bg-neutral-200 px-4 py-2 text-sm min-h-[44px] flex items-center">Call</a>
             </>
           )}
           {contact.email && <a href={`mailto:${contact.email}`} className="rounded-md bg-neutral-200 px-4 py-2 text-sm min-h-[44px] flex items-center">Email</a>}
         </div>
+
+        {contact.phone && (
+          <section className="rounded-xl bg-white p-5 shadow-sm">
+            <h2 className="mb-3 font-medium">Messages</h2>
+            <MessageThread messages={messages} />
+            <Composer contactId={id!} onSent={load} />
+          </section>
+        )}
 
         <section className="rounded-xl bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-medium">Vehicles</h2>
@@ -166,6 +181,56 @@ export default function ContactDetail() {
         </section>
       </aside>
     </div>
+  );
+}
+
+function MessageThread({ messages }: { messages: SmsMessage[] }) {
+  if (messages.length === 0) return <p className="mb-3 text-sm text-neutral-500">No texts yet.</p>;
+  return (
+    <div className="mb-3 max-h-72 space-y-2 overflow-y-auto">
+      {messages.map((m) => {
+        const out = m.direction === "outbound";
+        return (
+          <div key={m.id} className={`flex ${out ? "justify-end" : "justify-start"}`}>
+            <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${out ? "bg-red-600 text-white" : "bg-neutral-100 text-neutral-900"}`}>
+              <div className="whitespace-pre-wrap break-words">{m.body_text}</div>
+              <div className={`mt-0.5 text-[10px] ${out ? "text-red-100" : "text-neutral-400"}`}>
+                {new Date(m.created_at).toLocaleString()}{out && m.status ? ` · ${m.status}` : ""}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Composer({ contactId, onSent }: { contactId: string; onSent: () => void }) {
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault();
+    if (!body.trim()) return;
+    setBusy(true); setNote("");
+    try {
+      const r = (await api(`/api/messages`, { method: "POST", body: JSON.stringify({ contact_id: contactId, body: body.trim() }) })) as { status: string };
+      setBody("");
+      setNote(r.status === "sent" ? "Sent." : r.status === "logged" ? "Saved — texting goes live once Twilio is connected." : `Status: ${r.status}`);
+      onSent();
+    } catch { setNote("Couldn't send — try again."); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <form onSubmit={send} className="space-y-2">
+      <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={2} placeholder="Type a text…" className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-red-600" />
+      <div className="flex items-center justify-between gap-2">
+        <button disabled={busy} className="min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white disabled:opacity-50">{busy ? "Sending…" : "Send text"}</button>
+        {note && <span className="text-xs text-neutral-500">{note}</span>}
+      </div>
+    </form>
   );
 }
 

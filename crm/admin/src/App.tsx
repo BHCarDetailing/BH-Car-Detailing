@@ -5,6 +5,7 @@ import Contacts from "./pages/Contacts";
 import ContactDetail from "./pages/ContactDetail";
 import Pipeline from "./pages/Pipeline";
 import Calendar from "./pages/Calendar";
+import Inbox from "./pages/Inbox";
 import Layout from "./components/Layout";
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/calendar" element={<Calendar />} />
+        <Route path="/inbox" element={<Inbox />} />
         <Route path="/contacts" element={<Contacts />} />
         <Route path="/contacts/:id" element={<ContactDetail />} />
       </Route>

@@ -11,6 +11,10 @@ export interface Env {
   FROM_NAME?: string;
   REPLY_TO?: string;
   BUSINESS_ADDRESS?: string;
+  TWILIO_ACCOUNT_SID?: string;
+  TWILIO_AUTH_TOKEN?: string;
+  TWILIO_FROM_NUMBER?: string;
+  TWILIO_MESSAGING_SERVICE_SID?: string;
 }
 
 export const STAGES = ["new", "contacted", "quoted", "scheduled", "customer", "lost"] as const;

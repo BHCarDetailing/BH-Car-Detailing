@@ -4,6 +4,7 @@ import type { Env } from "../types";
 import { nowIso, one, run, uuid } from "../lib/db";
 import { cleanName, normalizeEmail, normalizePhone, vehicleSizeClass } from "../lib/normalize";
 import { logActivity } from "../lib/activity";
+import { verifyTwilioSignature } from "../lib/sms";
 
 export const publicRoutes = new Hono<{ Bindings: Env }>();
 
@@ -113,4 +114,63 @@ publicRoutes.post("/lead", async (c) => {
   });
 
   return c.json({ ok: true }, 200, h);
+});
+
+// --- Twilio inbound SMS webhook (signature-verified, fails closed) ---
+async function twilioParams(c: Context<{ Bindings: Env }>): Promise<Record<string, string>> {
+  const form = await c.req.formData();
+  const params: Record<string, string> = {};
+  for (const [k, v] of form.entries()) params[k] = typeof v === "string" ? v : "";
+  return params;
+}
+
+publicRoutes.post("/twilio/inbound", async (c) => {
+  const params = await twilioParams(c);
+  const ok = await verifyTwilioSignature(c.env, c.req.url, params, c.req.header("X-Twilio-Signature"));
+  if (!ok) return c.text("forbidden", 403);
+
+  const from = normalizePhone(params.From);
+  const body = typeof params.Body === "string" ? params.Body : "";
+  if (!from) return c.text("<Response></Response>", 200, { "Content-Type": "text/xml" });
+
+  let contact = await one<{ id: string }>(c.env.DB, "SELECT id FROM contacts WHERE phone = ?", from);
+  if (!contact) {
+    const id = uuid();
+    const now = nowIso();
+    await run(
+      c.env.DB,
+      `INSERT INTO contacts (id, phone, stage, source, created_at, updated_at)
+       VALUES (?,?, 'new', 'sms-inbound', ?, ?)`,
+      id, from, now, now
+    );
+    contact = { id };
+  }
+
+  const now = nowIso();
+  await run(
+    c.env.DB,
+    `INSERT INTO messages (id, contact_id, kind, body_text, provider_id, status, created_at, sent_at, channel, direction, from_addr, to_addr)
+     VALUES (?,?, 'sms', ?, ?, 'delivered', ?, ?, 'sms', 'inbound', ?, ?)`,
+    uuid(), contact.id, body, params.MessageSid ?? null, now, now, from, params.To ?? null
+  );
+  await run(c.env.DB, "UPDATE contacts SET replied_flag = 1 WHERE id = ?", contact.id);
+  await logActivity(c.env.DB, {
+    contactId: contact.id, type: "sms_logged", title: `Reply: ${body.slice(0, 80)}`,
+    payload: { direction: "inbound", message_sid: params.MessageSid ?? null }, actor: "system",
+  });
+
+  return c.text("<Response></Response>", 200, { "Content-Type": "text/xml" });
+});
+
+// --- Twilio delivery status callback (signature-verified, fails closed) ---
+publicRoutes.post("/twilio/status", async (c) => {
+  const params = await twilioParams(c);
+  const ok = await verifyTwilioSignature(c.env, c.req.url, params, c.req.header("X-Twilio-Signature"));
+  if (!ok) return c.text("forbidden", 403);
+  const sid = params.MessageSid;
+  const status = params.MessageStatus;
+  if (sid && status) {
+    await run(c.env.DB, "UPDATE messages SET status = ? WHERE provider_id = ?", status, sid);
+  }
+  return c.body(null, 204);
 });
