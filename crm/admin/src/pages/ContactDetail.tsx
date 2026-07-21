@@ -43,10 +43,10 @@ export default function ContactDetail() {
     load();
   }
 
-  if (!contact) return <div className="p-8 text-neutral-500">Loading…</div>;
+  if (!contact) return <div className="p-4 text-neutral-500 md:p-8">Loading…</div>;
 
   return (
-    <div className="grid gap-8 p-8 lg:grid-cols-[1fr_380px]">
+    <div className="grid gap-8 p-4 md:p-8 lg:grid-cols-[1fr_380px]">
       <div className="space-y-6">
         <div className="flex items-start justify-between">
           <div>
@@ -58,7 +58,7 @@ export default function ContactDetail() {
           <select
             value={contact.stage}
             onChange={(e) => setStage(e.target.value as Stage)}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm capitalize"
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm capitalize min-h-[44px]"
           >
             {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
@@ -66,14 +66,14 @@ export default function ContactDetail() {
 
         {actionError && <p className="text-sm text-red-600">{actionError}</p>}
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {contact.phone && (
             <>
-              <a href={`sms:${contact.phone}`} className="rounded-md bg-neutral-900 px-4 py-2 text-sm text-white">Text {contact.phone}</a>
-              <a href={`tel:${contact.phone}`} className="rounded-md bg-neutral-200 px-4 py-2 text-sm">Call</a>
+              <a href={`sms:${contact.phone}`} className="rounded-md bg-neutral-900 px-4 py-2 text-sm text-white min-h-[44px] flex items-center">Text {contact.phone}</a>
+              <a href={`tel:${contact.phone}`} className="rounded-md bg-neutral-200 px-4 py-2 text-sm min-h-[44px] flex items-center">Call</a>
             </>
           )}
-          {contact.email && <a href={`mailto:${contact.email}`} className="rounded-md bg-neutral-200 px-4 py-2 text-sm">Email</a>}
+          {contact.email && <a href={`mailto:${contact.email}`} className="rounded-md bg-neutral-200 px-4 py-2 text-sm min-h-[44px] flex items-center">Email</a>}
         </div>
 
         <section className="rounded-xl bg-white p-5 shadow-sm">
@@ -101,7 +101,7 @@ export default function ContactDetail() {
               placeholder="Add a note…"
               className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-red-600"
             />
-            <button className="rounded-md bg-neutral-900 px-4 py-2 text-sm text-white">Save</button>
+            <button className="rounded-md bg-neutral-900 px-4 py-2 text-sm text-white min-h-[44px] flex items-center">Save</button>
           </form>
           <ul className="space-y-3">
             {activities.map((a) => (

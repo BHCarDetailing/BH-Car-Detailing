@@ -13,10 +13,10 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="space-y-8 p-8">
+    <div className="space-y-8 p-4 md:p-8">
       <h1 className="text-2xl font-semibold">Dashboard</h1>
 
-      <div className="grid grid-cols-3 gap-4 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {STAGES.map((s) => (
           <Link key={s} to={`/contacts?stage=${s}`} className="rounded-xl bg-white p-4 shadow-sm hover:shadow">
             <div className="text-2xl font-bold">{stats?.byStage[s] ?? "–"}</div>
@@ -32,14 +32,14 @@ export default function Dashboard() {
         ) : (
           <ul className="divide-y rounded-xl bg-white shadow-sm">
             {newLeads.map((c) => (
-              <li key={c.id} className="flex items-center justify-between gap-4 p-4">
+              <li key={c.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <Link to={`/contacts/${c.id}`} className="font-medium hover:underline">{fullName(c)}</Link>
                   <div className="truncate text-sm text-neutral-500">
                     {c.source ?? "unknown source"} · {new Date(c.created_at).toLocaleString()}
                   </div>
                 </div>
-                <div className="flex shrink-0 gap-2">
+                <div className="flex flex-wrap shrink-0 gap-2">
                   {c.phone && (
                     <>
                       <a href={`sms:${c.phone}`} className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm text-white">Text</a>

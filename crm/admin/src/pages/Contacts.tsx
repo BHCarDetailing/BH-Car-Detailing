@@ -36,23 +36,24 @@ export default function Contacts() {
   }
 
   return (
-    <div className="space-y-4 p-8">
+    <div className="space-y-4 p-4 md:p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Contacts <span className="text-base font-normal text-neutral-400">({total})</span></h1>
       </div>
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <input
           value={search}
           onChange={(e) => update("search", e.target.value)}
           placeholder="Search name, email, phone…"
-          className="w-72 rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-red-600"
+          className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-red-600 sm:w-72"
         />
         <select value={stage} onChange={(e) => update("stage", e.target.value)} className="rounded-md border border-neutral-300 px-3 py-2 text-sm">
           <option value="">All stages</option>
           {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
-      <table className="w-full rounded-xl bg-white text-sm shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full rounded-xl bg-white text-sm shadow-sm">
         <thead>
           <tr className="border-b text-left text-neutral-500">
             <th className="p-3">Name</th><th className="p-3">Stage</th><th className="p-3">Phone</th>
@@ -72,6 +73,7 @@ export default function Contacts() {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
