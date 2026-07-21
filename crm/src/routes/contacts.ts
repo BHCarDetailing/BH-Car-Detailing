@@ -157,5 +157,21 @@ statsRoutes.get("/", async (c) => {
      FROM activities a JOIN contacts c ON c.id = a.contact_id
      ORDER BY a.id DESC LIMIT 20`
   );
-  return c.json({ byStage, recent });
+  const todayJobs = await all(
+    c.env.DB,
+    `SELECT j.id, j.title, j.status, j.scheduled_start, j.contact_id, c.first_name, c.last_name, c.phone
+     FROM jobs j JOIN contacts c ON c.id = j.contact_id
+     WHERE j.status IN ('scheduled','in_progress')
+       AND j.scheduled_start IS NOT NULL
+       AND date(j.scheduled_start) = date('now')
+     ORDER BY j.scheduled_start ASC`
+  );
+  const openTasks = await all(
+    c.env.DB,
+    `SELECT t.id, t.title, t.due_at, t.contact_id, c.first_name, c.last_name
+     FROM tasks t LEFT JOIN contacts c ON c.id = t.contact_id
+     WHERE t.status = 'open'
+     ORDER BY (t.due_at IS NULL), t.due_at ASC LIMIT 10`
+  );
+  return c.json({ byStage, recent, todayJobs, openTasks });
 });

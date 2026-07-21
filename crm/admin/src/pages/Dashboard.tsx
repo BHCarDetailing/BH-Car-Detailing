@@ -25,6 +25,37 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {(stats?.todayJobs?.length ?? 0) > 0 && (
+        <section>
+          <h2 className="mb-3 text-lg font-medium">Today's jobs</h2>
+          <ul className="divide-y rounded-xl bg-white shadow-sm">
+            {stats!.todayJobs.map((j) => (
+              <li key={j.id} className="flex items-center justify-between gap-3 p-3 text-sm">
+                <Link to={`/contacts/${j.contact_id}`} className="min-w-0">
+                  <span className="font-medium">{j.title}</span>{" "}
+                  <span className="text-neutral-500">{[j.first_name, j.last_name].filter(Boolean).join(" ")}</span>
+                </Link>
+                <span className="shrink-0 text-neutral-500">{j.scheduled_start ? new Date(j.scheduled_start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {(stats?.openTasks?.length ?? 0) > 0 && (
+        <section>
+          <h2 className="mb-3 text-lg font-medium">Due tasks</h2>
+          <ul className="divide-y rounded-xl bg-white shadow-sm">
+            {stats!.openTasks.map((t) => (
+              <li key={t.id} className="flex items-center justify-between gap-3 p-3 text-sm">
+                <span className="min-w-0"><span className="font-medium">{t.title}</span>{t.contact_id && <span className="text-neutral-500"> · {[t.first_name, t.last_name].filter(Boolean).join(" ")}</span>}</span>
+                <span className="shrink-0 text-neutral-400">{t.due_at ? new Date(t.due_at).toLocaleDateString() : ""}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section>
         <h2 className="mb-3 text-lg font-medium">New leads needing action</h2>
         {newLeads.length === 0 ? (

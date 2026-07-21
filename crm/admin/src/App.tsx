@@ -3,11 +3,9 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Contacts from "./pages/Contacts";
 import ContactDetail from "./pages/ContactDetail";
+import Pipeline from "./pages/Pipeline";
+import Calendar from "./pages/Calendar";
 import Layout from "./components/Layout";
-
-function Soon({ name }: { name: string }) {
-  return <div className="p-4 text-neutral-500 md:p-8">{name} — building…</div>;
-}
 
 export default function App() {
   return (
@@ -16,8 +14,8 @@ export default function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/pipeline" element={<Soon name="Pipeline" />} />
-        <Route path="/calendar" element={<Soon name="Calendar" />} />
+        <Route path="/pipeline" element={<Pipeline />} />
+        <Route path="/calendar" element={<Calendar />} />
         <Route path="/contacts" element={<Contacts />} />
         <Route path="/contacts/:id" element={<ContactDetail />} />
       </Route>

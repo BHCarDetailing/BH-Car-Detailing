@@ -39,9 +39,25 @@ export interface Activity {
   created_at: string;
 }
 
+export interface Job {
+  id: string;
+  contact_id: string;
+  title: string;
+  status: string;
+  price_cents: number;
+  scheduled_start: string | null;
+  scheduled_end: string | null;
+  address: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
+}
+
 export interface Stats {
   byStage: Record<Stage, number>;
   recent: Array<{ id: number; type: string; title: string; created_at: string; contact_id: string; first_name: string | null; last_name: string | null }>;
+  todayJobs: Array<{ id: string; title: string; status: string; scheduled_start: string | null; contact_id: string; first_name: string | null; last_name: string | null; phone: string | null }>;
+  openTasks: Array<{ id: string; title: string; due_at: string | null; contact_id: string | null; first_name: string | null; last_name: string | null }>;
 }
 
 export function fullName(c: Pick<Contact, "first_name" | "last_name">): string {
