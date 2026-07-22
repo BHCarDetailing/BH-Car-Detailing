@@ -226,11 +226,9 @@ export async function handleMissedCall(
   // Owner notification (SMS). Skipped only if the feature is disabled; the
   // actual SMS only goes out when a target number is configured.
   let ownerNotified = false;
-  if (settings.ownerNotifyEnabled) {
+  if (settings.ownerNotifyEnabled && settings.ownerNotifyNumber) {
+    await send(env, { toPhone: settings.ownerNotifyNumber, body: ownerNotifyBody(env, name, from, texted, contactId) });
     ownerNotified = true;
-    if (settings.ownerNotifyNumber) {
-      await send(env, { toPhone: settings.ownerNotifyNumber, body: ownerNotifyBody(env, name, from, texted, contactId) });
-    }
   }
 
   return { logged: true, texted, skipReason: skip, contactId, messageId, ownerNotified };

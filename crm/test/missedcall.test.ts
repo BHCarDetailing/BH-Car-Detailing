@@ -104,6 +104,7 @@ describe("handleMissedCall orchestrator", () => {
   });
 
   it("happy path: sends text, snapshot saved, timeline + owner notify", async () => {
+    await run(env.DB, "INSERT INTO settings (key,value) VALUES ('owner_notify_number','+13050000008') ON CONFLICT(key) DO UPDATE SET value=excluded.value");
     const sends: any[] = [];
     const send = async (_e: any, m: any) => { sends.push(m); return { id: "msg-1", status: "sent" }; };
     const r = await handleMissedCall(env, { ...base, fromPhone: "+13051230002", dialStatus: "no-answer" }, { send });
