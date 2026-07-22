@@ -15,6 +15,8 @@ export interface Env {
   TWILIO_AUTH_TOKEN?: string;
   TWILIO_FROM_NUMBER?: string;
   TWILIO_MESSAGING_SERVICE_SID?: string;
+  PUBLIC_BASE_URL?: string;
+  ANTHROPIC_API_KEY?: string;
 }
 
 export const STAGES = ["new", "contacted", "quoted", "scheduled", "customer", "lost"] as const;

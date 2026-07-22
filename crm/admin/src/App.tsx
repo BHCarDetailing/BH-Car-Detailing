@@ -8,6 +8,7 @@ import Calendar from "./pages/Calendar";
 import Inbox from "./pages/Inbox";
 import Import from "./pages/Import";
 import Settings from "./pages/Settings";
+import Sequences from "./pages/Sequences";
 import Layout from "./components/Layout";
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/contacts" element={<Contacts />} />
         <Route path="/import" element={<Import />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/sequences" element={<Sequences />} />
         <Route path="/contacts/:id" element={<ContactDetail />} />
       </Route>
     </Routes>

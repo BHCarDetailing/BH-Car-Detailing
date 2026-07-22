@@ -7,6 +7,7 @@ import { logActivity } from "../lib/activity";
 import { verifyTwilioSignature } from "../lib/sms";
 import { timingSafeEqualStr } from "../lib/auth";
 import { buildIcs, type IcsJob } from "../lib/ics";
+import { enrollContact, unsubscribeContact, verifyUnsub } from "../lib/sequences";
 
 export const publicRoutes = new Hono<{ Bindings: Env }>();
 
@@ -24,6 +25,15 @@ function corsHeaders(c: Context<{ Bindings: Env }>): Record<string, string> {
 }
 
 publicRoutes.get("/health", (c) => c.json({ ok: true, ts: nowIso() }));
+
+// --- One-click email unsubscribe (token = HMAC of contact id) ---
+publicRoutes.get("/unsubscribe/:cid/:sig", async (c) => {
+  const cid = c.req.param("cid");
+  const ok = await verifyUnsub(c.env.SESSION_SECRET, cid, c.req.param("sig"));
+  if (!ok) return c.html("<p>Invalid unsubscribe link.</p>", 400);
+  await unsubscribeContact(c.env, cid);
+  return c.html("<p>You've been unsubscribed. You won't receive further marketing emails from BH Car Detailing.</p>");
+});
 
 // --- iCloud/Google calendar subscription feed (token-guarded, no PII in path) ---
 publicRoutes.get("/calendar/:file", async (c) => {
@@ -134,6 +144,12 @@ publicRoutes.post("/lead", async (c) => {
     title: created ? `New lead via ${source}` : `Repeat submission via ${source}`,
     payload: { source, source_detail: sourceDetail, message: body.message ?? null, vehicle: vehicleRaw || null },
   });
+
+  // Auto-enroll brand-new leads into any active "stage:new" nurture sequence.
+  if (created) {
+    const seqs = await all<{ id: string }>(c.env.DB, "SELECT id FROM sequences WHERE status = 'active' AND trigger = 'stage:new'");
+    for (const s of seqs) await enrollContact(c.env, s.id, contactId);
+  }
 
   return c.json({ ok: true }, 200, h);
 });

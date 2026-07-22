@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api";
 
 const DEFAULT_TEMPLATE = "Hi {first_name}, this is BH Car Detailing — thanks for reaching out! Happy to get you a quote. When works for a quick call or text?";
@@ -41,6 +42,14 @@ export default function Settings() {
       <h1 className="mb-4 text-2xl font-semibold">Settings</h1>
 
       <div className="max-w-xl space-y-6">
+        <Link to="/sequences" className="flex items-center justify-between rounded-xl bg-white p-5 shadow-sm hover:shadow">
+          <div>
+            <div className="font-medium">Email sequences</div>
+            <div className="text-sm text-neutral-500">Automated follow-up emails for new leads.</div>
+          </div>
+          <span className="text-red-600">›</span>
+        </Link>
+
         <section className="rounded-xl bg-white p-5 shadow-sm">
           <h2 className="mb-2 font-medium">Text message template</h2>
           <p className="mb-3 text-sm text-neutral-500">Pre-filled when you tap “Text” on a lead. Use <code>{"{first_name}"}</code> to drop in their name.</p>

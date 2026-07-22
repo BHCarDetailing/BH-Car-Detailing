@@ -47,6 +47,13 @@ agentRoutes.get("/schema", (c) =>
       { method: "POST", path: "/api/messages", description: "Send SMS to a contact. Body {contact_id, body}. Logs sms_logged, advances new->contacted. Log-only until Twilio configured" },
       { method: "GET", path: "/api/messages/inbox", description: "Latest SMS per contact, newest first. Returns {items}" },
       { method: "POST", path: "/api/contacts/:id/touch", description: "Log a bridge tap-to-text/call. Body {channel: sms|call}. Logs activity, advances new->contacted" },
+      { method: "GET", path: "/api/sequences", description: "List email nurture sequences with step/active counts" },
+      { method: "POST", path: "/api/sequences", description: "Create sequence. Body {name, trigger?, steps?:[{delay_hours, subject, body_text}]}. trigger: manual|stage:new" },
+      { method: "GET", path: "/api/sequences/:id", description: "Sequence + ordered steps" },
+      { method: "PATCH", path: "/api/sequences/:id", description: "Update {name?, status: draft|active, trigger?, steps?} (steps replace all)" },
+      { method: "DELETE", path: "/api/sequences/:id", description: "Delete a sequence" },
+      { method: "POST", path: "/api/sequences/:id/enroll", description: "Enroll a contact. Body {contact_id}. Emails send on the cron, log-only until Resend set" },
+      { method: "GET", path: "/api/sequences/:id/enrollments", description: "Enrollments for a sequence" },
       { method: "GET", path: "/api/agent/schema", description: "This document" },
     ],
   })

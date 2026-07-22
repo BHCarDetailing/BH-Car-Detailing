@@ -159,6 +159,7 @@ export default function ContactDetail() {
       </div>
 
       <aside className="space-y-4">
+        <EnrollControl contactId={id!} />
         <section className="rounded-xl bg-white p-5 text-sm shadow-sm">
           <h2 className="mb-3 font-medium">Details</h2>
           <dl className="space-y-2">
@@ -181,6 +182,39 @@ export default function ContactDetail() {
         </section>
       </aside>
     </div>
+  );
+}
+
+function EnrollControl({ contactId }: { contactId: string }) {
+  const [seqs, setSeqs] = useState<Array<{ id: string; name: string; status: string }>>([]);
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    api<{ items: Array<{ id: string; name: string; status: string }> }>("/api/sequences")
+      .then((r) => setSeqs(r.items.filter((s) => s.status === "active")))
+      .catch(() => {});
+  }, []);
+
+  if (seqs.length === 0) return null;
+
+  async function enroll(seqId: string) {
+    if (!seqId) return;
+    setNote("");
+    try {
+      const r = (await api(`/api/sequences/${seqId}/enroll`, { method: "POST", body: JSON.stringify({ contact_id: contactId }) })) as { status: string };
+      setNote(r.status === "enrolled" ? "Enrolled." : r.status === "already_enrolled" ? "Already in this sequence." : r.status);
+    } catch { setNote("Couldn't enroll — try again."); }
+  }
+
+  return (
+    <section className="rounded-xl bg-white p-5 text-sm shadow-sm">
+      <h2 className="mb-2 font-medium">Email sequence</h2>
+      <select defaultValue="" onChange={(e) => enroll(e.target.value)} className="min-h-[44px] w-full rounded-md border border-neutral-300 px-2 text-sm">
+        <option value="">Enroll in…</option>
+        {seqs.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+      </select>
+      {note && <p className="mt-2 text-xs text-neutral-500">{note}</p>}
+    </section>
   );
 }
 

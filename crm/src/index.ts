@@ -8,7 +8,9 @@ import { agentRoutes } from "./routes/agent";
 import { jobRoutes } from "./routes/jobs";
 import { taskRoutes } from "./routes/tasks";
 import { messageRoutes } from "./routes/messages";
+import { sequenceRoutes } from "./routes/sequences";
 import { runReminders } from "./lib/reminders";
+import { runSequences } from "./lib/sequences";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -23,11 +25,15 @@ app.route("/api/stats", statsRoutes);
 app.route("/api/jobs", jobRoutes);
 app.route("/api/tasks", taskRoutes);
 app.route("/api/messages", messageRoutes);
+app.route("/api/sequences", sequenceRoutes);
 app.route("/api/agent", agentRoutes);
 
 export default {
   fetch: app.fetch,
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(runReminders(env, Date.now()).then(() => undefined));
+    ctx.waitUntil(Promise.all([
+      runReminders(env, Date.now()),
+      runSequences(env, Date.now()),
+    ]).then(() => undefined));
   },
 };
