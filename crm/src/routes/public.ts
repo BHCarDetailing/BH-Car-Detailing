@@ -11,6 +11,7 @@ import { enrollContact, unsubscribeContact, verifyUnsub } from "../lib/sequences
 import { analyzeLead } from "../lib/ai";
 import { availableSlots, businessHours, slotEndIso, slotIsFree } from "../lib/booking";
 import { sendJobConfirmation } from "../lib/reminders";
+import { buildVoiceTwiml, handleMissedCall, loadMissedCallSettings } from "../lib/missedcall";
 
 export const publicRoutes = new Hono<{ Bindings: Env }>();
 
@@ -285,4 +286,35 @@ publicRoutes.post("/twilio/status", async (c) => {
     await run(c.env.DB, "UPDATE messages SET status = ? WHERE provider_id = ?", status, sid);
   }
   return c.body(null, 204);
+});
+
+// --- Twilio Voice: incoming call. Ring the owner's cell, then fall through to complete. ---
+publicRoutes.post("/twilio/voice", async (c) => {
+  const params = await twilioParams(c);
+  const ok = await verifyTwilioSignature(c.env, c.req.url, params, c.req.header("X-Twilio-Signature"));
+  if (!ok) return c.text("forbidden", 403);
+  const s = await loadMissedCallSettings(c.env);
+  return c.text(buildVoiceTwiml(s), 200, { "Content-Type": "text/xml" });
+});
+
+// --- Twilio Voice: dial completed. Run text-back logic in the background. ---
+publicRoutes.post("/twilio/voice/complete", async (c) => {
+  const params = await twilioParams(c);
+  const ok = await verifyTwilioSignature(c.env, c.req.url, params, c.req.header("X-Twilio-Signature"));
+  if (!ok) return c.text("forbidden", 403);
+
+  const dialStatus = params.DialCallStatus ?? c.req.query("DialCallStatus") ?? null;
+  const durRaw = params.DialCallDuration ?? params.CallDuration ?? "";
+  const durationSeconds = /^\d+$/.test(durRaw) ? Number.parseInt(durRaw, 10) : null;
+
+  c.executionCtx.waitUntil(
+    handleMissedCall(c.env, {
+      fromPhone: params.From ?? null,
+      toPhone: params.To ?? null,
+      callSid: params.CallSid ?? null,
+      dialStatus,
+      durationSeconds,
+    }).then(() => undefined).catch(() => undefined)
+  );
+  return c.text("<Response></Response>", 200, { "Content-Type": "text/xml" });
 });

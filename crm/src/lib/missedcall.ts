@@ -233,3 +233,14 @@ export async function handleMissedCall(
 
   return { logged: true, texted, skipReason: skip, contactId, messageId, ownerNotified };
 }
+
+/** Pure TwiML builder for the incoming-call webhook. */
+export function buildVoiceTwiml(s: MissedCallSettings): string {
+  if (!s.forwardNumber) {
+    return `<Response><Redirect method="POST">/api/twilio/voice/complete?DialCallStatus=no-answer</Redirect></Response>`;
+  }
+  if (!s.enabled) {
+    return `<Response><Dial timeout="${s.dialTimeout}">${s.forwardNumber}</Dial></Response>`;
+  }
+  return `<Response><Dial timeout="${s.dialTimeout}" action="/api/twilio/voice/complete" method="POST">${s.forwardNumber}</Dial></Response>`;
+}
