@@ -6,7 +6,10 @@ export default function Layout() {
   return (
     <div className="flex min-h-screen bg-neutral-100">
       <aside className="hidden w-56 shrink-0 bg-neutral-950 p-4 text-neutral-300 md:block">
-        <div className="mb-6 text-lg font-bold text-white">BH CRM</div>
+        <div className="mb-6 flex items-center gap-2">
+          <img src="/brand/logo.png" alt="BH Car Detailing" className="h-9 w-auto" />
+          <span className="text-lg font-bold text-white">BH CRM</span>
+        </div>
         <nav className="space-y-1">
           {NAV_ITEMS.map((l) => (
             <NavLink
@@ -25,6 +28,10 @@ export default function Layout() {
         </nav>
       </aside>
       <main className="min-w-0 flex-1 pb-16 md:pb-0">
+        {/* Mobile top brand bar */}
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-center border-b border-neutral-200 bg-neutral-950 md:hidden">
+          <img src="/brand/logo.png" alt="BH Car Detailing" className="h-8 w-auto" />
+        </header>
         <Outlet />
       </main>
       <BottomNav />

@@ -1,1 +1,14 @@
 @import "tailwindcss";
+
+/* BH Car Detailing brand — remaps Tailwind's red scale to the exact logo red,
+   so every existing `red-600` accent across the app becomes on-brand for free. */
+@theme {
+  --color-red-50: #fff1f2;
+  --color-red-100: #ffe1e4;
+  --color-red-500: #ff4153;
+  --color-red-600: #c8102e;
+  --color-red-700: #7e0a1d;
+  --color-brand: #c8102e;
+  --color-brand-bright: #ff4153;
+  --color-brand-dark: #7e0a1d;
+}

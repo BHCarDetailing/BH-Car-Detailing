@@ -50,6 +50,15 @@ describe("contacts CRUD", () => {
     expect(c.custom).toEqual({ referral: "yes", gate_code: "1234" });
   });
 
+  it("list returns tags as a parsed array, not a JSON string", async () => {
+    const { id } = (await (await createContact({ first_name: "Tagged", email: "tagged@x.com", tags: ["vip"] })).json()) as { id: string };
+    const res = await SELF.fetch("http://x/api/contacts?search=Tagged", { headers: AUTH });
+    const { items } = (await res.json()) as { items: Array<{ id: string; tags: unknown }> };
+    const row = items.find((i) => i.id === id)!;
+    expect(Array.isArray(row.tags)).toBe(true);
+    expect(row.tags).toEqual(["vip"]);
+  });
+
   it("search finds by partial name", async () => {
     await createContact({ first_name: "Zebulon", last_name: "Quartermain", email: "zq@x.com" });
     const res = await SELF.fetch("http://x/api/contacts?search=zebul", { headers: AUTH });

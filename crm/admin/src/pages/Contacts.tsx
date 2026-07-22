@@ -115,7 +115,7 @@ export default function Contacts() {
                 <td className="p-3 text-neutral-500">{new Date(c.created_at).toLocaleDateString()}</td>
                 <td className="p-3">
                   <div className="flex flex-wrap gap-1">
-                    {(c.tags ?? []).map((t) => {
+                    {(Array.isArray(c.tags) ? c.tags : []).map((t) => {
                       const l = labelMap[t];
                       return <span key={t} className="rounded-full px-2 py-0.5 text-[11px] text-white" style={{ backgroundColor: l?.color ?? "#6b7280" }}>{l?.label ?? t}</span>;
                     })}

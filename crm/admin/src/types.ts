@@ -71,11 +71,27 @@ export interface SmsMessage {
   created_at: string;
 }
 
+export interface Revenue {
+  month_cents: number;
+  week_cents: number;
+  pipeline_cents: number;
+  pipeline_jobs: number;
+  all_time_cents: number;
+  jobs_paid_all: number;
+  avg_ticket_cents: number;
+  series: Array<{ ym: string; cents: number; n: number }>;
+}
+
 export interface Stats {
   byStage: Record<Stage, number>;
   recent: Array<{ id: number; type: string; title: string; created_at: string; contact_id: string; first_name: string | null; last_name: string | null }>;
   todayJobs: Array<{ id: string; title: string; status: string; scheduled_start: string | null; contact_id: string; first_name: string | null; last_name: string | null; phone: string | null }>;
   openTasks: Array<{ id: string; title: string; due_at: string | null; contact_id: string | null; first_name: string | null; last_name: string | null }>;
+  revenue?: Revenue;
+}
+
+export function money(cents: number): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format((cents || 0) / 100);
 }
 
 export function fullName(c: Pick<Contact, "first_name" | "last_name">): string {

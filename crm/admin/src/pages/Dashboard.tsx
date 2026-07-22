@@ -1,7 +1,30 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
-import { fullName, STAGES, type Contact, type Stats } from "../types";
+import { fullName, money, STAGES, type Contact, type Revenue, type Stats } from "../types";
+
+function MonthBars({ series }: { series: Revenue["series"] }) {
+  const rows = series ?? [];
+  const max = Math.max(1, ...rows.map((r) => r.cents));
+  const label = (ym: string) => {
+    const [, m] = ym.split("-");
+    return ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(m)] ?? ym;
+  };
+  if (rows.length === 0) return <p className="text-sm text-neutral-400">No completed jobs yet — revenue shows here once jobs are marked paid.</p>;
+  return (
+    <div className="flex items-end gap-3 pt-2" style={{ height: 120 }}>
+      {rows.map((r) => (
+        <div key={r.ym} className="flex flex-1 flex-col items-center gap-1">
+          <div className="text-[10px] font-medium text-neutral-500">{money(r.cents)}</div>
+          <div className="flex w-full items-end justify-center" style={{ height: 80 }}>
+            <div className="w-8 rounded-t bg-red-600" style={{ height: `${Math.max(4, (r.cents / max) * 80)}px` }} title={`${money(r.cents)} · ${r.n} jobs`} />
+          </div>
+          <div className="text-[11px] text-neutral-500">{label(r.ym)}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 interface Digest { stats: Record<string, number>; narrative: string | null }
 
@@ -26,6 +49,36 @@ export default function Dashboard() {
   return (
     <div className="space-y-8 p-4 md:p-8">
       <h1 className="text-2xl font-semibold">Dashboard</h1>
+
+      {/* Money influx */}
+      <section className="space-y-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="rounded-xl bg-neutral-950 p-4 text-white shadow-sm">
+            <div className="text-xs uppercase tracking-wide text-neutral-400">Revenue this month</div>
+            <div className="mt-1 text-3xl font-bold">{stats?.revenue ? money(stats.revenue.month_cents) : "—"}</div>
+            <div className="mt-1 text-xs text-neutral-400">{stats?.revenue ? `${money(stats.revenue.week_cents)} this week` : ""}</div>
+          </div>
+          <div className="rounded-xl bg-white p-4 shadow-sm">
+            <div className="text-xs uppercase tracking-wide text-neutral-500">Pipeline value</div>
+            <div className="mt-1 text-3xl font-bold text-red-600">{stats?.revenue ? money(stats.revenue.pipeline_cents) : "—"}</div>
+            <div className="mt-1 text-xs text-neutral-500">{stats?.revenue ? `${stats.revenue.pipeline_jobs} open job${stats.revenue.pipeline_jobs === 1 ? "" : "s"}` : ""}</div>
+          </div>
+          <div className="rounded-xl bg-white p-4 shadow-sm">
+            <div className="text-xs uppercase tracking-wide text-neutral-500">Avg ticket</div>
+            <div className="mt-1 text-3xl font-bold">{stats?.revenue ? money(stats.revenue.avg_ticket_cents) : "—"}</div>
+            <div className="mt-1 text-xs text-neutral-500">across paid jobs</div>
+          </div>
+          <div className="rounded-xl bg-white p-4 shadow-sm">
+            <div className="text-xs uppercase tracking-wide text-neutral-500">All-time revenue</div>
+            <div className="mt-1 text-3xl font-bold">{stats?.revenue ? money(stats.revenue.all_time_cents) : "—"}</div>
+            <div className="mt-1 text-xs text-neutral-500">{stats?.revenue ? `${stats.revenue.jobs_paid_all} jobs paid` : ""}</div>
+          </div>
+        </div>
+        <div className="rounded-xl bg-white p-4 shadow-sm">
+          <h2 className="text-sm font-medium text-neutral-600">Revenue — last 6 months</h2>
+          <MonthBars series={stats?.revenue?.series ?? []} />
+        </div>
+      </section>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {STAGES.map((s) => (

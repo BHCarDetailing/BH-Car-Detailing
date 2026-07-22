@@ -25,7 +25,10 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-neutral-950">
       <form onSubmit={submit} className="w-80 space-y-4 rounded-xl bg-neutral-900 p-8">
-        <h1 className="text-xl font-semibold text-white">BH CRM</h1>
+        <div className="flex flex-col items-center gap-3 pb-2">
+          <img src="/brand/logo.png" alt="BH Car Detailing" className="h-16 w-auto" />
+          <h1 className="text-xl font-semibold text-white">BH CRM</h1>
+        </div>
         <input
           type="password"
           value={password}

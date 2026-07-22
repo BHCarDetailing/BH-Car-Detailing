@@ -15,6 +15,7 @@ export default function Settings() {
   const [savedNote, setSavedNote] = useState("");
   const [brandNote, setBrandNote] = useState("");
   const [copied, setCopied] = useState(false);
+  const [copiedKey, setCopiedKey] = useState("");
   const [labels, setLabels] = useState<Label[]>([]);
   const [newLabel, setNewLabel] = useState({ label: "", color: "#ef4444" });
   const [hours, setHours] = useState(DEFAULT_HOURS);
@@ -119,6 +120,13 @@ export default function Settings() {
   }
 
   const feedUrl = feedToken ? `${location.origin}/api/calendar/${feedToken}.ics` : "";
+  const bookingUrl = `${location.origin}/book`;
+  const embedCode = `<iframe src="${bookingUrl}" title="Book BH Car Detailing" width="100%" height="900" style="border:0;max-width:480px;margin:0 auto;display:block" loading="lazy"></iframe>`;
+  function copyText(key: string, text: string) {
+    navigator.clipboard?.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(""), 1500);
+  }
 
   return (
     <div className="p-4 md:p-8">
@@ -224,6 +232,23 @@ export default function Settings() {
             <a href="/book" target="_blank" rel="noreferrer" className="text-sm text-red-600 hover:underline">Open booking page ↗</a>
             {hoursNote && <span className="text-xs text-neutral-500">{hoursNote}</span>}
           </div>
+        </section>
+
+        <section className="rounded-xl bg-white p-5 shadow-sm">
+          <h2 className="mb-2 font-medium">Share your booking page</h2>
+          <p className="mb-3 text-sm text-neutral-500">Send this link in a text or email so customers can book a time themselves — or embed it right on your website.</p>
+
+          <label className="mb-1 block text-sm font-medium text-neutral-700">Sendable link</label>
+          <div className="mb-4 flex items-center gap-2">
+            <input readOnly value={bookingUrl} className="min-w-0 flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm" />
+            <button onClick={() => copyText("link", bookingUrl)} className="min-h-[44px] shrink-0 rounded-md bg-neutral-900 px-3 text-sm text-white">{copiedKey === "link" ? "Copied" : "Copy"}</button>
+            <a href={bookingUrl} target="_blank" rel="noreferrer" className="min-h-[44px] shrink-0 rounded-md bg-neutral-200 px-3 py-2 text-sm">Open ↗</a>
+          </div>
+
+          <label className="mb-1 block text-sm font-medium text-neutral-700">Embed on your website</label>
+          <p className="mb-2 text-xs text-neutral-500">Paste this HTML where you want the booking form to appear on bhcardetails.com.</p>
+          <textarea readOnly value={embedCode} rows={4} onFocus={(e) => e.currentTarget.select()} className="w-full rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2 font-mono text-xs" />
+          <button onClick={() => copyText("embed", embedCode)} className="mt-2 min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">{copiedKey === "embed" ? "Copied!" : "Copy embed code"}</button>
         </section>
 
         <section className="rounded-xl bg-white p-5 shadow-sm">

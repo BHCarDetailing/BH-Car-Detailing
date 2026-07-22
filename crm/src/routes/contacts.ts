@@ -23,6 +23,10 @@ const PATCH_FIELDS = new Set([
   "email_opt_in", "sms_opt_in", "replied_flag", "ai_summary", "ai_next_action",
 ]);
 
+function safeParse<T>(v: string | null | undefined, fallback: T): T {
+  try { return JSON.parse(v || "") as T; } catch { return fallback; }
+}
+
 function actorOf(c: { req: { header: (n: string) => string | undefined } }): string {
   return c.req.header("Authorization")?.startsWith("Bearer ") ? "agent" : "human";
 }
@@ -66,12 +70,17 @@ contactRoutes.get("/", async (c) => {
   const total = await one<{ n: number }>(c.env.DB, `SELECT COUNT(*) AS n FROM contacts ${w}`, ...binds);
   const orderCol = ORDER_COLS[q.order_by ?? ""] ?? "c.created_at";
   const orderDir = q.order === "asc" ? "ASC" : "DESC";
-  const items = await all(
+  const rows = await all<Record<string, unknown>>(
     c.env.DB,
     `SELECT c.*, (SELECT COUNT(*) FROM vehicles v WHERE v.contact_id = c.id) AS vehicle_count
      FROM contacts c ${w} ORDER BY ${orderCol} ${orderDir} LIMIT ? OFFSET ?`,
     ...binds, limit, offset
   );
+  const items = rows.map((r) => ({
+    ...r,
+    tags: safeParse(r.tags as string, []),
+    custom: safeParse(r.custom as string, {}),
+  }));
   return c.json({ items, total: total?.n ?? 0 });
 });
 
@@ -240,5 +249,36 @@ statsRoutes.get("/", async (c) => {
      WHERE t.status = 'open'
      ORDER BY (t.due_at IS NULL), t.due_at ASC LIMIT 10`
   );
-  return c.json({ byStage, recent, todayJobs, openTasks });
+
+  // --- Money influx. Revenue = completed/paid jobs, dated by job date
+  // (scheduled_start, falling back to last update). Pipeline = money in flight. ---
+  const EARNED = "status IN ('completed','paid')";
+  const jobDate = "COALESCE(scheduled_start, updated_at)";
+  const totals = await one<{ cents: number; n: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(price_cents),0) AS cents, COUNT(*) AS n FROM jobs WHERE ${EARNED}`);
+  const monthRow = await one<{ cents: number; n: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(price_cents),0) AS cents, COUNT(*) AS n FROM jobs
+               WHERE ${EARNED} AND strftime('%Y-%m', ${jobDate}) = strftime('%Y-%m','now')`);
+  const weekRow = await one<{ cents: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(price_cents),0) AS cents FROM jobs
+               WHERE ${EARNED} AND strftime('%Y-%W', ${jobDate}) = strftime('%Y-%W','now')`);
+  const pipe = await one<{ cents: number; n: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(price_cents),0) AS cents, COUNT(*) AS n FROM jobs
+               WHERE status IN ('quoted','scheduled','in_progress')`);
+  const seriesRows = await all<{ ym: string; cents: number; n: number }>(
+    c.env.DB, `SELECT strftime('%Y-%m', ${jobDate}) AS ym, COALESCE(SUM(price_cents),0) AS cents, COUNT(*) AS n
+               FROM jobs WHERE ${EARNED} AND ${jobDate} >= date('now','-6 months','start of month')
+               GROUP BY ym ORDER BY ym ASC`);
+  const paidAll = totals?.n ?? 0;
+  const revenue = {
+    month_cents: monthRow?.cents ?? 0,
+    week_cents: weekRow?.cents ?? 0,
+    pipeline_cents: pipe?.cents ?? 0,
+    pipeline_jobs: pipe?.n ?? 0,
+    all_time_cents: totals?.cents ?? 0,
+    jobs_paid_all: paidAll,
+    avg_ticket_cents: paidAll > 0 ? Math.round((totals?.cents ?? 0) / paidAll) : 0,
+    series: seriesRows,
+  };
+  return c.json({ byStage, recent, todayJobs, openTasks, revenue });
 });
