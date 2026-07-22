@@ -13,6 +13,8 @@ interface InboxRow {
   first_name: string | null;
   last_name: string | null;
   phone: string | null;
+  missed_unacked?: number;
+  missed_texted?: number;
 }
 
 export default function Inbox() {
@@ -34,15 +36,20 @@ export default function Inbox() {
       ) : (
         <ul className="divide-y rounded-xl bg-white shadow-sm">
           {items.map((m) => (
-            <li key={m.id}>
+            <li key={m.id ?? m.contact_id}>
               <Link to={`/contacts/${m.contact_id}`} className="flex items-center justify-between gap-3 p-4">
                 <div className="min-w-0">
                   <div className="font-medium">{fullName({ first_name: m.first_name, last_name: m.last_name })}</div>
+                  {m.missed_unacked ? (
+                    <span className="mt-0.5 inline-block rounded-full bg-red-600 px-2 py-0.5 text-xs font-medium text-white">
+                      {m.missed_texted ? "🔥 New Missed Call — Auto Text Sent" : "Missed Call — Awaiting Reply"}
+                    </span>
+                  ) : null}
                   <div className="truncate text-sm text-neutral-500">
                     {m.direction === "inbound" ? "" : "You: "}{m.body_text ?? ""}
                   </div>
                 </div>
-                <span className="shrink-0 text-xs text-neutral-400">{new Date(m.created_at).toLocaleDateString()}</span>
+                <span className="shrink-0 text-xs text-neutral-400">{m.created_at ? new Date(m.created_at).toLocaleDateString() : ""}</span>
               </Link>
             </li>
           ))}
