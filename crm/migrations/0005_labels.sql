@@ -1,0 +1,7 @@
+CREATE TABLE labels (
+  key TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  color TEXT NOT NULL DEFAULT '#6b7280',
+  sort INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);

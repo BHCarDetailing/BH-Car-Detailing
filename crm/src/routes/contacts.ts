@@ -5,6 +5,14 @@ import { all, nowIso, one, run, uuid } from "../lib/db";
 import { cleanName, normalizeEmail, normalizePhone } from "../lib/normalize";
 import { logActivity } from "../lib/activity";
 import { requireAuth } from "../lib/auth";
+import { enrollContact } from "../lib/sequences";
+
+const ORDER_COLS: Record<string, string> = {
+  created_at: "c.created_at",
+  last_activity_at: "c.last_activity_at",
+  first_name: "c.first_name",
+  stage: "c.stage",
+};
 
 export const contactRoutes = new Hono<{ Bindings: Env }>();
 contactRoutes.use("*", requireAuth());
@@ -56,13 +64,51 @@ contactRoutes.get("/", async (c) => {
   if (q.tag) { where.push("tags LIKE ?"); binds.push(`%"${q.tag.replace(/[%_"]/g, "")}"%`); }
   const w = where.length ? "WHERE " + where.join(" AND ") : "";
   const total = await one<{ n: number }>(c.env.DB, `SELECT COUNT(*) AS n FROM contacts ${w}`, ...binds);
+  const orderCol = ORDER_COLS[q.order_by ?? ""] ?? "c.created_at";
+  const orderDir = q.order === "asc" ? "ASC" : "DESC";
   const items = await all(
     c.env.DB,
     `SELECT c.*, (SELECT COUNT(*) FROM vehicles v WHERE v.contact_id = c.id) AS vehicle_count
-     FROM contacts c ${w} ORDER BY c.created_at DESC LIMIT ? OFFSET ?`,
+     FROM contacts c ${w} ORDER BY ${orderCol} ${orderDir} LIMIT ? OFFSET ?`,
     ...binds, limit, offset
   );
   return c.json({ items, total: total?.n ?? 0 });
+});
+
+// Bulk actions across a set of contact ids (checkbox multi-select).
+contactRoutes.post("/bulk-action", async (c) => {
+  const b = ((await c.req.json().catch(() => null)) ?? {}) as { ids?: unknown; op?: string; value?: string };
+  const ids = Array.isArray(b.ids) ? b.ids.filter((x): x is string => typeof x === "string").slice(0, 500) : [];
+  if (!ids.length || !b.op) return c.json({ error: "ids_and_op_required" }, 400);
+  if (b.op === "set_stage" && !STAGES.includes((b.value ?? "") as (typeof STAGES)[number])) {
+    return c.json({ error: "invalid_stage" }, 400);
+  }
+  const now = nowIso();
+  let updated = 0;
+  for (const id of ids) {
+    const row = await one<{ tags: string; stage: string }>(c.env.DB, "SELECT tags, stage FROM contacts WHERE id = ?", id);
+    if (!row) continue;
+    if (b.op === "add_label" || b.op === "remove_label") {
+      const key = typeof b.value === "string" ? b.value : "";
+      if (!key) continue;
+      let tags: string[] = [];
+      try { tags = JSON.parse(row.tags || "[]"); } catch { tags = []; }
+      tags = b.op === "add_label" ? (tags.includes(key) ? tags : [...tags, key]) : tags.filter((t) => t !== key);
+      await run(c.env.DB, "UPDATE contacts SET tags = ?, updated_at = ? WHERE id = ?", JSON.stringify(tags), now, id);
+      updated++;
+    } else if (b.op === "set_stage") {
+      if (b.value !== row.stage) {
+        await run(c.env.DB, "UPDATE contacts SET stage = ?, updated_at = ? WHERE id = ?", b.value, now, id);
+        await logActivity(c.env.DB, { contactId: id, type: "stage_changed", title: `Stage: ${row.stage} → ${b.value}`, payload: { from: row.stage, to: b.value }, actor: actorOf(c) });
+      }
+      updated++;
+    } else if (b.op === "enroll_sequence") {
+      if (b.value) { await enrollContact(c.env, b.value, id); updated++; }
+    } else {
+      return c.json({ error: "unknown_op" }, 400);
+    }
+  }
+  return c.json({ updated });
 });
 
 contactRoutes.post("/", async (c) => {

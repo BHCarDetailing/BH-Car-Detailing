@@ -10,6 +10,7 @@ import { taskRoutes } from "./routes/tasks";
 import { messageRoutes } from "./routes/messages";
 import { sequenceRoutes } from "./routes/sequences";
 import { aiRoutes } from "./routes/ai";
+import { labelRoutes } from "./routes/labels";
 import { runReminders } from "./lib/reminders";
 import { runSequences } from "./lib/sequences";
 
@@ -21,6 +22,7 @@ app.route("/api/contacts", bulkRoutes);          // POST /api/contacts/bulk (mou
 app.route("/api/contacts", activityWriteRoutes); // POST /api/contacts/:id/activities
 app.route("/api/contacts", contactRoutes);
 app.route("/api/custom-fields", customFieldRoutes);
+app.route("/api/labels", labelRoutes);
 app.route("/api/settings", settingsRoutes);
 app.route("/api/stats", statsRoutes);
 app.route("/api/jobs", jobRoutes);
