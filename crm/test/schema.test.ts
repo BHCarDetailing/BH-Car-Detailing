@@ -25,3 +25,27 @@ describe("schema", () => {
     expect(row?.tags).toBe("[]"); // default applied
   });
 });
+
+describe("migration 0006 — missed_call_textback", () => {
+  it("creates missed_calls with all V1.1 columns", async () => {
+    const cols = await all<{ name: string }>(env.DB, "PRAGMA table_info(missed_calls)");
+    const names = cols.map((c) => c.name);
+    for (const n of ["id","contact_id","from_phone","to_phone","call_sid","dial_status","texted","message_id","skip_reason","text_template_snapshot","duration_seconds","acknowledged_at","created_at"]) {
+      expect(names).toContain(n);
+    }
+  });
+
+  it("adds opt-out and lead-source columns to contacts", async () => {
+    const cols = await all<{ name: string }>(env.DB, "PRAGMA table_info(contacts)");
+    const names = cols.map((c) => c.name);
+    for (const n of ["sms_opt_out_auto","lead_source","first_contact_method","acquisition_channel"]) {
+      expect(names).toContain(n);
+    }
+  });
+
+  it("defaults sms_opt_out_auto to 0", async () => {
+    await run(env.DB, "INSERT INTO contacts (id, phone, stage, source, created_at, updated_at) VALUES ('optd','+13050000001','new','test',?,?)", new Date().toISOString(), new Date().toISOString());
+    const row = await one<{ sms_opt_out_auto: number }>(env.DB, "SELECT sms_opt_out_auto FROM contacts WHERE id = 'optd'");
+    expect(row?.sms_opt_out_auto).toBe(0);
+  });
+});
