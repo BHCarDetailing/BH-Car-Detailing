@@ -30,7 +30,10 @@ async function settingsMap(env: Env): Promise<Record<string, string>> {
 
 export async function loadMissedCallSettings(env: Env): Promise<MissedCallSettings> {
   const s = await settingsMap(env);
-  const forwardNumber = (s.owner_forward_number ?? "").trim();
+  const forwardNumberRaw = (s.owner_forward_number ?? "").trim();
+  const forwardNumber = normalizePhone(forwardNumberRaw) ?? forwardNumberRaw;
+  const notifyNumberRaw = (s.owner_notify_number ?? "").trim();
+  const ownerNotifyNumber = (normalizePhone(notifyNumberRaw) ?? notifyNumberRaw) || forwardNumber;
   const dialTimeout = Number.parseInt(s.missed_call_dial_timeout ?? "20", 10);
   const cooldownHours = Number.parseInt(s.missed_call_cooldown_hours ?? "4", 10);
   return {
@@ -40,7 +43,7 @@ export async function loadMissedCallSettings(env: Env): Promise<MissedCallSettin
     textBody: (s.missed_call_text_body ?? "").trim() || DEFAULT_MISSED_CALL_BODY,
     cooldownHours: Number.isFinite(cooldownHours) ? cooldownHours : 4,
     ownerNotifyEnabled: (s.owner_notify_enabled ?? "1") === "1",
-    ownerNotifyNumber: ((s.owner_notify_number ?? "").trim() || forwardNumber),
+    ownerNotifyNumber,
   };
 }
 
@@ -134,9 +137,7 @@ export interface MissedCallResult {
 }
 
 const TIMELINE_TITLES: Record<string, string> = {
-  answered: "Missed Call — Answered",
   cooldown: "Missed Call — Skipped (Cooldown)",
-  disabled: "Missed Call — Skipped (Disabled)",
   opt_out: "Missed Call — Skipped (Opt Out)",
   sms_failed: "Missed Call — Text failed",
   sent: "Missed Call — Auto-text sent",
@@ -145,7 +146,7 @@ const TIMELINE_TITLES: Record<string, string> = {
 function ownerNotifyBody(env: Env, name: string, phone: string, texted: boolean, contactId: string): string {
   const base = (env.PUBLIC_BASE_URL ?? "").replace(/\/$/, "");
   const link = base ? `${base}/contacts/${contactId}` : `/contacts/${contactId}`;
-  const when = new Date().toLocaleString("en-US", { timeStyle: "short", dateStyle: "short" });
+  const when = new Date().toLocaleString("en-US", { timeStyle: "short", dateStyle: "short", timeZone: env.HOME_TZ });
   return `Missed call: ${name} (${phone}) at ${when}. Auto-text ${texted ? "sent" : "NOT sent"}. Open: ${link}`;
 }
 
@@ -234,13 +235,23 @@ export async function handleMissedCall(
   return { logged: true, texted, skipReason: skip, contactId, messageId, ownerNotified };
 }
 
+function escapeXml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
 /** Pure TwiML builder for the incoming-call webhook. */
 export function buildVoiceTwiml(s: MissedCallSettings): string {
   if (!s.forwardNumber) {
     return `<Response><Redirect method="POST">/api/twilio/voice/complete?DialCallStatus=no-answer</Redirect></Response>`;
   }
+  const forwardNumber = escapeXml(s.forwardNumber);
   if (!s.enabled) {
-    return `<Response><Dial timeout="${s.dialTimeout}">${s.forwardNumber}</Dial></Response>`;
+    return `<Response><Dial timeout="${s.dialTimeout}">${forwardNumber}</Dial></Response>`;
   }
-  return `<Response><Dial timeout="${s.dialTimeout}" action="/api/twilio/voice/complete" method="POST">${s.forwardNumber}</Dial></Response>`;
+  return `<Response><Dial timeout="${s.dialTimeout}" action="/api/twilio/voice/complete" method="POST">${forwardNumber}</Dial></Response>`;
 }
