@@ -172,7 +172,10 @@ The `/twilio/voice/complete` handler returns TwiML **immediately**, then runs al
 
 ### 8. Reply-aware cooldown (replaces V1 cooldown)
 
-- Suppress a second auto-text until **either** the cooldown window expires **or** the customer replies — whichever gates. Specifically: on a new missed call, send the auto-text **only if** there is no prior auto-text (`missed_calls.texted=1`) to this `from_phone` within `missed_call_cooldown_hours` **AND** (if within the window) the customer has sent no inbound message since that last auto-text. Once the customer replies, the conversation is engaged and repeated auto-texts are avoided until the window has fully expired with no further engagement.
+- Precise rule. Let `lastTextedAt` = timestamp of the most recent auto-text (`missed_calls.texted=1`) to this `from_phone`. Send the new auto-text if **any** of:
+  - `lastTextedAt` is null (never auto-texted), **or**
+  - the cooldown window has expired (`now - lastTextedAt >= missed_call_cooldown_hours`) **AND** the customer has sent **no** inbound message since `lastTextedAt`.
+- Otherwise skip with `skip_reason='cooldown'`. Net effect: within the window → never re-text; after the window → re-text only if the customer never engaged. A customer who replied is "engaged" and is not auto-texted again (the owner is in a live conversation).
 - Prevents spamming already-engaged customers.
 
 ### 9. Lead source tracking (first contact only)
