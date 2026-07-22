@@ -600,31 +600,52 @@ git commit -m "feat(crm): handleMissedCall — opt-out, retry, reply-aware coold
 - Test: `crm/test/missedcall.test.ts` (add route tests) or `crm/test/voice.test.ts` (new). Use `crm/test/voice.test.ts`.
 
 **Interfaces:**
-- Consumes: `handleMissedCall`, `loadMissedCallSettings` from `src/lib/missedcall.ts`; existing `twilioParams`, `verifyTwilioSignature`.
-- Produces: `POST /api/twilio/voice` → TwiML XML; `POST /api/twilio/voice/complete` → empty TwiML, runs `handleMissedCall` via `c.executionCtx.waitUntil`.
+- Consumes: `handleMissedCall`, `loadMissedCallSettings`, `MissedCallSettings` from `src/lib/missedcall.ts`; existing `twilioParams`, `verifyTwilioSignature`.
+- Produces:
+  - `function buildVoiceTwiml(s: MissedCallSettings): string` (exported from `src/lib/missedcall.ts`) — pure TwiML builder, unit-tested without a signature.
+  - `POST /api/twilio/voice` → TwiML XML (from `buildVoiceTwiml`); `POST /api/twilio/voice/complete` → empty TwiML, runs `handleMissedCall` via `c.executionCtx.waitUntil`.
+
+**Why a pure builder:** the existing `test/sms.test.ts` asserts `verifyTwilioSignature` fails closed when the env has no `TWILIO_AUTH_TOKEN`. Do NOT add a global `TWILIO_AUTH_TOKEN` to `vitest.config.ts` — it would undermine that test's intent. Instead, unit-test the TwiML content via the pure `buildVoiceTwiml`, and test the routes only for the fail-closed 403 path (which needs no token).
 
 - [ ] **Step 1: Write the failing tests**
 
 Create `crm/test/voice.test.ts`:
 
 ```ts
-import { env, SELF } from "cloudflare:test";
+import { SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { run } from "../src/lib/db";
+import { buildVoiceTwiml, type MissedCallSettings } from "../src/lib/missedcall";
 
-const encoder = new TextEncoder();
-function b64(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf); let s = "";
-  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
-  return btoa(s);
-}
-async function sig(token: string, url: string, params: Record<string, string>): Promise<string> {
-  let data = url; for (const k of Object.keys(params).sort()) data += k + params[k];
-  const key = await crypto.subtle.importKey("raw", encoder.encode(token), { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
-  return b64(await crypto.subtle.sign("HMAC", key, encoder.encode(data)));
-}
+const baseSettings: MissedCallSettings = {
+  enabled: true, forwardNumber: "", dialTimeout: 20, textBody: "hi",
+  cooldownHours: 4, ownerNotifyEnabled: true, ownerNotifyNumber: "",
+};
 
-describe("twilio voice webhooks", () => {
+describe("buildVoiceTwiml", () => {
+  it("dials forward number with action + timeout when enabled", () => {
+    const xml = buildVoiceTwiml({ ...baseSettings, forwardNumber: "+13051112222", dialTimeout: 25 });
+    expect(xml).toContain("<Dial");
+    expect(xml).toContain("+13051112222");
+    expect(xml).toContain('action="/api/twilio/voice/complete"');
+    expect(xml).toContain('timeout="25"');
+  });
+
+  it("dials without action callback when disabled", () => {
+    const xml = buildVoiceTwiml({ ...baseSettings, forwardNumber: "+13051112222", enabled: false });
+    expect(xml).toContain("<Dial");
+    expect(xml).toContain("+13051112222");
+    expect(xml).not.toContain("action=");
+  });
+
+  it("redirects straight to complete when no forward number", () => {
+    const xml = buildVoiceTwiml({ ...baseSettings, forwardNumber: "" });
+    expect(xml).toContain("<Redirect");
+    expect(xml).toContain("/api/twilio/voice/complete");
+    expect(xml).not.toContain("<Dial");
+  });
+});
+
+describe("twilio voice webhooks (fail closed)", () => {
   it("fails closed on bad signature (voice)", async () => {
     const res = await SELF.fetch("http://x/api/twilio/voice", {
       method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -640,40 +661,37 @@ describe("twilio voice webhooks", () => {
     });
     expect(res.status).toBe(403);
   });
-
-  it("voice returns <Dial> with forward number + action + timeout when signed", async () => {
-    await run(env.DB, "INSERT INTO settings (key,value) VALUES ('owner_forward_number','+13051112222') ON CONFLICT(key) DO UPDATE SET value=excluded.value");
-    await run(env.DB, "INSERT INTO settings (key,value) VALUES ('missed_call_dial_timeout','25') ON CONFLICT(key) DO UPDATE SET value=excluded.value");
-    const url = "http://x/api/twilio/voice";
-    const params = { From: "+13050000002", To: "+17866049110", CallSid: "CAv1" };
-    const res = await SELF.fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded", "X-Twilio-Signature": await sig(env.TWILIO_AUTH_TOKEN!, url, params) },
-      body: new URLSearchParams(params).toString(),
-    });
-    expect(res.status).toBe(200);
-    const xml = await res.text();
-    expect(xml).toContain("<Dial");
-    expect(xml).toContain("+13051112222");
-    expect(xml).toContain('action="/api/twilio/voice/complete"');
-    expect(xml).toContain('timeout="25"');
-  });
 });
 ```
-
-Note: `TWILIO_AUTH_TOKEN` must exist in the test env for the signed test. Add it to `vitest.config.ts` bindings (Step 3b).
 
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `cd crm && npx vitest run test/voice.test.ts`
-Expected: FAIL — routes return 404/wrong body; signed test may fail on missing token.
+Expected: FAIL — `buildVoiceTwiml` not exported; routes 404.
 
-- [ ] **Step 3a: Add the routes**
+- [ ] **Step 3a: Add the pure TwiML builder**
+
+Append to `crm/src/lib/missedcall.ts`:
+
+```ts
+/** Pure TwiML builder for the incoming-call webhook. */
+export function buildVoiceTwiml(s: MissedCallSettings): string {
+  if (!s.forwardNumber) {
+    return `<Response><Redirect method="POST">/api/twilio/voice/complete?DialCallStatus=no-answer</Redirect></Response>`;
+  }
+  if (!s.enabled) {
+    return `<Response><Dial timeout="${s.dialTimeout}">${s.forwardNumber}</Dial></Response>`;
+  }
+  return `<Response><Dial timeout="${s.dialTimeout}" action="/api/twilio/voice/complete" method="POST">${s.forwardNumber}</Dial></Response>`;
+}
+```
+
+- [ ] **Step 3b: Add the routes**
 
 In `crm/src/routes/public.ts`, add imports at the top (alongside existing imports):
 
 ```ts
-import { handleMissedCall, loadMissedCallSettings } from "../lib/missedcall";
+import { buildVoiceTwiml, handleMissedCall, loadMissedCallSettings } from "../lib/missedcall";
 ```
 
 Add after the `/twilio/status` route:
@@ -685,26 +703,7 @@ publicRoutes.post("/twilio/voice", async (c) => {
   const ok = await verifyTwilioSignature(c.env, c.req.url, params, c.req.header("X-Twilio-Signature"));
   if (!ok) return c.text("forbidden", 403);
   const s = await loadMissedCallSettings(c.env);
-  const xmlHeaders = { "Content-Type": "text/xml" };
-
-  // No forward number -> go straight to the missed/text-back path.
-  if (!s.forwardNumber) {
-    return c.text(
-      `<Response><Redirect method="POST">/api/twilio/voice/complete?DialCallStatus=no-answer</Redirect></Response>`,
-      200, xmlHeaders
-    );
-  }
-  // Disabled -> just ring the cell, no text-back callback.
-  if (!s.enabled) {
-    return c.text(
-      `<Response><Dial timeout="${s.dialTimeout}">${s.forwardNumber}</Dial></Response>`,
-      200, xmlHeaders
-    );
-  }
-  return c.text(
-    `<Response><Dial timeout="${s.dialTimeout}" action="/api/twilio/voice/complete" method="POST">${s.forwardNumber}</Dial></Response>`,
-    200, xmlHeaders
-  );
+  return c.text(buildVoiceTwiml(s), 200, { "Content-Type": "text/xml" });
 });
 
 // --- Twilio Voice: dial completed. Run text-back logic in the background. ---
@@ -730,17 +729,7 @@ publicRoutes.post("/twilio/voice/complete", async (c) => {
 });
 ```
 
-Note on the `Redirect` query param: the signed base string for the redirected POST is recomputed by Twilio for the new URL, so signature verification still holds on `/complete`. The `no-answer` default applies only when there is no cell to dial.
-
-- [ ] **Step 3b: Add `TWILIO_AUTH_TOKEN` to the test env**
-
-In `crm/vitest.config.ts`, add to the `bindings` object:
-
-```ts
-TWILIO_AUTH_TOKEN: "test-twilio-token",
-```
-
-(This makes `verifyTwilioSignature` compute against a known token in tests. `sendSms` still logs because `TWILIO_ACCOUNT_SID`/`FROM_NUMBER` remain unset.)
+Note on the `Redirect` query param: Twilio recomputes the signature base string for the redirected POST against the new URL, so signature verification still holds on `/complete`. The `no-answer` default applies only when there is no cell to dial.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -750,7 +739,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crm/src/routes/public.ts crm/vitest.config.ts crm/test/voice.test.ts
+git add crm/src/lib/missedcall.ts crm/src/routes/public.ts crm/test/voice.test.ts
 git commit -m "feat(crm): Twilio voice webhooks — dial owner, background text-back on no-answer"
 ```
 
