@@ -116,6 +116,14 @@ jobRoutes.patch("/:id", async (c) => {
   if (typeof b.scheduled_start === "string" && b.scheduled_start && b.scheduled_start !== existing.scheduled_start) {
     await logActivity(c.env.DB, { contactId, type: "job_scheduled", title: `Job scheduled: ${existing.title}`, payload: { job_id: id, scheduled_start: b.scheduled_start }, actor });
   }
+  // Auto review request on completion (opt-in via settings.review_auto).
+  if (b.status === "completed" && existing.status !== "completed") {
+    const auto = await one<{ value: string }>(c.env.DB, "SELECT value FROM settings WHERE key = 'review_auto'");
+    if (auto?.value === "1") {
+      const { sendReviewRequest } = await import("../lib/reminders");
+      c.executionCtx.waitUntil(sendReviewRequest(c.env, id).then(() => undefined));
+    }
+  }
   return c.json({ ok: true });
 });
 
@@ -128,4 +136,11 @@ jobRoutes.post("/:id/confirm", async (c) => {
   const { sendJobConfirmation } = await import("../lib/reminders");
   const out = await sendJobConfirmation(c.env, c.req.param("id"));
   return c.json(out, out.status === "not_found" ? 404 : 200);
+});
+
+jobRoutes.post("/:id/request-review", async (c) => {
+  const { sendReviewRequest } = await import("../lib/reminders");
+  const out = await sendReviewRequest(c.env, c.req.param("id"));
+  const code = out.status === "not_found" ? 404 : out.status === "no_review_url" ? 400 : 200;
+  return c.json(out, code);
 });

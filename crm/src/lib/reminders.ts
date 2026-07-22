@@ -2,6 +2,7 @@ import type { Env } from "../types";
 import { all, nowIso, one, run } from "./db";
 import { logActivity } from "./activity";
 import { renderBookingConfirmation, renderBookingReminder, sendEmail } from "./email";
+import { sendSms } from "./sms";
 
 interface JobRow {
   id: string; contact_id: string; title: string; scheduled_start: string | null;
@@ -19,6 +20,30 @@ export async function sendJobConfirmation(env: Env, jobId: string): Promise<{ st
   await run(env.DB, "UPDATE jobs SET confirmation_sent_at = ? WHERE id = ?", nowIso(), job.id);
   await logActivity(env.DB, { contactId: contact.id, type: "email_sent", title: `Booking confirmation (${r.status})`, payload: { job_id: job.id, message_id: r.id }, actor: "system" });
   return { status: r.status };
+}
+
+/** Send a Google-review request (SMS + email) for a completed job. Dormant-safe. */
+export async function sendReviewRequest(env: Env, jobId: string): Promise<{ status: string }> {
+  const job = await one<JobRow>(env.DB, "SELECT * FROM jobs WHERE id = ?", jobId);
+  if (!job) return { status: "not_found" };
+  const url = (await one<{ value: string }>(env.DB, "SELECT value FROM settings WHERE key = 'review_url'"))?.value;
+  if (!url) return { status: "no_review_url" };
+  const contact = await one<ContactRow & { phone: string | null }>(
+    env.DB, "SELECT id, first_name, last_name, email, phone FROM contacts WHERE id = ?", job.contact_id);
+  if (!contact) return { status: "not_found" };
+  const name = contact.first_name || "there";
+  const text = `Hi ${name}, thanks for choosing BH Car Detailing! If we did a great job, a quick review means the world: ${url}`;
+
+  if (contact.phone) await sendSms(env, { contactId: contact.id, toPhone: contact.phone, body: text });
+  if (contact.email) {
+    await sendEmail(env, {
+      contactId: contact.id, jobId: job.id, kind: "oneoff", toEmail: contact.email,
+      subject: "How did we do?", text,
+      html: `<p>Hi ${name},</p><p>Thanks for choosing BH Car Detailing! If we did a great job, a quick review means the world: <a href="${url}">${url}</a></p>`,
+    });
+  }
+  await logActivity(env.DB, { contactId: contact.id, type: "note", title: "Review requested", payload: { job_id: job.id }, actor: "system" });
+  return { status: "sent" };
 }
 
 export async function runReminders(env: Env, nowMs: number): Promise<{ sent: number }> {

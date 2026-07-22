@@ -46,6 +46,7 @@ agentRoutes.get("/schema", (c) =>
       { method: "PATCH", path: "/api/jobs/:id", description: "Update job; status change logs job_status_changed, scheduling logs job_scheduled" },
       { method: "DELETE", path: "/api/jobs/:id", description: "Delete a job" },
       { method: "POST", path: "/api/jobs/:id/confirm", description: "Send booking confirmation email to the contact (log-only until Resend configured); stamps confirmation_sent_at" },
+      { method: "POST", path: "/api/jobs/:id/request-review", description: "Send SMS+email review request with settings.review_url. 400 if review_url unset. Auto-sends on status->completed when settings.review_auto=1" },
       { method: "GET", path: "/api/tasks", description: "List tasks. Query: status (open|done|dismissed), contact_id, due_before. Returns {items}" },
       { method: "POST", path: "/api/tasks", description: "Create task. Body {title, contact_id?, job_id?, notes?, due_at?}" },
       { method: "PATCH", path: "/api/tasks/:id", description: "Update task; status=done stamps done_at" },
