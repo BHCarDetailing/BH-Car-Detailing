@@ -1,6 +1,8 @@
 import type { Env } from "../types";
 import { all, nowIso, one, run, uuid } from "./db";
 import { normalizePhone } from "./normalize";
+import { logActivity } from "./activity";
+import { sendSms } from "./sms";
 
 export const DEFAULT_MISSED_CALL_BODY =
   "Hey, this is BH Car Detailing - sorry we missed your call! Reply here with what you need and we'll be in touch.\nIf you'd like to book on your own our website is bhcardetails.com";
@@ -108,3 +110,128 @@ export async function isAutoTextAllowed(
 
 // re-export for callers that normalize at the boundary
 export { normalizePhone };
+
+export interface MissedCallInput {
+  fromPhone: string | null;
+  toPhone: string | null;
+  callSid: string | null;
+  dialStatus: string | null;
+  durationSeconds: number | null;
+}
+
+export interface MissedCallDeps {
+  send?: (env: Env, msg: { contactId?: string; toPhone: string; body: string }) => Promise<{ id: string; status: string }>;
+  nowMs?: number;
+}
+
+export interface MissedCallResult {
+  logged: boolean;
+  texted: boolean;
+  skipReason: SkipReason | null;
+  contactId: string | null;
+  messageId: string | null;
+  ownerNotified: boolean;
+}
+
+const TIMELINE_TITLES: Record<string, string> = {
+  answered: "Missed Call — Answered",
+  cooldown: "Missed Call — Skipped (Cooldown)",
+  disabled: "Missed Call — Skipped (Disabled)",
+  opt_out: "Missed Call — Skipped (Opt Out)",
+  sms_failed: "Missed Call — Text failed",
+  sent: "Missed Call — Auto-text sent",
+};
+
+function ownerNotifyBody(env: Env, name: string, phone: string, texted: boolean, contactId: string): string {
+  const base = (env.PUBLIC_BASE_URL ?? "").replace(/\/$/, "");
+  const link = base ? `${base}/contacts/${contactId}` : `/contacts/${contactId}`;
+  const when = new Date().toLocaleString("en-US", { timeStyle: "short", dateStyle: "short" });
+  return `Missed call: ${name} (${phone}) at ${when}. Auto-text ${texted ? "sent" : "NOT sent"}. Open: ${link}`;
+}
+
+export async function handleMissedCall(
+  env: Env, input: MissedCallInput, deps: MissedCallDeps = {}
+): Promise<MissedCallResult> {
+  const send = deps.send ?? sendSms;
+  const nowMs = deps.nowMs ?? Date.now();
+  const settings = await loadMissedCallSettings(env);
+  const from = normalizePhone(input.fromPhone);
+  const dial = input.dialStatus;
+
+  const logOnly = async (contactId: string | null, texted: boolean, skip: SkipReason | null, messageId: string | null, snapshot: string | null): Promise<string> =>
+    insertMissedCall(env, {
+      contactId, fromPhone: from ?? (input.fromPhone ?? ""), toPhone: input.toPhone,
+      callSid: input.callSid, dialStatus: dial, texted, messageId, skipReason: skip,
+      templateSnapshot: snapshot, durationSeconds: input.durationSeconds,
+    });
+
+  // 1. Owner answered
+  if (dial === "completed") {
+    await logOnly(null, false, "answered", null, null);
+    return { logged: true, texted: false, skipReason: "answered", contactId: null, messageId: null, ownerNotified: false };
+  }
+  // 2. Unknown caller
+  if (!from) {
+    await logOnly(null, false, "unknown_number", null, null);
+    return { logged: true, texted: false, skipReason: "unknown_number", contactId: null, messageId: null, ownerNotified: false };
+  }
+  // 3. Self / loop guard
+  if (from === settings.forwardNumber || (env.TWILIO_FROM_NUMBER && from === normalizePhone(env.TWILIO_FROM_NUMBER))) {
+    await logOnly(null, false, "self_guard", null, null);
+    return { logged: true, texted: false, skipReason: "self_guard", contactId: null, messageId: null, ownerNotified: false };
+  }
+  // 4. Feature disabled
+  if (!settings.enabled) {
+    await logOnly(null, false, "disabled", null, null);
+    return { logged: true, texted: false, skipReason: "disabled", contactId: null, messageId: null, ownerNotified: false };
+  }
+
+  // From here we have a real missed call from an external number -> owner is notified.
+  const { id: contactId } = await findOrCreateMissedCallContact(env, from);
+  const contact = await one<{ first_name: string | null; last_name: string | null; sms_opt_out_auto: number }>(
+    env.DB, "SELECT first_name, last_name, sms_opt_out_auto FROM contacts WHERE id = ?", contactId);
+  const name = [contact?.first_name, contact?.last_name].filter(Boolean).join(" ").trim() || "Unknown Caller";
+
+  let texted = false;
+  let skip: SkipReason | null = null;
+  let messageId: string | null = null;
+  let snapshot: string | null = null;
+
+  if (contact?.sms_opt_out_auto === 1) {
+    skip = "opt_out";
+  } else if (!(await isAutoTextAllowed(env, contactId, from, settings.cooldownHours, nowMs))) {
+    skip = "cooldown";
+  } else {
+    // Send with exactly one retry on failure.
+    let res = await send(env, { contactId, toPhone: from, body: settings.textBody });
+    if (res.status === "failed") res = await send(env, { contactId, toPhone: from, body: settings.textBody });
+    if (res.status === "failed") {
+      skip = "sms_failed";
+    } else {
+      texted = true;
+      messageId = res.id;
+      snapshot = settings.textBody;
+    }
+  }
+
+  const mcId = await logOnly(contactId, texted, skip, messageId, snapshot);
+
+  // Timeline event
+  const title = texted ? TIMELINE_TITLES.sent : (skip ? TIMELINE_TITLES[skip] : "Missed Call");
+  await logActivity(env.DB, {
+    contactId, type: "missed_call", title,
+    payload: { missed_call_id: mcId, dial_status: dial, texted, skip_reason: skip }, actor: "system",
+  });
+
+  // Owner notification (SMS). Skipped only if the feature is disabled; the
+  // actual SMS only goes out when a target number is configured.
+  let ownerNotified = false;
+  if (settings.ownerNotifyEnabled) {
+    ownerNotified = true;
+    if (settings.ownerNotifyNumber) {
+      await send(env, { toPhone: settings.ownerNotifyNumber, body: ownerNotifyBody(env, name, from, texted, contactId) });
+    }
+  }
+
+  return { logged: true, texted, skipReason: skip, contactId, messageId, ownerNotified };
+}
