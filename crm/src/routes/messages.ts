@@ -12,15 +12,28 @@ messageRoutes.use("*", requireAuth());
 messageRoutes.get("/inbox", async (c) => {
   const items = await all(
     c.env.DB,
-    `SELECT m.*, ct.first_name, ct.last_name, ct.phone
-     FROM messages m
-     JOIN contacts ct ON ct.id = m.contact_id
-     JOIN (
+    `SELECT m.*, ct.first_name, ct.last_name, ct.phone, ct.id AS contact_id,
+            CASE WHEN mc.cnt > 0 THEN 1 ELSE 0 END AS missed_unacked,
+            COALESCE(mc.texted_any, 0) AS missed_texted
+     FROM (
+       SELECT contact_id FROM messages WHERE channel = 'sms' AND contact_id IS NOT NULL
+       UNION
+       SELECT contact_id FROM missed_calls WHERE contact_id IS NOT NULL
+     ) ids
+     JOIN contacts ct ON ct.id = ids.contact_id
+     LEFT JOIN (
        SELECT contact_id, MAX(id) AS max_id
        FROM messages WHERE channel = 'sms' AND contact_id IS NOT NULL
        GROUP BY contact_id
-     ) last ON last.contact_id = m.contact_id AND last.max_id = m.id
-     ORDER BY m.id DESC LIMIT 100`
+     ) last ON last.contact_id = ids.contact_id
+     LEFT JOIN messages m ON m.id = last.max_id
+     LEFT JOIN (
+       SELECT contact_id, COUNT(*) AS cnt, MAX(texted) AS texted_any
+       FROM missed_calls
+       WHERE acknowledged_at IS NULL AND contact_id IS NOT NULL
+       GROUP BY contact_id
+     ) mc ON mc.contact_id = ids.contact_id
+     ORDER BY COALESCE(m.id, 0) DESC LIMIT 100`
   );
   return c.json({ items });
 });
@@ -30,6 +43,11 @@ messageRoutes.get("/", async (c) => {
   const contactId = c.req.query("contact_id");
   if (!contactId) return c.json({ error: "contact_id_required" }, 400);
   const limit = Math.min(Number(c.req.query("limit")) > 0 ? Number(c.req.query("limit")) : 200, 500);
+  await run(
+    c.env.DB,
+    "UPDATE missed_calls SET acknowledged_at = ? WHERE contact_id = ? AND acknowledged_at IS NULL",
+    new Date().toISOString(), contactId
+  );
   const items = await all(
     c.env.DB,
     `SELECT * FROM messages
