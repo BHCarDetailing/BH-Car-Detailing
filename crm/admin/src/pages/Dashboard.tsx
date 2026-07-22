@@ -3,14 +3,25 @@ import { Link } from "react-router-dom";
 import { api } from "../api";
 import { fullName, STAGES, type Contact, type Stats } from "../types";
 
+interface Digest { stats: Record<string, number>; narrative: string | null }
+
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [newLeads, setNewLeads] = useState<Contact[]>([]);
+  const [digest, setDigest] = useState<Digest | null>(null);
+  const [digestBusy, setDigestBusy] = useState(false);
 
   useEffect(() => {
     api<Stats>("/api/stats").then(setStats).catch(() => {});
     api<{ items: Contact[] }>("/api/contacts?stage=new&limit=20").then((r) => setNewLeads(r.items)).catch(() => {});
   }, []);
+
+  async function loadDigest() {
+    setDigestBusy(true);
+    try { setDigest(await api<Digest>("/api/ai/digest")); }
+    catch { /* ignore */ }
+    finally { setDigestBusy(false); }
+  }
 
   return (
     <div className="space-y-8 p-4 md:p-8">
@@ -55,6 +66,22 @@ export default function Dashboard() {
           </ul>
         </section>
       )}
+
+      <section className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 className="text-lg font-medium">Weekly digest</h2>
+          <button onClick={loadDigest} disabled={digestBusy} className="min-h-[44px] rounded-md bg-neutral-900 px-3 text-sm text-white disabled:opacity-50">{digestBusy ? "Thinking…" : "✨ Generate"}</button>
+        </div>
+        {digest ? (
+          <>
+            {digest.narrative
+              ? <p className="text-sm text-neutral-800">{digest.narrative}</p>
+              : <p className="text-sm text-neutral-600">{digest.stats.new_leads} new leads · {digest.stats.jobs_scheduled} jobs scheduled · ${(digest.stats.quoted_cents / 100).toFixed(0)} quoted · {digest.stats.open_tasks} open tasks. <span className="text-neutral-400">(AI summary activates once your Anthropic key is added.)</span></p>}
+          </>
+        ) : (
+          <p className="text-sm text-neutral-500">Tap Generate for this week's numbers and an AI recap.</p>
+        )}
+      </section>
 
       <section>
         <h2 className="mb-3 text-lg font-medium">New leads needing action</h2>

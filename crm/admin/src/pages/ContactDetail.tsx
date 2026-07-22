@@ -75,6 +75,14 @@ export default function ContactDetail() {
 
         {actionError && <p className="text-sm text-red-600">{actionError}</p>}
 
+        {(contact.ai_summary || contact.ai_next_action) && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm">
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-700">AI summary</div>
+            {contact.ai_summary && <p className="text-neutral-800">{contact.ai_summary}</p>}
+            {contact.ai_next_action && <p className="mt-1 text-amber-800"><strong>Next:</strong> {contact.ai_next_action}</p>}
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2">
           {contact.phone && (
             <>
@@ -242,6 +250,7 @@ function MessageThread({ messages }: { messages: SmsMessage[] }) {
 function Composer({ contactId, onSent }: { contactId: string; onSent: () => void }) {
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
+  const [drafting, setDrafting] = useState(false);
   const [note, setNote] = useState("");
 
   async function send(e: React.FormEvent) {
@@ -257,11 +266,22 @@ function Composer({ contactId, onSent }: { contactId: string; onSent: () => void
     finally { setBusy(false); }
   }
 
+  async function draft() {
+    setDrafting(true); setNote("");
+    try {
+      const r = (await api(`/api/ai/draft`, { method: "POST", body: JSON.stringify({ contact_id: contactId, channel: "sms" }) })) as { text: string };
+      setBody(r.text);
+    } catch (e) {
+      setNote((e as { status?: number })?.status === 503 ? "AI drafting turns on once your Anthropic key is added." : "Couldn't draft — try again.");
+    } finally { setDrafting(false); }
+  }
+
   return (
     <form onSubmit={send} className="space-y-2">
       <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={2} placeholder="Type a text…" className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-red-600" />
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button disabled={busy} className="min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white disabled:opacity-50">{busy ? "Sending…" : "Send text"}</button>
+        <button type="button" disabled={drafting} onClick={draft} className="min-h-[44px] rounded-md bg-neutral-200 px-4 text-sm disabled:opacity-50">{drafting ? "Drafting…" : "✨ Draft with AI"}</button>
         {note && <span className="text-xs text-neutral-500">{note}</span>}
       </div>
     </form>

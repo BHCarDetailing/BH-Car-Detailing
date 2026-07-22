@@ -31,6 +31,8 @@ Messages (SMS): GET /api/messages?contact_id= (thread), POST /api/messages {cont
 Twilio webhooks (public, signature-verified, fail closed): POST /api/twilio/inbound, POST /api/twilio/status. Secrets: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER or TWILIO_MESSAGING_SERVICE_SID.
 Settings: GET /api/settings, PUT /api/settings {key, value} — e.g. sms_template, ics_feed_token.
 Calendar feed (public, token-guarded): GET /api/calendar/:token.ics — VCALENDAR of scheduled jobs; token = settings.ics_feed_token. Import: browser parses vCard/CSV then POSTs to /api/contacts/bulk.
+Sequences (email nurture): GET/POST /api/sequences, GET/PATCH/DELETE /api/sequences/:id, POST /api/sequences/:id/enroll, GET /api/sequences/:id/enrollments. Runs on the 5-min cron with quiet hours (9am-8pm ET); unsubscribe at /api/unsubscribe/:cid/:sig; trigger stage:new auto-enrolls new leads. Emails log-only until Resend.
+AI (Haiku, dormant without ANTHROPIC_API_KEY): lead intelligence auto-runs on capture (writes ai_summary/ai_next_action + ai_summary activity with draft_reply). POST /api/ai/draft {contact_id, channel} (503 if unset), GET /api/ai/digest {stats, narrative}. Brand voice: settings.brand_brief.
 
 ## Development (Windows box)
 - Node is at C:\Program Files\nodejs — bash sessions need:

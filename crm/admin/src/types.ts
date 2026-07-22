@@ -28,6 +28,8 @@ export interface Contact {
   vehicles?: Vehicle[];
   tags?: string[];
   custom?: Record<string, unknown>;
+  ai_summary?: string | null;
+  ai_next_action?: string | null;
 }
 
 export interface Activity {

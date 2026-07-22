@@ -8,6 +8,7 @@ import { verifyTwilioSignature } from "../lib/sms";
 import { timingSafeEqualStr } from "../lib/auth";
 import { buildIcs, type IcsJob } from "../lib/ics";
 import { enrollContact, unsubscribeContact, verifyUnsub } from "../lib/sequences";
+import { analyzeLead } from "../lib/ai";
 
 export const publicRoutes = new Hono<{ Bindings: Env }>();
 
@@ -149,6 +150,11 @@ publicRoutes.post("/lead", async (c) => {
   if (created) {
     const seqs = await all<{ id: string }>(c.env.DB, "SELECT id FROM sequences WHERE status = 'active' AND trigger = 'stage:new'");
     for (const s of seqs) await enrollContact(c.env, s.id, contactId);
+  }
+
+  // Lead intelligence (async, dormant without ANTHROPIC_API_KEY) — don't block the response.
+  if (created && c.env.ANTHROPIC_API_KEY) {
+    c.executionCtx.waitUntil(analyzeLead(c.env, contactId));
   }
 
   return c.json({ ok: true }, 200, h);

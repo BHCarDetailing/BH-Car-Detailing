@@ -6,14 +6,17 @@ const DEFAULT_TEMPLATE = "Hi {first_name}, this is BH Car Detailing — thanks f
 
 export default function Settings() {
   const [template, setTemplate] = useState("");
+  const [brand, setBrand] = useState("");
   const [feedToken, setFeedToken] = useState("");
   const [savedNote, setSavedNote] = useState("");
+  const [brandNote, setBrandNote] = useState("");
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     api<{ settings: Record<string, string> }>("/api/settings")
       .then((r) => {
         setTemplate(r.settings.sms_template ?? DEFAULT_TEMPLATE);
+        setBrand(r.settings.brand_brief ?? "");
         setFeedToken(r.settings.ics_feed_token ?? "");
       })
       .catch(() => setTemplate(DEFAULT_TEMPLATE));
@@ -25,6 +28,14 @@ export default function Settings() {
       await api("/api/settings", { method: "PUT", body: JSON.stringify({ key: "sms_template", value: template }) });
       setSavedNote("Saved.");
     } catch { setSavedNote("Couldn't save — try again."); }
+  }
+
+  async function saveBrand() {
+    setBrandNote("");
+    try {
+      await api("/api/settings", { method: "PUT", body: JSON.stringify({ key: "brand_brief", value: brand }) });
+      setBrandNote("Saved.");
+    } catch { setBrandNote("Couldn't save — try again."); }
   }
 
   async function generateFeed() {
@@ -57,6 +68,16 @@ export default function Settings() {
           <div className="mt-2 flex items-center gap-3">
             <button onClick={saveTemplate} className="min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">Save template</button>
             {savedNote && <span className="text-xs text-neutral-500">{savedNote}</span>}
+          </div>
+        </section>
+
+        <section className="rounded-xl bg-white p-5 shadow-sm">
+          <h2 className="mb-2 font-medium">Brand brain</h2>
+          <p className="mb-3 text-sm text-neutral-500">Tell the AI your voice, services, offers, and pricing style. It uses this to summarize new leads and draft replies. (Drafting activates once your Anthropic key is added.)</p>
+          <textarea value={brand} onChange={(e) => setBrand(e.target.value)} rows={5} placeholder="e.g. We're a friendly mobile detailing crew in Miami. Ceramic coatings from $750, full details from $150. Always quote fast and offer a weekday discount…" className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-red-600" />
+          <div className="mt-2 flex items-center gap-3">
+            <button onClick={saveBrand} className="min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">Save brand brief</button>
+            {brandNote && <span className="text-xs text-neutral-500">{brandNote}</span>}
           </div>
         </section>
 

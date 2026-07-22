@@ -54,6 +54,8 @@ agentRoutes.get("/schema", (c) =>
       { method: "DELETE", path: "/api/sequences/:id", description: "Delete a sequence" },
       { method: "POST", path: "/api/sequences/:id/enroll", description: "Enroll a contact. Body {contact_id}. Emails send on the cron, log-only until Resend set" },
       { method: "GET", path: "/api/sequences/:id/enrollments", description: "Enrollments for a sequence" },
+      { method: "POST", path: "/api/ai/draft", description: "AI-draft an SMS/email for a contact. Body {contact_id, channel: sms|email}. 503 if ANTHROPIC_API_KEY unset" },
+      { method: "GET", path: "/api/ai/digest", description: "Weekly digest: {stats, narrative}. narrative null until Anthropic key set. Lead intelligence auto-runs on capture" },
       { method: "GET", path: "/api/agent/schema", description: "This document" },
     ],
   })

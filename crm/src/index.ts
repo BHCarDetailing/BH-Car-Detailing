@@ -9,6 +9,7 @@ import { jobRoutes } from "./routes/jobs";
 import { taskRoutes } from "./routes/tasks";
 import { messageRoutes } from "./routes/messages";
 import { sequenceRoutes } from "./routes/sequences";
+import { aiRoutes } from "./routes/ai";
 import { runReminders } from "./lib/reminders";
 import { runSequences } from "./lib/sequences";
 
@@ -26,6 +27,7 @@ app.route("/api/jobs", jobRoutes);
 app.route("/api/tasks", taskRoutes);
 app.route("/api/messages", messageRoutes);
 app.route("/api/sequences", sequenceRoutes);
+app.route("/api/ai", aiRoutes);
 app.route("/api/agent", agentRoutes);
 
 export default {
