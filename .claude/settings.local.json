@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "mcp__4c9e34b0-7655-4a54-a58d-648b57e8efe7__list_websites",
-      "mcp__4c9e34b0-7655-4a54-a58d-648b57e8efe7__list_workspaces"
+      "mcp__4c9e34b0-7655-4a54-a58d-648b57e8efe7__list_workspaces",
+      "Bash(export PATH=\"/c/Program Files/nodejs:$PATH\" && cd \"/c/Users/Maxwell Berko/Desktop/7-17 Website/crm\" && npx wrangler *)",
+      "Bash(mkdir -p \"/c/Users/MAXWEL~1/AppData/Local/Temp/claude/C--Users-Maxwell-Berko-Desktop-7-17-Website/9dffc287-7e14-4228-ac7a-275ef4e0cc4c/scratchpad\" && cp \"/c/Users/Maxwell Berko/Desktop/7-17 Website/js/main.js\" \"/c/Users/MAXWEL~1/AppData/Local/Temp/claude/C--Users-Maxwell-Berko-Desktop-7-17-Website/9dffc287-7e14-4228-ac7a-275ef4e0cc4c/scratchpad/main.js\" && ls -la \"/c/Users/MAXWEL~1/AppData/Local/Temp/claude/C--Users-Maxwell-Berko-Desktop-7-17-Website/9dffc287-7e14-4228-ac7a-275ef4e0cc4c/scratchpad/main.js\" && grep -c \"bh-crm.bhcardetails.workers.dev\" \"/c/Users/MAXWEL~1/AppData/Local/Temp/claude/C--Users-Maxwell-Berko-Desktop-7-17-Website/9dffc287-7e14-4228-ac7a-275ef4e0cc4c/scratchpad/main.js\")"
     ]
   }
 }
