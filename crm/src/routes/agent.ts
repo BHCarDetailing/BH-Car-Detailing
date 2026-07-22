@@ -18,6 +18,8 @@ agentRoutes.get("/schema", (c) =>
     endpoints: [
       { method: "GET", path: "/api/health", description: "Liveness check (public)" },
       { method: "POST", path: "/api/lead", description: "Public lead capture (CORS-gated). Body: {name, phone, email, vehicle, message?, source, source_detail, ts, website}" },
+      { method: "GET", path: "/api/book/availability", description: "Public: open slots for ?date=YYYY-MM-DD. Returns {slots (UTC ISO), slot_min}" },
+      { method: "POST", path: "/api/book", description: "Public self-booking. Body {name, phone, email?, service, address?, slot_start, ts, website}. Creates scheduled job; 409 slot_taken" },
       { method: "OPTIONS", path: "/api/lead", description: "CORS preflight for the public lead endpoint" },
       { method: "POST", path: "/api/auth/login", description: "Body {password} -> session cookie" },
       { method: "POST", path: "/api/auth/logout", description: "Clears the session cookie" },

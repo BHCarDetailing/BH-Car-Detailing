@@ -9,6 +9,8 @@ import { timingSafeEqualStr } from "../lib/auth";
 import { buildIcs, type IcsJob } from "../lib/ics";
 import { enrollContact, unsubscribeContact, verifyUnsub } from "../lib/sequences";
 import { analyzeLead } from "../lib/ai";
+import { availableSlots, businessHours, slotEndIso, slotIsFree } from "../lib/booking";
+import { sendJobConfirmation } from "../lib/reminders";
 
 export const publicRoutes = new Hono<{ Bindings: Env }>();
 
@@ -157,6 +159,72 @@ publicRoutes.post("/lead", async (c) => {
     c.executionCtx.waitUntil(analyzeLead(c.env, contactId));
   }
 
+  return c.json({ ok: true }, 200, h);
+});
+
+// --- Public self-booking: live open slots ---
+publicRoutes.options("/book", (c) =>
+  new Response(null, { status: 204, headers: { ...corsHeaders(c), "Access-Control-Allow-Methods": "POST, OPTIONS" } }));
+
+publicRoutes.get("/book/availability", async (c) => {
+  const h = corsHeaders(c);
+  const date = c.req.query("date");
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return c.json({ error: "bad_date" }, 400, h);
+  const cfg = await businessHours(c.env);
+  return c.json({ slots: await availableSlots(c.env, date), slot_min: cfg.slot_min }, 200, h);
+});
+
+publicRoutes.post("/book", async (c) => {
+  const h = corsHeaders(c);
+  const body = await c.req.json<Record<string, unknown>>().catch(() => null);
+  if (!body) return c.json({ ok: false, error: "bad_json" }, 400, h);
+  const ts = typeof body.ts === "number" ? body.ts : NaN;
+  if (typeof body.website === "string" && body.website !== "") return c.json({ ok: true }, 200, h);
+  if (!Number.isFinite(ts) || Date.now() - ts < 2000) return c.json({ ok: true }, 200, h);
+
+  const ip = c.req.header("CF-Connecting-IP") ?? "local";
+  const rl = await one<{ n: number }>(c.env.DB, "SELECT COUNT(*) AS n FROM rl_events WHERE bucket = ? AND ts > ?", "book:" + ip, Date.now() - 3600_000);
+  if ((rl?.n ?? 0) >= 10) return c.json({ ok: true }, 200, h);
+
+  const phone = normalizePhone(typeof body.phone === "string" ? body.phone : undefined);
+  const email = normalizeEmail(typeof body.email === "string" ? body.email : undefined);
+  if (!phone) return c.json({ ok: false, error: "phone_required" }, 400, h);
+  const slot = typeof body.slot_start === "string" ? body.slot_start : "";
+  if (!slot || !Number.isFinite(Date.parse(slot))) return c.json({ ok: false, error: "slot_required" }, 400, h);
+  if (!(await slotIsFree(c.env, slot))) return c.json({ ok: false, error: "slot_taken" }, 409, h);
+
+  await run(c.env.DB, "INSERT INTO rl_events (bucket, ts) VALUES (?, ?)", "book:" + ip, Date.now());
+  const cfg = await businessHours(c.env);
+  const service = typeof body.service === "string" && body.service.trim() ? body.service.slice(0, 120) : "Detailing";
+  const name = cleanName(typeof body.name === "string" ? body.name : undefined);
+  const [first, ...rest] = (name ?? "").split(" ");
+  const last = rest.join(" ");
+  const address = typeof body.address === "string" ? body.address.slice(0, 200) : null;
+  const now = nowIso();
+
+  let contact = email ? await one<{ id: string }>(c.env.DB, "SELECT id FROM contacts WHERE email = ?", email) : null;
+  if (!contact && phone) contact = await one<{ id: string }>(c.env.DB, "SELECT id FROM contacts WHERE phone = ?", phone);
+  let contactId: string;
+  if (contact) {
+    contactId = contact.id;
+    await run(c.env.DB,
+      "UPDATE contacts SET first_name = COALESCE(first_name, ?), last_name = COALESCE(last_name, ?), email = COALESCE(email, ?), phone = COALESCE(phone, ?), updated_at = ? WHERE id = ?",
+      first || null, last || null, email, phone, now, contactId);
+  } else {
+    contactId = uuid();
+    await run(c.env.DB,
+      `INSERT INTO contacts (id, first_name, last_name, email, phone, address, stage, source, email_opt_in, created_at, updated_at)
+       VALUES (?,?,?,?,?,?, 'scheduled', 'self-booking', 1, ?, ?)`,
+      contactId, first || null, last || null, email, phone, address, now, now);
+  }
+
+  const jobId = uuid();
+  await run(c.env.DB,
+    `INSERT INTO jobs (id, contact_id, title, status, scheduled_start, scheduled_end, address, created_at, updated_at)
+     VALUES (?,?,?, 'scheduled', ?, ?, ?, ?, ?)`,
+    jobId, contactId, service, slot, slotEndIso(slot, cfg.slot_min), address, now, now);
+  await logActivity(c.env.DB, { contactId, type: "job_scheduled", title: `Self-booked: ${service}`, payload: { job_id: jobId, scheduled_start: slot, source: "self-booking" } });
+  c.executionCtx.waitUntil(sendJobConfirmation(c.env, jobId).then(() => undefined));
   return c.json({ ok: true }, 200, h);
 });
 
