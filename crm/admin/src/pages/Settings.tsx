@@ -6,6 +6,7 @@ import type { Label } from "../types";
 const DEFAULT_TEMPLATE = "Hi {first_name}, this is BH Car Detailing — thanks for reaching out! Happy to get you a quote. When works for a quick call or text?";
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DEFAULT_HOURS = { days: [1, 2, 3, 4, 5, 6], start: "09:00", end: "18:00", slot_min: 120, buffer_min: 30 };
+const DEFAULT_MISSED_BODY = "Hey, this is BH Car Detailing - sorry we missed your call! Reply here with what you need and we'll be in touch.\nIf you'd like to book on your own our website is bhcardetails.com";
 
 export default function Settings() {
   const [template, setTemplate] = useState("");
@@ -21,6 +22,8 @@ export default function Settings() {
   const [reviewUrl, setReviewUrl] = useState("");
   const [reviewAuto, setReviewAuto] = useState(false);
   const [reviewNote, setReviewNote] = useState("");
+  const [mc, setMc] = useState({ enabled: true, forward: "", timeout: "20", body: "", cooldown: "4", notifyEnabled: true, notifyNumber: "" });
+  const [mcNote, setMcNote] = useState("");
 
   function loadLabels() { api<{ items: Label[] }>("/api/labels").then((r) => setLabels(r.items)).catch(() => {}); }
 
@@ -33,6 +36,15 @@ export default function Settings() {
         if (r.settings.business_hours) { try { setHours({ ...DEFAULT_HOURS, ...JSON.parse(r.settings.business_hours) }); } catch { /* keep default */ } }
         setReviewUrl(r.settings.review_url ?? "");
         setReviewAuto(r.settings.review_auto === "1");
+        setMc({
+          enabled: (r.settings.missed_call_enabled ?? "1") === "1",
+          forward: r.settings.owner_forward_number ?? "",
+          timeout: r.settings.missed_call_dial_timeout ?? "20",
+          body: r.settings.missed_call_text_body ?? DEFAULT_MISSED_BODY,
+          cooldown: r.settings.missed_call_cooldown_hours ?? "4",
+          notifyEnabled: (r.settings.owner_notify_enabled ?? "1") === "1",
+          notifyNumber: r.settings.owner_notify_number ?? "",
+        });
       })
       .catch(() => setTemplate(DEFAULT_TEMPLATE));
     loadLabels();
@@ -51,6 +63,25 @@ export default function Settings() {
       setReviewNote("Saved.");
     } catch { setReviewNote("Couldn't save — try again."); }
   }
+  async function saveMissedCall() {
+    setMcNote("");
+    const pairs: Array<[string, string]> = [
+      ["missed_call_enabled", mc.enabled ? "1" : "0"],
+      ["owner_forward_number", mc.forward.trim()],
+      ["missed_call_dial_timeout", String(Number.parseInt(mc.timeout, 10) || 20)],
+      ["missed_call_text_body", mc.body],
+      ["missed_call_cooldown_hours", String(Number.parseInt(mc.cooldown, 10) || 4)],
+      ["owner_notify_enabled", mc.notifyEnabled ? "1" : "0"],
+      ["owner_notify_number", mc.notifyNumber.trim()],
+    ];
+    try {
+      for (const [key, value] of pairs) {
+        await api("/api/settings", { method: "PUT", body: JSON.stringify({ key, value }) });
+      }
+      setMcNote("Saved.");
+    } catch { setMcNote("Couldn't save — try again."); }
+  }
+
   async function addLabel() {
     const name = newLabel.label.trim();
     if (!name) return;
@@ -109,6 +140,38 @@ export default function Settings() {
           <div className="mt-2 flex items-center gap-3">
             <button onClick={saveTemplate} className="min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">Save template</button>
             {savedNote && <span className="text-xs text-neutral-500">{savedNote}</span>}
+          </div>
+        </section>
+
+        <section className="rounded-xl bg-white p-5 shadow-sm">
+          <h2 className="mb-2 font-medium">Missed-call text-back</h2>
+          <p className="mb-3 text-sm text-neutral-500">When someone calls your CRM number and you don't pick up, we auto-text them and log the lead. Rings your cell first.</p>
+          <label className="mb-3 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={mc.enabled} onChange={(e) => setMc({ ...mc, enabled: e.target.checked })} /> Enable missed-call text-back
+          </label>
+          <label className="mb-2 block text-sm">Your cell (rings first)
+            <input value={mc.forward} onChange={(e) => setMc({ ...mc, forward: e.target.value })} placeholder="+1305…" className="mt-1 min-h-[44px] w-full rounded-md border border-neutral-300 px-3 text-sm" />
+          </label>
+          <div className="mb-2 flex gap-3">
+            <label className="text-sm">Ring seconds
+              <input type="number" min={5} max={60} value={mc.timeout} onChange={(e) => setMc({ ...mc, timeout: e.target.value })} className="mt-1 min-h-[44px] w-24 rounded-md border border-neutral-300 px-2 text-sm" />
+            </label>
+            <label className="text-sm">Cooldown (hours)
+              <input type="number" min={0} value={mc.cooldown} onChange={(e) => setMc({ ...mc, cooldown: e.target.value })} className="mt-1 min-h-[44px] w-24 rounded-md border border-neutral-300 px-2 text-sm" />
+            </label>
+          </div>
+          <label className="mb-2 block text-sm">Auto-text message
+            <textarea value={mc.body} onChange={(e) => setMc({ ...mc, body: e.target.value })} rows={4} className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm" />
+          </label>
+          <label className="mb-2 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={mc.notifyEnabled} onChange={(e) => setMc({ ...mc, notifyEnabled: e.target.checked })} /> Text me when I miss a call
+          </label>
+          <label className="mb-3 block text-sm">Notify this number (defaults to your cell)
+            <input value={mc.notifyNumber} onChange={(e) => setMc({ ...mc, notifyNumber: e.target.value })} placeholder="+1305…" className="mt-1 min-h-[44px] w-full rounded-md border border-neutral-300 px-3 text-sm" />
+          </label>
+          <div className="flex items-center gap-3">
+            <button onClick={saveMissedCall} className="min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">Save</button>
+            {mcNote && <span className="text-xs text-neutral-500">{mcNote}</span>}
           </div>
         </section>
 
