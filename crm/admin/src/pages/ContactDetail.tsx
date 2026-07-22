@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../api";
-import { fullName, STAGES, type Activity, type Contact, type Job, type SmsMessage, type Stage } from "../types";
+import { fullName, STAGES, type Activity, type Contact, type Job, type Label, type SmsMessage, type Stage } from "../types";
+
+interface TaskRow { id: string; title: string; due_at: string | null; status: string }
 
 function touch(contactId: string, channel: "sms" | "call") {
   // Fire-and-forget: log the bridge outreach; the sms:/tel: link opens the phone's app.
@@ -14,6 +16,8 @@ export default function ContactDetail() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [messages, setMessages] = useState<SmsMessage[]>([]);
+  const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [labels, setLabels] = useState<Label[]>([]);
   const [note, setNote] = useState("");
   const [actionError, setActionError] = useState("");
 
@@ -23,8 +27,30 @@ export default function ContactDetail() {
     api<{ items: Activity[] }>(`/api/contacts/${id}/activities`).then((r) => setActivities(r.items)).catch(() => {});
     api<{ items: Job[] }>(`/api/jobs?contact_id=${id}`).then((r) => setJobs(r.items)).catch(() => {});
     api<{ items: SmsMessage[] }>(`/api/messages?contact_id=${id}`).then((r) => setMessages(r.items)).catch(() => {});
+    api<{ items: TaskRow[] }>(`/api/tasks?contact_id=${id}&status=open`).then((r) => setTasks(r.items)).catch(() => {});
   }, [id]);
   useEffect(load, [load]);
+  useEffect(() => { api<{ items: Label[] }>("/api/labels").then((r) => setLabels(r.items)).catch(() => {}); }, []);
+
+  async function quicklog(type: "call_logged" | "note", title: string) {
+    await api(`/api/contacts/${id}/activities`, { method: "POST", body: JSON.stringify({ type, title }) });
+    load();
+  }
+  async function toggleLabel(key: string) {
+    const cur = contact?.tags ?? [];
+    const next = cur.includes(key) ? cur.filter((t) => t !== key) : [...cur, key];
+    await api(`/api/contacts/${id}`, { method: "PATCH", body: JSON.stringify({ tags: next }) });
+    load();
+  }
+  async function requestReview(jobId: string) {
+    try {
+      const r = (await api(`/api/jobs/${jobId}/request-review`, { method: "POST" })) as { status: string };
+      setActionError(r.status === "no_review_url" ? "Add your Google review link in Settings first." : "");
+    } catch (e) {
+      setActionError((e as { status?: number })?.status === 400 ? "Add your Google review link in Settings first." : "Couldn't send review request.");
+    }
+    load();
+  }
 
   async function setStage(stage: Stage) {
     setActionError("");
@@ -93,6 +119,13 @@ export default function ContactDetail() {
           {contact.email && <a href={`mailto:${contact.email}`} className="rounded-md bg-neutral-200 px-4 py-2 text-sm min-h-[44px] flex items-center">Email</a>}
         </div>
 
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => quicklog("call_logged", "Logged a call")} className="min-h-[40px] rounded-md bg-neutral-100 px-3 text-sm text-neutral-700">＋ Log call</button>
+          <button onClick={() => { const t = prompt("Note:"); if (t) quicklog("note", t); }} className="min-h-[40px] rounded-md bg-neutral-100 px-3 text-sm text-neutral-700">＋ Log note</button>
+        </div>
+
+        <NextStep contactId={id!} tasks={tasks} onChange={load} />
+
         {contact.phone && (
           <section className="rounded-xl bg-white p-5 shadow-sm">
             <h2 className="mb-3 font-medium">Messages</h2>
@@ -132,10 +165,13 @@ export default function ContactDetail() {
                       ${(j.price_cents / 100).toFixed(2)}{j.scheduled_start ? ` · ${new Date(j.scheduled_start).toLocaleString()}` : ""}
                     </div>
                   </div>
-                  <select value={j.status} onChange={async (e) => { await api(`/api/jobs/${j.id}`, { method: "PATCH", body: JSON.stringify({ status: e.target.value }) }); load(); }}
-                    className="min-h-[44px] rounded-md border border-neutral-300 px-2 text-sm capitalize">
-                    {["draft","quoted","scheduled","in_progress","completed","paid","cancelled"].map((s) => <option key={s} value={s}>{s.replace("_"," ")}</option>)}
-                  </select>
+                  <div className="flex items-center gap-2">
+                    {(j.status === "completed" || j.status === "paid") && <button onClick={() => requestReview(j.id)} className="min-h-[40px] rounded-md bg-amber-100 px-3 text-sm text-amber-800">★ Review</button>}
+                    <select value={j.status} onChange={async (e) => { await api(`/api/jobs/${j.id}`, { method: "PATCH", body: JSON.stringify({ status: e.target.value }) }); load(); }}
+                      className="min-h-[44px] rounded-md border border-neutral-300 px-2 text-sm capitalize">
+                      {["draft","quoted","scheduled","in_progress","completed","paid","cancelled"].map((s) => <option key={s} value={s}>{s.replace("_"," ")}</option>)}
+                    </select>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -168,28 +204,109 @@ export default function ContactDetail() {
 
       <aside className="space-y-4">
         <EnrollControl contactId={id!} />
-        <section className="rounded-xl bg-white p-5 text-sm shadow-sm">
-          <h2 className="mb-3 font-medium">Details</h2>
-          <dl className="space-y-2">
-            <div><dt className="text-neutral-400">Email</dt><dd>{contact.email ?? "—"}</dd></div>
-            <div><dt className="text-neutral-400">Phone</dt><dd>{contact.phone ?? "—"}</dd></div>
-            <div><dt className="text-neutral-400">Address</dt><dd>{contact.address ?? "—"}</dd></div>
-            <div><dt className="text-neutral-400">Created</dt><dd>{new Date(contact.created_at).toLocaleString()}</dd></div>
-            <div><dt className="text-neutral-400">Tags</dt><dd>{(contact.tags ?? []).join(", ") || "—"}</dd></div>
-          </dl>
-          {Object.keys(contact.custom ?? {}).length > 0 && (
-            <>
-              <h3 className="mt-4 mb-2 font-medium">Custom fields</h3>
-              <dl className="space-y-2">
-                {Object.entries(contact.custom!).map(([k, v]) => (
-                  <div key={k}><dt className="text-neutral-400">{k}</dt><dd>{String(v)}</dd></div>
-                ))}
-              </dl>
-            </>
-          )}
-        </section>
+        {labels.length > 0 && (
+          <section className="rounded-xl bg-white p-5 text-sm shadow-sm">
+            <h2 className="mb-3 font-medium">Labels</h2>
+            <div className="flex flex-wrap gap-2">
+              {labels.map((l) => {
+                const on = (contact.tags ?? []).includes(l.key);
+                return (
+                  <button key={l.key} onClick={() => toggleLabel(l.key)}
+                    className="rounded-full border px-3 py-1 text-xs"
+                    style={on ? { backgroundColor: l.color, borderColor: l.color, color: "#fff" } : { borderColor: l.color, color: l.color }}>
+                    {l.label}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+        <EditableDetails contact={contact} onSaved={load} />
       </aside>
     </div>
+  );
+}
+
+function NextStep({ contactId, tasks, onChange }: { contactId: string; tasks: TaskRow[]; onChange: () => void }) {
+  const [title, setTitle] = useState("");
+  const [due, setDue] = useState("");
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    await api("/api/tasks", { method: "POST", body: JSON.stringify({ contact_id: contactId, title: title.trim(), due_at: due ? new Date(due).toISOString() : null }) });
+    setTitle(""); setDue(""); onChange();
+  }
+  async function done(taskId: string) {
+    await api(`/api/tasks/${taskId}`, { method: "PATCH", body: JSON.stringify({ status: "done" }) });
+    onChange();
+  }
+  return (
+    <section className="rounded-xl bg-white p-5 shadow-sm">
+      <h2 className="mb-3 font-medium">Next steps</h2>
+      {tasks.length > 0 && (
+        <ul className="mb-3 space-y-2">
+          {tasks.map((t) => (
+            <li key={t.id} className="flex items-center justify-between gap-2 text-sm">
+              <span><input type="checkbox" onChange={() => done(t.id)} className="mr-2" />{t.title}{t.due_at && <span className="ml-2 text-xs text-neutral-400">{new Date(t.due_at).toLocaleDateString()}</span>}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form onSubmit={add} className="flex flex-wrap gap-2">
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Set a next step…" className="min-h-[44px] flex-1 rounded-md border border-neutral-300 px-3 text-sm" />
+        <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className="min-h-[44px] rounded-md border border-neutral-300 px-2 text-sm" />
+        <button className="min-h-[44px] rounded-md bg-neutral-900 px-4 text-sm text-white">Add</button>
+      </form>
+    </section>
+  );
+}
+
+function EditableDetails({ contact, onSaved }: { contact: Contact; onSaved: () => void }) {
+  const [edit, setEdit] = useState(false);
+  const [f, setF] = useState({
+    first_name: contact.first_name ?? "", last_name: contact.last_name ?? "",
+    email: contact.email ?? "", phone: contact.phone ?? "", address: contact.address ?? "", city: contact.city ?? "",
+  });
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    setBusy(true);
+    try {
+      await api(`/api/contacts/${contact.id}`, { method: "PATCH", body: JSON.stringify(f) });
+      setEdit(false); onSaved();
+    } catch { /* ignore */ } finally { setBusy(false); }
+  }
+
+  return (
+    <section className="rounded-xl bg-white p-5 text-sm shadow-sm">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="font-medium">Details</h2>
+        {!edit && <button onClick={() => setEdit(true)} className="text-xs text-red-600 hover:underline">Edit</button>}
+      </div>
+      {edit ? (
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <input value={f.first_name} onChange={(e) => setF({ ...f, first_name: e.target.value })} placeholder="First" className="min-h-[44px] w-full rounded-md border border-neutral-300 px-2" />
+            <input value={f.last_name} onChange={(e) => setF({ ...f, last_name: e.target.value })} placeholder="Last" className="min-h-[44px] w-full rounded-md border border-neutral-300 px-2" />
+          </div>
+          <input value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="Email" className="min-h-[44px] w-full rounded-md border border-neutral-300 px-2" />
+          <input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="Phone" className="min-h-[44px] w-full rounded-md border border-neutral-300 px-2" />
+          <input value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} placeholder="Address" className="min-h-[44px] w-full rounded-md border border-neutral-300 px-2" />
+          <input value={f.city} onChange={(e) => setF({ ...f, city: e.target.value })} placeholder="City" className="min-h-[44px] w-full rounded-md border border-neutral-300 px-2" />
+          <div className="flex gap-2">
+            <button disabled={busy} onClick={save} className="min-h-[44px] flex-1 rounded-md bg-red-600 px-4 text-white disabled:opacity-50">{busy ? "Saving…" : "Save"}</button>
+            <button onClick={() => setEdit(false)} className="min-h-[44px] rounded-md bg-neutral-200 px-4">Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <dl className="space-y-2">
+          <div><dt className="text-neutral-400">Email</dt><dd>{contact.email ?? "—"}</dd></div>
+          <div><dt className="text-neutral-400">Phone</dt><dd>{contact.phone ?? "—"}</dd></div>
+          <div><dt className="text-neutral-400">Address</dt><dd>{[contact.address, contact.city].filter(Boolean).join(", ") || "—"}</dd></div>
+          <div><dt className="text-neutral-400">Created</dt><dd>{new Date(contact.created_at).toLocaleString()}</dd></div>
+        </dl>
+      )}
+    </section>
   );
 }
 

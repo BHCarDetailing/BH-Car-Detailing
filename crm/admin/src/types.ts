@@ -32,6 +32,13 @@ export interface Contact {
   ai_next_action?: string | null;
 }
 
+export interface Label {
+  key: string;
+  label: string;
+  color: string;
+  sort: number;
+}
+
 export interface Activity {
   id: number;
   type: string;
