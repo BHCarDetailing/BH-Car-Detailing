@@ -459,8 +459,9 @@
         "<span>Yes, also send me occasional offers &amp; promotions from BH Car Detailing. " +
         "(Optional — not required to book.)</span>" +
       "</label>" +
-      '<span style="display:block;color:#a0a0a4">By checking a box you agree to receive the selected text ' +
-      "messages from BH Car Detailing at the number provided. Consent is not a condition of purchase. " +
+      '<span style="display:block;color:#a0a0a4">By checking the box(es) above, you agree to receive the ' +
+      "selected text messages from BH Car Detailing at the number provided. Checking a box is optional and not " +
+      "a condition of purchase &mdash; we'll still follow up about the quote you requested. " +
       "Msg &amp; data rates may apply. Message frequency varies. Reply STOP to opt out, HELP for help. See our " +
       '<a href="/terms.html" style="color:var(--accent,#c8102e);text-decoration:underline">Terms</a> &amp; ' +
       '<a href="/privacy-policy.html" style="color:var(--accent,#c8102e);text-decoration:underline">Privacy Policy</a>.</span>';

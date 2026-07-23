@@ -101,7 +101,7 @@ export default function Book() {
             <input type="checkbox" checked={mktIn} onChange={(e) => setMktIn(e.target.checked)} className="mt-0.5" />
             <span>Yes, also send me occasional offers &amp; promotions from BH Car Detailing. (Optional — not required to book.)</span>
           </label>
-          <p className="text-neutral-400">By checking a box you agree to receive the selected texts from BH Car Detailing at the number provided. Consent is not a condition of purchase. Msg &amp; data rates may apply, frequency varies, reply STOP to opt out, HELP for help. See <a href="https://bhcardetails.com/terms.html" target="_blank" rel="noreferrer" className="text-red-600 underline">Terms</a> &amp; <a href="https://bhcardetails.com/privacy-policy.html" target="_blank" rel="noreferrer" className="text-red-600 underline">Privacy</a>.</p>
+          <p className="text-neutral-400">By checking the box(es) above, you agree to receive the selected texts from BH Car Detailing at the number provided. Checking a box is optional and not a condition of purchase — we'll still follow up about your booking. Msg &amp; data rates may apply, frequency varies, reply STOP to opt out, HELP for help. See <a href="https://bhcardetails.com/terms.html" target="_blank" rel="noreferrer" className="text-red-600 underline">Terms</a> &amp; <a href="https://bhcardetails.com/privacy-policy.html" target="_blank" rel="noreferrer" className="text-red-600 underline">Privacy</a>.</p>
         </div>
 
         {err && <p className="text-sm text-red-600">{err}</p>}
