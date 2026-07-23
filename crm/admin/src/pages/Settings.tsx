@@ -3,10 +3,10 @@ import { Link } from "react-router-dom";
 import { api } from "../api";
 import { money, SIZE_CLASSES, type Label, type Service, type SizeClass } from "../types";
 
-const DEFAULT_TEMPLATE = "Hi {first_name}, this is BH Car Detailing — thanks for reaching out! Happy to get you a quote. When works for a quick call or text?";
+const DEFAULT_TEMPLATE = "Hi {first_name}, this is BH Car Detailing — thanks for reaching out! Happy to get you a quote. When works for a quick call or text? Reply STOP to opt out.";
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DEFAULT_HOURS = { days: [1, 2, 3, 4, 5, 6], start: "09:00", end: "18:00", slot_min: 120, buffer_min: 30 };
-const DEFAULT_MISSED_BODY = "Hey, this is BH Car Detailing - sorry we missed your call! Reply here with what you need and we'll be in touch.\nIf you'd like to book on your own our website is bhcardetails.com";
+const DEFAULT_MISSED_BODY = "Hey, this is BH Car Detailing - sorry we missed your call! Reply here with what you need and we'll be in touch.\nIf you'd like to book on your own our website is bhcardetails.com\nReply STOP to opt out.";
 
 function ServicesManager() {
   const [items, setItems] = useState<Service[]>([]);

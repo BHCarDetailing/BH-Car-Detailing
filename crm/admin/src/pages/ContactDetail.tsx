@@ -572,7 +572,7 @@ function SendQuote({ job, customerName, customerPhone, customerEmail, onSent }: 
       return url;
     } finally { setBusy(false); }
   }
-  const message = (url: string) => `Hi${customerName ? " " + customerName : ""}! Here's your quote from BH Car Detailing for ${money(job.price_cents)}: ${url}`;
+  const message = (url: string) => `Hi${customerName ? " " + customerName : ""}! Here's your quote from BH Car Detailing for ${money(job.price_cents)}: ${url}\nReply STOP to opt out.`;
 
   async function copy() {
     const url = await makeLink();
