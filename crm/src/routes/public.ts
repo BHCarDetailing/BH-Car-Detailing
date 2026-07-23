@@ -50,6 +50,7 @@ publicRoutes.get("/widget.js", (c) => {
     +'<input name="name" placeholder="Your name" style="padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px">'
     +'<input name="phone" required placeholder="Phone number" inputmode="tel" style="padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px">'
     +'<textarea name="message" rows="2" placeholder="How can we help?" style="padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;resize:none"></textarea>'
+    +'<label style="display:flex;gap:6px;align-items:flex-start;font-size:11px;line-height:1.4;color:#666"><input type="checkbox" name="sms_opt_in" style="margin-top:2px;flex:0 0 auto"><span>I agree to receive text messages from BH Car Detailing (quotes, reminders, offers). Consent is not a condition of purchase. Msg &amp; data rates may apply, frequency varies, reply STOP to opt out. <a href="https://bhcardetails.com/terms.html" target="_blank" style="color:'+BRAND+'">Terms</a></span></label>'
     +'<input name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">'
     +'<button type="submit" style="background:'+BRAND+';color:#fff;border:0;border-radius:8px;padding:12px;font-size:15px;font-weight:600;cursor:pointer">Send</button>'
     +'<div id="bhchat-msg" style="font-size:13px;color:#666;text-align:center"></div></form>';
@@ -66,7 +67,7 @@ publicRoutes.get("/widget.js", (c) => {
     msg.textContent="Sending...";
     fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
       name:f.name.value,phone:phone,message:f.message.value,website:f.website.value,ts:TS,
-      source:"webchat",source_detail:location.href
+      sms_opt_in:f.sms_opt_in.checked,source:"webchat",source_detail:location.href
     })}).then(function(r){return r.json()}).then(function(){
       f.style.display="none";msg.textContent="Thanks! We'll text you shortly.";msg.style.color=BRAND;
     }).catch(function(){msg.textContent="Something went wrong — please call us.";});
@@ -190,6 +191,19 @@ publicRoutes.post("/lead", async (c) => {
     }
   }
 
+  // SMS consent capture (A2P 10DLC / TCPA evidence): record the opt-in and log a
+  // durable consent record with the source page, timestamp, and IP.
+  if (body.sms_opt_in === true) {
+    await run(c.env.DB, "UPDATE contacts SET sms_opt_in = 1, sms_opt_out_auto = 0 WHERE id = ?", contactId);
+    await logActivity(c.env.DB, {
+      contactId,
+      type: "note",
+      title: "SMS consent given (opt-in checkbox)",
+      payload: { sms_opt_in: true, source, source_detail: sourceDetail, at: now, ip },
+      actor: "system",
+    });
+  }
+
   await logActivity(c.env.DB, {
     contactId,
     type: "form_submitted",
@@ -277,6 +291,15 @@ publicRoutes.post("/book", async (c) => {
       `INSERT INTO contacts (id, first_name, last_name, email, phone, address, stage, source, email_opt_in, created_at, updated_at)
        VALUES (?,?,?,?,?,?, 'scheduled', 'self-booking', 1, ?, ?)`,
       contactId, first || null, last || null, email, phone, address, now, now);
+  }
+
+  if (body.sms_opt_in === true) {
+    await run(c.env.DB, "UPDATE contacts SET sms_opt_in = 1, sms_opt_out_auto = 0 WHERE id = ?", contactId);
+    await logActivity(c.env.DB, {
+      contactId, type: "note", title: "SMS consent given (booking opt-in)",
+      payload: { sms_opt_in: true, source: "self-booking", at: now, ip },
+      actor: "system",
+    });
   }
 
   const jobId = uuid();

@@ -426,6 +426,7 @@
           email: fd.get("email") || "",
           vehicle: fd.get("vehicle") || "",
           message: fd.get("message") || "",
+          sms_opt_in: fd.get("sms_opt_in") === "yes",
           source: crmSource(form),
           source_detail: location.pathname + location.search,
           ts: PAGE_LOADED_AT,
@@ -434,6 +435,27 @@
       }).catch(function () {});
     } catch (e) { /* never break the user-facing submit */ }
   }
+
+  /* SMS opt-in consent — injected at the point of phone collection so every
+     lead form carries CTIA/TCPA-compliant consent language (A2P 10DLC evidence). */
+  function injectSmsConsent(form) {
+    if (form.querySelector(".sms-consent")) return;
+    var btn = form.querySelector("button[type=submit]");
+    var label = document.createElement("label");
+    label.className = "sms-consent";
+    label.style.cssText =
+      "display:flex;gap:8px;align-items:flex-start;margin:12px 0;font-size:12px;line-height:1.5;color:#8a8a8e;text-align:left";
+    label.innerHTML =
+      '<input type="checkbox" name="sms_opt_in" value="yes" style="margin-top:3px;flex:0 0 auto">' +
+      "<span>I agree to receive text messages from BH Car Detailing about my quote, appointment " +
+      "reminders, service updates, and occasional offers at the number provided. Consent is not a " +
+      "condition of purchase. Msg &amp; data rates may apply. Message frequency varies. Reply STOP to " +
+      'opt out, HELP for help. See our <a href="/terms.html" style="color:var(--accent,#c8102e);text-decoration:underline">Terms</a> ' +
+      '&amp; <a href="/privacy-policy.html" style="color:var(--accent,#c8102e);text-decoration:underline">Privacy Policy</a>.</span>';
+    if (btn && btn.parentNode) btn.parentNode.insertBefore(label, btn);
+    else form.appendChild(label);
+  }
+  document.querySelectorAll("form.form").forEach(injectSmsConsent);
 
   document.querySelectorAll("form.form").forEach((form) => {
     form.addEventListener("submit", async (e) => {
