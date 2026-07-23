@@ -94,6 +94,7 @@ export interface SmsMessage {
   direction: string; // 'outbound' | 'inbound'
   status: string;
   created_at: string;
+  channel?: string; // 'sms' | 'webchat'
 }
 
 export interface Revenue {

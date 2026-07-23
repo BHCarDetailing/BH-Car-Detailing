@@ -197,6 +197,18 @@ publicRoutes.post("/lead", async (c) => {
     payload: { source, source_detail: sourceDetail, message: body.message ?? null, vehicle: vehicleRaw || null },
   });
 
+  // Webchat messages become inbound conversation messages so they appear in the
+  // unified inbox thread (not just the activity log).
+  const chatMsg = typeof body.message === "string" ? body.message.trim() : "";
+  if (source === "webchat" && chatMsg) {
+    await run(
+      c.env.DB,
+      `INSERT INTO messages (id, contact_id, kind, body_text, status, created_at, sent_at, channel, direction, from_addr)
+       VALUES (?,?, 'sms', ?, 'received', ?, ?, 'webchat', 'inbound', ?)`,
+      uuid(), contactId, chatMsg, now, now, phone ?? null
+    );
+  }
+
   // Auto-enroll brand-new leads into any active "stage:new" nurture sequence.
   if (created) {
     const seqs = await all<{ id: string }>(c.env.DB, "SELECT id FROM sequences WHERE status = 'active' AND trigger = 'stage:new'");

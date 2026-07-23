@@ -17,14 +17,14 @@ messageRoutes.get("/inbox", async (c) => {
             CASE WHEN mc.cnt > 0 THEN 1 ELSE 0 END AS missed_unacked,
             COALESCE(mc.texted_any, 0) AS missed_texted
      FROM (
-       SELECT contact_id FROM messages WHERE channel = 'sms' AND contact_id IS NOT NULL
+       SELECT contact_id FROM messages WHERE channel IN ('sms','webchat') AND contact_id IS NOT NULL
        UNION
        SELECT contact_id FROM missed_calls WHERE contact_id IS NOT NULL
      ) ids
      JOIN contacts ct ON ct.id = ids.contact_id
      LEFT JOIN messages m ON m.id = (
        SELECT id FROM messages
-       WHERE contact_id = ids.contact_id AND channel = 'sms'
+       WHERE contact_id = ids.contact_id AND channel IN ('sms','webchat')
        ORDER BY created_at DESC, id DESC LIMIT 1
      )
      LEFT JOIN (
@@ -35,7 +35,7 @@ messageRoutes.get("/inbox", async (c) => {
      ) mc ON mc.contact_id = ids.contact_id
      ORDER BY (
        SELECT MAX(ts) FROM (
-         SELECT created_at AS ts FROM messages WHERE contact_id = ids.contact_id AND channel = 'sms'
+         SELECT created_at AS ts FROM messages WHERE contact_id = ids.contact_id AND channel IN ('sms','webchat')
          UNION ALL
          SELECT created_at FROM missed_calls WHERE contact_id = ids.contact_id
        )
@@ -58,7 +58,7 @@ messageRoutes.get("/", async (c) => {
   const items = await all(
     c.env.DB,
     `SELECT * FROM messages
-     WHERE channel = 'sms' AND contact_id = ?
+     WHERE channel IN ('sms','webchat') AND contact_id = ?
      ORDER BY created_at ASC, id ASC LIMIT ?`,
     contactId, limit
   );
