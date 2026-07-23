@@ -108,6 +108,9 @@ export default function Settings() {
   const [reviewNote, setReviewNote] = useState("");
   const [mc, setMc] = useState({ enabled: true, forward: "", timeout: "20", body: "", cooldown: "4", notifyEnabled: true, notifyNumber: "" });
   const [mcNote, setMcNote] = useState("");
+  const [pay, setPay] = useState({ enabled: true, percent: "25", allowFull: true });
+  const [payNote, setPayNote] = useState("");
+  const [integrations, setIntegrations] = useState<{ stripe?: boolean; stripe_webhook?: boolean }>({});
 
   function loadLabels() { api<{ items: Label[] }>("/api/labels").then((r) => setLabels(r.items)).catch(() => {}); }
 
@@ -129,10 +132,30 @@ export default function Settings() {
           notifyEnabled: (r.settings.owner_notify_enabled ?? "1") === "1",
           notifyNumber: r.settings.owner_notify_number ?? "",
         });
+        setPay({
+          enabled: (r.settings.payments_enabled ?? "1") === "1",
+          percent: r.settings.deposit_percent ?? "25",
+          allowFull: (r.settings.deposit_allow_full ?? "1") === "1",
+        });
       })
       .catch(() => setTemplate(DEFAULT_TEMPLATE));
     loadLabels();
+    api<{ stripe: boolean; stripe_webhook: boolean }>("/api/settings/integrations").then(setIntegrations).catch(() => {});
   }, []);
+
+  async function savePayments() {
+    setPayNote("");
+    const pct = String(Math.min(100, Math.max(0, Number.parseInt(pay.percent, 10) || 0)));
+    const pairs: Array<[string, string]> = [
+      ["payments_enabled", pay.enabled ? "1" : "0"],
+      ["deposit_percent", pct],
+      ["deposit_allow_full", pay.allowFull ? "1" : "0"],
+    ];
+    try {
+      for (const [key, value] of pairs) await api("/api/settings", { method: "PUT", body: JSON.stringify({ key, value }) });
+      setPayNote("Saved.");
+    } catch { setPayNote("Couldn't save — try again."); }
+  }
 
   async function saveHours() {
     setHoursNote("");
@@ -205,6 +228,7 @@ export default function Settings() {
   const feedUrl = feedToken ? `${location.origin}/api/calendar/${feedToken}.ics` : "";
   const bookingUrl = `${location.origin}/book`;
   const embedCode = `<iframe src="${bookingUrl}" title="Book BH Car Detailing" width="100%" height="900" style="border:0;max-width:480px;margin:0 auto;display:block" loading="lazy"></iframe>`;
+  const chatSnippet = `<script src="${location.origin}/api/widget.js" async></script>`;
   function copyText(key: string, text: string) {
     navigator.clipboard?.writeText(text);
     setCopiedKey(key);
@@ -225,6 +249,49 @@ export default function Settings() {
         </Link>
 
         <ServicesManager />
+
+        <section className="rounded-xl bg-white p-5 shadow-sm">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="font-medium">Payments & deposits</h2>
+            <span className={`rounded-full px-2 py-0.5 text-xs ${integrations.stripe ? "bg-green-100 text-green-700" : "bg-neutral-200 text-neutral-600"}`}>
+              {integrations.stripe ? "Stripe connected" : "Stripe not connected"}
+            </span>
+          </div>
+          <p className="mb-3 text-sm text-neutral-500">Collect deposits on accepted quotes via Stripe Checkout. Customers pay on Stripe's secure page — no card data touches the CRM.</p>
+          {!integrations.stripe && (
+            <div className="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+              To turn payments on, add your Stripe keys as Worker secrets: <code>STRIPE_SECRET_KEY</code> and <code>STRIPE_WEBHOOK_SECRET</code>. Until then, the Pay buttons stay hidden on quotes.
+            </div>
+          )}
+          {integrations.stripe && !integrations.stripe_webhook && (
+            <div className="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+              Add <code>STRIPE_WEBHOOK_SECRET</code> too, and point a Stripe webhook at <code>{location.origin}/api/stripe/webhook</code> (event: <code>checkout.session.completed</code>) so payments get recorded.
+            </div>
+          )}
+          <label className="mb-3 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={pay.enabled} onChange={(e) => setPay({ ...pay, enabled: e.target.checked })} /> Show payment buttons on quotes
+          </label>
+          <div className="mb-3 flex flex-wrap gap-4">
+            <label className="text-sm">Deposit %
+              <input type="number" min={0} max={100} value={pay.percent} onChange={(e) => setPay({ ...pay, percent: e.target.value })} className="mt-1 min-h-[44px] w-24 rounded-md border border-neutral-300 px-2 text-sm" />
+            </label>
+            <label className="flex items-end gap-2 text-sm pb-2">
+              <input type="checkbox" checked={pay.allowFull} onChange={(e) => setPay({ ...pay, allowFull: e.target.checked })} /> Also let them pay in full
+            </label>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={savePayments} className="min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">Save</button>
+            {payNote && <span className="text-xs text-neutral-500">{payNote}</span>}
+          </div>
+        </section>
+
+        <section className="rounded-xl bg-white p-5 shadow-sm">
+          <h2 className="mb-2 font-medium">Website chat widget</h2>
+          <p className="mb-3 text-sm text-neutral-500">Adds a chat bubble to your website. Visitors leave their name, phone, and message — it becomes a new lead in your CRM and shows up in the Inbox to text back.</p>
+          <p className="mb-2 text-xs text-neutral-500">Paste this before <code>&lt;/body&gt;</code> on bhcardetails.com:</p>
+          <textarea readOnly value={chatSnippet} rows={2} onFocus={(e) => e.currentTarget.select()} className="w-full rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2 font-mono text-xs" />
+          <button onClick={() => copyText("chat", chatSnippet)} className="mt-2 min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">{copiedKey === "chat" ? "Copied!" : "Copy chat code"}</button>
+        </section>
 
         <section className="rounded-xl bg-white p-5 shadow-sm">
           <h2 className="mb-2 font-medium">Text message template</h2>

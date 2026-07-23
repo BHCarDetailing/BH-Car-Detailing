@@ -62,6 +62,16 @@ settingsRoutes.get("/", async (c) => {
   return c.json({ settings });
 });
 
+settingsRoutes.get("/integrations", (c) => {
+  return c.json({
+    stripe: !!c.env.STRIPE_SECRET_KEY,
+    stripe_webhook: !!c.env.STRIPE_WEBHOOK_SECRET,
+    twilio: !!(c.env.TWILIO_ACCOUNT_SID && c.env.TWILIO_AUTH_TOKEN),
+    anthropic: !!c.env.ANTHROPIC_API_KEY,
+    resend: !!c.env.RESEND_API_KEY,
+  });
+});
+
 settingsRoutes.put("/", async (c) => {
   const b = ((await c.req.json().catch(() => null)) ?? {}) as { key?: string; value?: unknown };
   if (!b.key || !/^[a-z0-9_]{1,60}$/.test(b.key)) return c.json({ error: "invalid_key" }, 400);

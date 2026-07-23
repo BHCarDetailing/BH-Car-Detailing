@@ -17,6 +17,8 @@ export interface Env {
   TWILIO_MESSAGING_SERVICE_SID?: string;
   PUBLIC_BASE_URL?: string;
   ANTHROPIC_API_KEY?: string;
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
 }
 
 export const STAGES = ["new", "contacted", "quoted", "scheduled", "customer", "lost"] as const;

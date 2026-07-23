@@ -12,6 +12,13 @@ interface QuoteData {
   total_cents: number;
   notes: string | null;
   created_at: string;
+  payments_enabled: boolean;
+  deposit_cents: number;
+  deposit_percent: number;
+  allow_full: boolean;
+  amount_paid_cents: number;
+  paid: boolean;
+  paid_in_full: boolean;
 }
 
 export default function Quote() {
@@ -34,6 +41,20 @@ export default function Quote() {
       setData((d) => (d ? { ...d, accepted: true } : d));
     } finally { setAccepting(false); }
   }
+
+  const [paying, setPaying] = useState("");
+  async function pay(kind: "deposit" | "full") {
+    setPaying(kind);
+    try {
+      const res = await fetch(`/api/quote/${token}/checkout`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind }),
+      });
+      const j = (await res.json()) as { url?: string };
+      if (j.url) location.href = j.url;
+      else setPaying("");
+    } catch { setPaying(""); }
+  }
+  const justPaid = new URLSearchParams(location.search).get("paid") === "1";
 
   if (state === "loading") return <div className="p-8 text-center text-neutral-500">Loading…</div>;
   if (state === "notfound" || !data) return (
@@ -75,15 +96,36 @@ export default function Quote() {
 
           {data.notes && <p className="mt-4 rounded-lg bg-neutral-50 p-3 text-sm text-neutral-600">{data.notes}</p>}
 
-          {data.accepted ? (
-            <div className="mt-6 rounded-lg bg-green-50 p-4 text-center">
-              <div className="text-lg font-semibold text-green-700">✓ Quote accepted</div>
-              <p className="mt-1 text-sm text-green-600">Thanks! We'll reach out to schedule your appointment.</p>
+          {(justPaid || data.paid) && (
+            <div className="mt-4 rounded-lg bg-green-50 p-3 text-center text-sm text-green-700">
+              {data.paid_in_full ? "✓ Paid in full — thank you!" : `✓ ${money(data.amount_paid_cents)} paid. Balance due: ${money(Math.max(0, data.total_cents - data.amount_paid_cents))}.`}
             </div>
-          ) : (
-            <button onClick={accept} disabled={accepting} className="mt-6 min-h-[52px] w-full rounded-md bg-red-600 px-4 text-base font-medium text-white disabled:opacity-50">
-              {accepting ? "Accepting…" : "Accept this quote"}
-            </button>
+          )}
+
+          {!data.paid_in_full && (
+            <div className="mt-6 space-y-2">
+              {!data.accepted && (
+                <button onClick={accept} disabled={accepting} className="min-h-[52px] w-full rounded-md bg-neutral-900 px-4 text-base font-medium text-white disabled:opacity-50">
+                  {accepting ? "Accepting…" : "Accept this quote"}
+                </button>
+              )}
+              {data.payments_enabled && data.deposit_cents > 0 && !data.paid && (
+                <button onClick={() => pay("deposit")} disabled={!!paying} className="min-h-[52px] w-full rounded-md bg-red-600 px-4 text-base font-medium text-white disabled:opacity-50">
+                  {paying === "deposit" ? "Redirecting…" : `Pay ${data.deposit_percent}% deposit — ${money(data.deposit_cents)}`}
+                </button>
+              )}
+              {data.payments_enabled && data.allow_full && (
+                <button onClick={() => pay("full")} disabled={!!paying} className={`min-h-[52px] w-full rounded-md px-4 text-base font-medium disabled:opacity-50 ${data.paid ? "bg-red-600 text-white" : "bg-neutral-200 text-neutral-900"}`}>
+                  {paying === "full" ? "Redirecting…" : data.paid ? `Pay balance — ${money(Math.max(0, data.total_cents - data.amount_paid_cents))}` : `Pay in full — ${money(data.total_cents)}`}
+                </button>
+              )}
+              {data.accepted && !data.payments_enabled && (
+                <div className="rounded-lg bg-green-50 p-4 text-center">
+                  <div className="text-lg font-semibold text-green-700">✓ Quote accepted</div>
+                  <p className="mt-1 text-sm text-green-600">Thanks! We'll reach out to schedule your appointment.</p>
+                </div>
+              )}
+            </div>
           )}
         </div>
 

@@ -12,6 +12,7 @@ import { analyzeLead } from "../lib/ai";
 import { availableSlots, businessHours, slotEndIso, slotIsFree } from "../lib/booking";
 import { sendJobConfirmation } from "../lib/reminders";
 import { buildVoiceTwiml, handleMissedCall, loadMissedCallSettings } from "../lib/missedcall";
+import { createCheckoutSession, depositForTotal, loadPaymentSettings, stripeConfigured, verifyStripeWebhook } from "../lib/stripe";
 
 export const publicRoutes = new Hono<{ Bindings: Env }>();
 
@@ -29,6 +30,53 @@ function corsHeaders(c: Context<{ Bindings: Env }>): Record<string, string> {
 }
 
 publicRoutes.get("/health", (c) => c.json({ ok: true, ts: nowIso() }));
+
+// --- Embeddable webchat widget (chat-to-text lead capture). One <script> tag
+// on any site injects a floating bubble that posts to /api/lead. ---
+publicRoutes.get("/widget.js", (c) => {
+  const origin = (c.env.PUBLIC_BASE_URL || new URL(c.req.url).origin).replace(/\/$/, "");
+  const brand = "#c8102e";
+  const js = `(function(){
+  var API=${JSON.stringify(origin)}+"/api/lead";
+  var BRAND=${JSON.stringify(brand)};
+  var TS=Date.now();
+  if(document.getElementById("bhchat-root"))return;
+  var root=document.createElement("div");root.id="bhchat-root";
+  root.style.cssText="position:fixed;bottom:20px;right:20px;z-index:2147483000;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif";
+  var panel=document.createElement("div");
+  panel.style.cssText="display:none;width:320px;max-width:calc(100vw - 40px);background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.25);overflow:hidden;margin-bottom:12px";
+  panel.innerHTML='<div style="background:'+BRAND+';color:#fff;padding:14px 16px;font-weight:600">Chat with BH Car Detailing<div style="font-weight:400;font-size:12px;opacity:.9">Leave your number — we\\'ll text you right back.</div></div>'
+    +'<form id="bhchat-form" style="padding:14px 16px;display:flex;flex-direction:column;gap:8px">'
+    +'<input name="name" placeholder="Your name" style="padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px">'
+    +'<input name="phone" required placeholder="Phone number" inputmode="tel" style="padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px">'
+    +'<textarea name="message" rows="2" placeholder="How can we help?" style="padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;resize:none"></textarea>'
+    +'<input name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">'
+    +'<button type="submit" style="background:'+BRAND+';color:#fff;border:0;border-radius:8px;padding:12px;font-size:15px;font-weight:600;cursor:pointer">Send</button>'
+    +'<div id="bhchat-msg" style="font-size:13px;color:#666;text-align:center"></div></form>';
+  var bubble=document.createElement("button");
+  bubble.setAttribute("aria-label","Open chat");
+  bubble.style.cssText="width:60px;height:60px;border-radius:50%;background:"+BRAND+";color:#fff;border:0;box-shadow:0 8px 24px rgba(0,0,0,.3);cursor:pointer;font-size:26px;float:right";
+  bubble.innerHTML="&#128172;";
+  var open=false;
+  bubble.onclick=function(){open=!open;panel.style.display=open?"block":"none";bubble.innerHTML=open?"&times;":"&#128172;"};
+  root.appendChild(panel);root.appendChild(bubble);document.body.appendChild(root);
+  document.getElementById("bhchat-form").addEventListener("submit",function(e){
+    e.preventDefault();var f=e.target;var msg=document.getElementById("bhchat-msg");
+    var phone=f.phone.value.trim();if(!phone){msg.textContent="Please add a phone number.";return;}
+    msg.textContent="Sending...";
+    fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      name:f.name.value,phone:phone,message:f.message.value,website:f.website.value,ts:TS,
+      source:"webchat",source_detail:location.href
+    })}).then(function(r){return r.json()}).then(function(){
+      f.style.display="none";msg.textContent="Thanks! We'll text you shortly.";msg.style.color=BRAND;
+    }).catch(function(){msg.textContent="Something went wrong — please call us.";});
+  });
+})();`;
+  return c.body(js, 200, {
+    "Content-Type": "application/javascript; charset=utf-8",
+    "Cache-Control": "public, max-age=300",
+  });
+});
 
 // --- One-click email unsubscribe (token = HMAC of contact id) ---
 publicRoutes.get("/unsubscribe/:cid/:sig", async (c) => {
@@ -241,6 +289,10 @@ publicRoutes.get("/quote/:token", async (c) => {
   }
   let items: unknown[] = [];
   try { items = JSON.parse((job.services as string) || "[]"); } catch { items = []; }
+  const total = (job.price_cents as number) ?? 0;
+  const pay = await loadPaymentSettings(c.env);
+  const paymentsLive = stripeConfigured(c.env) && pay.enabled;
+  const amountPaid = (job.amount_paid_cents as number) ?? 0;
   return c.json({
     business: c.env.FROM_NAME || "BH Car Detailing",
     title: job.title,
@@ -248,10 +300,91 @@ publicRoutes.get("/quote/:token", async (c) => {
     status: job.status,
     accepted: !!job.quote_accepted_at,
     items,
-    total_cents: job.price_cents ?? 0,
+    total_cents: total,
     notes: job.notes ?? null,
     created_at: job.created_at,
+    payments_enabled: paymentsLive,
+    deposit_cents: paymentsLive ? depositForTotal(total, pay.percent) : 0,
+    deposit_percent: pay.percent,
+    allow_full: pay.allowFull,
+    amount_paid_cents: amountPaid,
+    paid: amountPaid > 0,
+    paid_in_full: Number(job.paid_in_full) === 1,
   });
+});
+
+// Create a Stripe Checkout Session for a quote (deposit or full). Public — the
+// customer initiates payment. Card data is handled entirely by Stripe.
+publicRoutes.post("/quote/:token/checkout", async (c) => {
+  const token = c.req.param("token");
+  const body = ((await c.req.json().catch(() => null)) ?? {}) as { kind?: string };
+  const kind = body.kind === "full" ? "full" : "deposit";
+  const job = await one<Record<string, unknown>>(c.env.DB, "SELECT * FROM jobs WHERE quote_token = ?", token);
+  if (!job) return c.json({ error: "not_found" }, 404);
+  if (!stripeConfigured(c.env)) return c.json({ error: "payments_unavailable" }, 503);
+  const pay = await loadPaymentSettings(c.env);
+  if (!pay.enabled) return c.json({ error: "payments_unavailable" }, 503);
+  if (kind === "full" && !pay.allowFull) return c.json({ error: "full_not_allowed" }, 400);
+
+  const total = (job.price_cents as number) ?? 0;
+  const already = (job.amount_paid_cents as number) ?? 0;
+  const amount = kind === "full" ? Math.max(0, total - already) : depositForTotal(total, pay.percent);
+  if (amount < 50) return c.json({ error: "amount_too_low" }, 400);
+
+  const contact = await one<{ email: string | null }>(c.env.DB, "SELECT email FROM contacts WHERE id = ?", job.contact_id);
+  const base = (c.env.PUBLIC_BASE_URL || new URL(c.req.url).origin).replace(/\/$/, "");
+  const url = await createCheckoutSession(c.env, {
+    jobId: job.id as string,
+    amountCents: amount,
+    label: `${kind === "full" ? "Payment" : "Deposit"} — ${job.title as string}`,
+    kind,
+    customerEmail: contact?.email ?? null,
+    successUrl: `${base}/quote/${token}?paid=1`,
+    cancelUrl: `${base}/quote/${token}`,
+  });
+  if (!url) return c.json({ error: "checkout_failed" }, 502);
+  await run(c.env.DB, "UPDATE jobs SET deposit_cents = ?, updated_at = ? WHERE id = ?", kind === "deposit" ? amount : job.deposit_cents ?? null, nowIso(), job.id);
+  return c.json({ url });
+});
+
+// Stripe webhook — payment confirmation. Signature-verified, fails closed.
+publicRoutes.post("/stripe/webhook", async (c) => {
+  const raw = await c.req.text();
+  const ok = await verifyStripeWebhook(c.env, raw, c.req.header("stripe-signature"));
+  if (!ok) return c.text("bad signature", 400);
+  let event: { type?: string; data?: { object?: Record<string, unknown> } };
+  try { event = JSON.parse(raw); } catch { return c.text("bad json", 400); }
+  if (event.type === "checkout.session.completed") {
+    const s = event.data?.object ?? {};
+    const jobId = (s.metadata as Record<string, unknown> | undefined)?.job_id as string | undefined
+      ?? (s.client_reference_id as string | undefined);
+    const kind = (s.metadata as Record<string, unknown> | undefined)?.kind as string | undefined;
+    const amount = Number(s.amount_total) || 0;
+    if (jobId) {
+      const job = await one<Record<string, unknown>>(c.env.DB, "SELECT * FROM jobs WHERE id = ?", jobId);
+      if (job) {
+        const prevPaid = (job.amount_paid_cents as number) ?? 0;
+        const newPaid = prevPaid + amount;
+        const total = (job.price_cents as number) ?? 0;
+        const fullyPaid = kind === "full" || newPaid >= total;
+        await run(
+          c.env.DB,
+          `UPDATE jobs SET amount_paid_cents = ?, paid_at = COALESCE(paid_at, ?), paid_in_full = ?,
+                          stripe_session_id = ?, stripe_payment_intent = ?, updated_at = ? WHERE id = ?`,
+          newPaid, nowIso(), fullyPaid ? 1 : 0,
+          (s.id as string) ?? null, (s.payment_intent as string) ?? null, nowIso(), jobId
+        );
+        await logActivity(c.env.DB, {
+          contactId: job.contact_id as string,
+          type: "note",
+          title: `Payment received: $${(amount / 100).toFixed(2)}${fullyPaid ? " (paid in full)" : " (deposit)"}`,
+          payload: { job_id: jobId, amount_cents: amount, kind: kind ?? "deposit" },
+          actor: "system",
+        });
+      }
+    }
+  }
+  return c.json({ received: true });
 });
 
 publicRoutes.post("/quote/:token/accept", async (c) => {
