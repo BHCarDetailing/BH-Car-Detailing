@@ -1,11 +1,11 @@
 /* ============================================================
-   BH CAR DETAILING ΓÇö Interactions
+   BH CAR DETAILING — Interactions
    ============================================================ */
 
 (function () {
   "use strict";
 
-  /* ---------- Nav: transparent ΓåÆ solid on scroll ---------- */
+  /* ---------- Nav: transparent → solid on scroll ---------- */
   const nav = document.querySelector(".nav");
   const onScroll = () => nav && nav.classList.toggle("scrolled", window.scrollY > 40);
   onScroll();
@@ -43,7 +43,7 @@
   );
   document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
 
-  /* ---------- Hero: zoom + fade as user scrolls (desktop only ΓÇö on mobile,
+  /* ---------- Hero: zoom + fade as user scrolls (desktop only — on mobile,
      focusing a form field auto-scrolls the page to clear the keyboard, which
      would otherwise fade/translate the hero content away mid-typing) ---------- */
   const heroMedia = document.querySelector(".hero-media");
@@ -214,10 +214,10 @@
     const PACKAGES = {
       washExt: { name: "Exterior Car Wash", desc: "A meticulous hand wash & dry to keep your paint clean between details." },
       washFull: { name: "Full Car Wash", desc: "Hand wash & dry outside, light vacuum and clean windows inside. The perfect reset." },
-      light: { name: "Light Detail", desc: "Full interior scrub ΓÇö jambs, sills, crevices, fabric & carpet ΓÇö plus hand wash, wheels and a 3-month spray sealant." },
+      light: { name: "Light Detail", desc: "Full interior scrub — jambs, sills, crevices, fabric & carpet — plus hand wash, wheels and a 3-month spray sealant." },
       full: { name: "Full Detail", desc: "Our complete restoration detail: deep carpet & fabric extraction, scuff removal, wheel wells, 3-month wax + 6-month paint sealant." },
-      correction: { name: "Paint Correction", desc: "Single-stage machine polish that removes swirl marks, light scratches and defects ΓÇö restoring true clarity and gloss." },
-      ceramic: { name: "Ceramic Coating", desc: "Clay bar decontamination + professional-grade ceramic. Hydrophobic, UV-resistant protection that lasts 1ΓÇô2 years." },
+      correction: { name: "Paint Correction", desc: "Single-stage machine polish that removes swirl marks, light scratches and defects — restoring true clarity and gloss." },
+      ceramic: { name: "Ceramic Coating", desc: "Clay bar decontamination + professional-grade ceramic. Hydrophobic, UV-resistant protection that lasts 1–2 years." },
       maintenance: { name: "Maintenance Plan", desc: "A recurring plan tailored to your vehicle and schedule, so it never falls out of showroom condition." },
     };
 
@@ -225,7 +225,7 @@
       {
         q: "What does your vehicle need most right now?",
         options: [
-          { label: "A clean ΓÇö it just needs a proper wash", value: "wash" },
+          { label: "A clean — it just needs a proper wash", value: "wash" },
           { label: "A full refresh, inside and out", value: "detail" },
           { label: "Fix swirls, scratches & dull paint", value: "paint" },
           { label: "Long-term protection & gloss", value: "protect" },
@@ -234,9 +234,9 @@
       {
         q: "How is the interior looking?",
         options: [
-          { label: "Pretty clean ΓÇö light dust at most", value: "light" },
-          { label: "Lived-in ΓÇö needs a real scrub", value: "medium" },
-          { label: "Rough ΓÇö stains, odors, heavy buildup", value: "heavy" },
+          { label: "Pretty clean — light dust at most", value: "light" },
+          { label: "Lived-in — needs a real scrub", value: "medium" },
+          { label: "Rough — stains, odors, heavy buildup", value: "heavy" },
         ],
       },
       {
@@ -360,7 +360,7 @@
      Uses Calendly's own declarative embed pattern (a data-url'd
      .calendly-inline-widget element + widget.js, exactly like the code
      Calendly's UI hands out) instead of the manual initInlineWidget()
-     API ΓÇö widget.js auto-scans the DOM for that element on load and
+     API — widget.js auto-scans the DOM for that element on load and
      wires it up itself. We only lazy-load the script on scroll-into-view
      and show a fallback if the script itself fails to load. */
   const bookCalendly = document.getElementById("book-calendly-widget");
@@ -427,6 +427,7 @@
           vehicle: fd.get("vehicle") || "",
           message: fd.get("message") || "",
           sms_opt_in: fd.get("sms_opt_in") === "yes",
+          marketing_opt_in: fd.get("marketing_opt_in") === "yes",
           source: crmSource(form),
           source_detail: location.pathname + location.search,
           ts: PAGE_LOADED_AT,
@@ -436,24 +437,35 @@
     } catch (e) { /* never break the user-facing submit */ }
   }
 
-  /* SMS opt-in consent — injected at the point of phone collection so every
-     lead form carries CTIA/TCPA-compliant consent language (A2P 10DLC evidence). */
+  /* SMS opt-in consent — injected at the point of phone collection. Marketing
+     consent is a SEPARATE, optional checkbox from transactional/service consent
+     (A2P 10DLC requires this for Marketing campaigns — error 30913). */
   function injectSmsConsent(form) {
     if (form.querySelector(".sms-consent")) return;
     var btn = form.querySelector("button[type=submit]");
-    var label = document.createElement("label");
-    label.className = "sms-consent";
-    label.style.cssText =
-      "display:flex;gap:8px;align-items:flex-start;margin:12px 0;font-size:12px;line-height:1.5;color:#8a8a8e;text-align:left";
-    label.innerHTML =
-      '<input type="checkbox" name="sms_opt_in" value="yes" style="margin-top:3px;flex:0 0 auto">' +
-      "<span>I agree to receive text messages from BH Car Detailing about my quote, appointment " +
-      "reminders, service updates, and occasional offers at the number provided. Consent is not a " +
-      "condition of purchase. Msg &amp; data rates may apply. Message frequency varies. Reply STOP to " +
-      'opt out, HELP for help. See our <a href="/terms.html" style="color:var(--accent,#c8102e);text-decoration:underline">Terms</a> ' +
-      '&amp; <a href="/privacy-policy.html" style="color:var(--accent,#c8102e);text-decoration:underline">Privacy Policy</a>.</span>';
-    if (btn && btn.parentNode) btn.parentNode.insertBefore(label, btn);
-    else form.appendChild(label);
+    var box = document.createElement("div");
+    box.className = "sms-consent";
+    box.style.cssText =
+      "margin:12px 0;font-size:12px;line-height:1.5;color:#8a8a8e;text-align:left";
+    var rowStyle = "display:flex;gap:8px;align-items:flex-start;margin-bottom:8px";
+    var cbStyle = "margin-top:3px;flex:0 0 auto";
+    box.innerHTML =
+      '<label style="' + rowStyle + '">' +
+        '<input type="checkbox" name="sms_opt_in" value="yes" style="' + cbStyle + '">' +
+        "<span>Yes, text me about my quote, booking, and appointment reminders (service messages).</span>" +
+      "</label>" +
+      '<label style="' + rowStyle + '">' +
+        '<input type="checkbox" name="marketing_opt_in" value="yes" style="' + cbStyle + '">' +
+        "<span>Yes, also send me occasional offers &amp; promotions from BH Car Detailing. " +
+        "(Optional — not required to book.)</span>" +
+      "</label>" +
+      '<span style="display:block;color:#a0a0a4">By checking a box you agree to receive the selected text ' +
+      "messages from BH Car Detailing at the number provided. Consent is not a condition of purchase. " +
+      "Msg &amp; data rates may apply. Message frequency varies. Reply STOP to opt out, HELP for help. See our " +
+      '<a href="/terms.html" style="color:var(--accent,#c8102e);text-decoration:underline">Terms</a> &amp; ' +
+      '<a href="/privacy-policy.html" style="color:var(--accent,#c8102e);text-decoration:underline">Privacy Policy</a>.</span>';
+    if (btn && btn.parentNode) btn.parentNode.insertBefore(box, btn);
+    else form.appendChild(box);
   }
   document.querySelectorAll("form.form").forEach(injectSmsConsent);
 
@@ -472,7 +484,7 @@
       msg.textContent = "";
       if (btn) {
         btn.disabled = true;
-        btn.textContent = "SendingΓÇª";
+        btn.textContent = "Sending…";
       }
 
       try {
@@ -487,7 +499,7 @@
         msg.classList.add("success");
         msg.textContent =
           form.dataset.successMsg ||
-          "Thanks ΓÇö we've got your info! We'll text or call you shortly (usually within the hour) with your quote and next steps.";
+          "Thanks — we've got your info! We'll text or call you shortly (usually within the hour) with your quote and next steps.";
 
         if (typeof gtag === "function") gtag("event", "generate_lead");
 
@@ -496,7 +508,7 @@
           calendly.dataset.loaded = "true";
           calendly.style.display = "block";
           const widget = document.createElement("div");
-          /* Not "calendly-inline-widget" ΓÇö Calendly's widget.js auto-scans for that exact
+          /* Not "calendly-inline-widget" — Calendly's widget.js auto-scans for that exact
              class on script load and crashes (parseOptions: null.split) when it finds one
              with no data-url, since this codebase initializes it manually instead. */
           widget.className = "calendly-inline-target";
