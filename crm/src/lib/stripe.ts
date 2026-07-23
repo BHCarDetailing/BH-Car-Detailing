@@ -8,20 +8,22 @@ export function stripeConfigured(env: Env): boolean {
 }
 
 /** Deposit config, runtime-editable in Settings. */
-export async function loadPaymentSettings(env: Env): Promise<{ enabled: boolean; percent: number; allowFull: boolean }> {
-  const rows = await one<{ enabled?: string; percent?: string; allow_full?: string }>(
+export async function loadPaymentSettings(env: Env): Promise<{ enabled: boolean; percent: number; allowFull: boolean; ach: boolean }> {
+  const rows = await one<{ enabled?: string; percent?: string; allow_full?: string; ach?: string }>(
     env.DB,
     `SELECT
        MAX(CASE WHEN key='payments_enabled' THEN value END) AS enabled,
        MAX(CASE WHEN key='deposit_percent' THEN value END) AS percent,
-       MAX(CASE WHEN key='deposit_allow_full' THEN value END) AS allow_full
-     FROM settings WHERE key IN ('payments_enabled','deposit_percent','deposit_allow_full')`
+       MAX(CASE WHEN key='deposit_allow_full' THEN value END) AS allow_full,
+       MAX(CASE WHEN key='payments_ach' THEN value END) AS ach
+     FROM settings WHERE key IN ('payments_enabled','deposit_percent','deposit_allow_full','payments_ach')`
   );
   const percent = Math.min(100, Math.max(0, Number.parseInt(rows?.percent ?? "25", 10) || 25));
   return {
     enabled: (rows?.enabled ?? "1") === "1",
     percent,
     allowFull: (rows?.allow_full ?? "1") === "1",
+    ach: (rows?.ach ?? "0") === "1",
   };
 }
 
@@ -38,6 +40,7 @@ interface CheckoutArgs {
   customerEmail?: string | null;
   successUrl: string;
   cancelUrl: string;
+  allowAch?: boolean;
 }
 
 /** Create a Stripe Checkout Session. Returns the hosted-page URL, or null if
@@ -57,6 +60,11 @@ export async function createCheckoutSession(env: Env, a: CheckoutArgs): Promise<
   form.set("line_items[0][price_data][currency]", "usd");
   form.set("line_items[0][price_data][unit_amount]", String(a.amountCents));
   form.set("line_items[0][price_data][product_data][name]", a.label.slice(0, 250));
+  if (a.allowAch) {
+    // Bank transfer (ACH) alongside card — ~0.8% capped vs ~2.9% for cards.
+    form.set("payment_method_types[0]", "card");
+    form.set("payment_method_types[1]", "us_bank_account");
+  }
 
   const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {
     method: "POST",

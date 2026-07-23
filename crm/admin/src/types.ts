@@ -63,6 +63,8 @@ export interface Job {
   quote_token?: string | null;
   quote_sent_at?: string | null;
   quote_accepted_at?: string | null;
+  amount_paid_cents?: number;
+  paid_in_full?: number;
 }
 
 export const SIZE_CLASSES = ["sedan", "suv", "truck", "van", "exotic", "other"] as const;

@@ -341,6 +341,7 @@ publicRoutes.post("/quote/:token/checkout", async (c) => {
     customerEmail: contact?.email ?? null,
     successUrl: `${base}/quote/${token}?paid=1`,
     cancelUrl: `${base}/quote/${token}`,
+    allowAch: pay.ach,
   });
   if (!url) return c.json({ error: "checkout_failed" }, 502);
   await run(c.env.DB, "UPDATE jobs SET deposit_cents = ?, updated_at = ? WHERE id = ?", kind === "deposit" ? amount : job.deposit_cents ?? null, nowIso(), job.id);

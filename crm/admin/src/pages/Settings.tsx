@@ -108,7 +108,7 @@ export default function Settings() {
   const [reviewNote, setReviewNote] = useState("");
   const [mc, setMc] = useState({ enabled: true, forward: "", timeout: "20", body: "", cooldown: "4", notifyEnabled: true, notifyNumber: "" });
   const [mcNote, setMcNote] = useState("");
-  const [pay, setPay] = useState({ enabled: true, percent: "25", allowFull: true });
+  const [pay, setPay] = useState({ enabled: true, percent: "25", allowFull: true, ach: false });
   const [payNote, setPayNote] = useState("");
   const [integrations, setIntegrations] = useState<{ stripe?: boolean; stripe_webhook?: boolean }>({});
 
@@ -136,6 +136,7 @@ export default function Settings() {
           enabled: (r.settings.payments_enabled ?? "1") === "1",
           percent: r.settings.deposit_percent ?? "25",
           allowFull: (r.settings.deposit_allow_full ?? "1") === "1",
+          ach: (r.settings.payments_ach ?? "0") === "1",
         });
       })
       .catch(() => setTemplate(DEFAULT_TEMPLATE));
@@ -150,6 +151,7 @@ export default function Settings() {
       ["payments_enabled", pay.enabled ? "1" : "0"],
       ["deposit_percent", pct],
       ["deposit_allow_full", pay.allowFull ? "1" : "0"],
+      ["payments_ach", pay.ach ? "1" : "0"],
     ];
     try {
       for (const [key, value] of pairs) await api("/api/settings", { method: "PUT", body: JSON.stringify({ key, value }) });
@@ -279,6 +281,9 @@ export default function Settings() {
               <input type="checkbox" checked={pay.allowFull} onChange={(e) => setPay({ ...pay, allowFull: e.target.checked })} /> Also let them pay in full
             </label>
           </div>
+          <label className="mb-3 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={pay.ach} onChange={(e) => setPay({ ...pay, ach: e.target.checked })} /> Accept bank transfer (ACH) — much lower fees on big jobs (~$5 vs ~3% on cards)
+          </label>
           <div className="flex items-center gap-3">
             <button onClick={savePayments} className="min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">Save</button>
             {payNote && <span className="text-xs text-neutral-500">{payNote}</span>}

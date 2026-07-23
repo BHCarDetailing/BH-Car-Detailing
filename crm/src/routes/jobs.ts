@@ -151,6 +151,36 @@ jobRoutes.post("/:id/send-quote", async (c) => {
   return c.json({ token, path: `/quote/${token}` });
 });
 
+// Record a manual (non-Stripe) payment — Zelle, cash, check, etc.
+const MANUAL_METHODS = new Set(["zelle", "cash", "check", "card_external", "other"]);
+jobRoutes.post("/:id/mark-paid", async (c) => {
+  const id = c.req.param("id");
+  const job = await one<Record<string, unknown>>(c.env.DB, "SELECT * FROM jobs WHERE id = ?", id);
+  if (!job) return c.json({ error: "not_found" }, 404);
+  const b = ((await c.req.json().catch(() => null)) ?? {}) as { amount_cents?: unknown; method?: unknown; in_full?: unknown };
+  const method = typeof b.method === "string" && MANUAL_METHODS.has(b.method) ? b.method : "other";
+  const amount = Math.max(0, Math.round(Number(b.amount_cents) || 0));
+  if (amount <= 0) return c.json({ error: "amount_required" }, 400);
+  const prevPaid = (job.amount_paid_cents as number) ?? 0;
+  const newPaid = prevPaid + amount;
+  const total = (job.price_cents as number) ?? 0;
+  const fullyPaid = b.in_full === true || newPaid >= total;
+  const now = nowIso();
+  await run(
+    c.env.DB,
+    "UPDATE jobs SET amount_paid_cents = ?, paid_at = COALESCE(paid_at, ?), paid_in_full = ?, updated_at = ? WHERE id = ?",
+    newPaid, now, fullyPaid ? 1 : 0, now, id
+  );
+  await logActivity(c.env.DB, {
+    contactId: job.contact_id as string,
+    type: "note",
+    title: `Payment recorded: $${(amount / 100).toFixed(2)} via ${method}${fullyPaid ? " (paid in full)" : ""}`,
+    payload: { job_id: id, amount_cents: amount, method, manual: true },
+    actor: actorOf(c),
+  });
+  return c.json({ ok: true, amount_paid_cents: newPaid, paid_in_full: fullyPaid });
+});
+
 jobRoutes.post("/:id/request-review", async (c) => {
   const { sendReviewRequest } = await import("../lib/reminders");
   const out = await sendReviewRequest(c.env, c.req.param("id"));

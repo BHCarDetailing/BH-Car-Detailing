@@ -165,6 +165,7 @@ export default function ContactDetail() {
                       <div className="text-xs text-neutral-500">
                         {money(j.price_cents)}{j.scheduled_start ? ` · ${new Date(j.scheduled_start).toLocaleString()}` : ""}
                         {j.quote_accepted_at && <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700">✓ Accepted</span>}
+                        {(j.amount_paid_cents ?? 0) > 0 && <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700">{Number(j.paid_in_full) === 1 ? `Paid ${money(j.amount_paid_cents!)}` : `${money(j.amount_paid_cents!)} paid`}</span>}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -176,6 +177,7 @@ export default function ContactDetail() {
                     </div>
                   </div>
                   {j.status === "quoted" && <SendQuote job={j} customerName={contact.first_name} customerPhone={contact.phone} customerEmail={contact.email} onSent={load} />}
+                  {Number(j.paid_in_full) !== 1 && <MarkPaid job={j} onDone={load} />}
                 </li>
               ))}
             </ul>
@@ -406,6 +408,45 @@ function Composer({ contactId, onSent }: { contactId: string; onSent: () => void
         {note && <span className="text-xs text-neutral-500">{note}</span>}
       </div>
     </form>
+  );
+}
+
+function MarkPaid({ job, onDone }: { job: Job; onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const remaining = Math.max(0, job.price_cents - (job.amount_paid_cents ?? 0));
+  const [amount, setAmount] = useState(((remaining || job.price_cents) / 100).toFixed(2));
+  const [method, setMethod] = useState("zelle");
+  const [busy, setBusy] = useState(false);
+
+  async function submit() {
+    const cents = Math.round((parseFloat(amount) || 0) * 100);
+    if (cents <= 0) return;
+    setBusy(true);
+    try {
+      await api(`/api/jobs/${job.id}/mark-paid`, { method: "POST", body: JSON.stringify({ amount_cents: cents, method }) });
+      setOpen(false); onDone();
+    } finally { setBusy(false); }
+  }
+
+  if (!open) return (
+    <div className="mt-2">
+      <button onClick={() => setOpen(true)} className="min-h-[36px] rounded-md bg-neutral-100 px-3 text-sm text-neutral-700">＋ Mark paid (Zelle / cash / check)</button>
+    </div>
+  );
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 p-2">
+      <span className="text-sm text-neutral-500">$</span>
+      <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" className="min-h-[40px] w-24 rounded-md border border-neutral-300 px-2 text-sm" />
+      <select value={method} onChange={(e) => setMethod(e.target.value)} className="min-h-[40px] rounded-md border border-neutral-300 px-2 text-sm">
+        <option value="zelle">Zelle</option>
+        <option value="cash">Cash</option>
+        <option value="check">Check</option>
+        <option value="card_external">Card (in person)</option>
+        <option value="other">Other</option>
+      </select>
+      <button disabled={busy} onClick={submit} className="min-h-[40px] rounded-md bg-red-600 px-3 text-sm text-white disabled:opacity-50">Record</button>
+      <button onClick={() => setOpen(false)} className="min-h-[40px] rounded-md bg-neutral-200 px-3 text-sm">Cancel</button>
+    </div>
   );
 }
 
