@@ -138,6 +138,19 @@ jobRoutes.post("/:id/confirm", async (c) => {
   return c.json(out, out.status === "not_found" ? 404 : 200);
 });
 
+// Ensure the job has a public quote token and mark it as sent. Returns the
+// token + relative path so the UI can build the shareable link.
+jobRoutes.post("/:id/send-quote", async (c) => {
+  const id = c.req.param("id");
+  const job = await one<Record<string, unknown>>(c.env.DB, "SELECT * FROM jobs WHERE id = ?", id);
+  if (!job) return c.json({ error: "not_found" }, 404);
+  let token = (job.quote_token as string) || "";
+  if (!token) token = uuid().replace(/-/g, "");
+  await run(c.env.DB, "UPDATE jobs SET quote_token = ?, quote_sent_at = ?, updated_at = ? WHERE id = ?", token, nowIso(), nowIso(), id);
+  await logActivity(c.env.DB, { contactId: job.contact_id as string, type: "note", title: "Quote link sent", payload: { job_id: id }, actor: actorOf(c) });
+  return c.json({ token, path: `/quote/${token}` });
+});
+
 jobRoutes.post("/:id/request-review", async (c) => {
   const { sendReviewRequest } = await import("../lib/reminders");
   const out = await sendReviewRequest(c.env, c.req.param("id"));

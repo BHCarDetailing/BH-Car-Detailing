@@ -10,6 +10,7 @@ import Import from "./pages/Import";
 import Settings from "./pages/Settings";
 import Sequences from "./pages/Sequences";
 import Book from "./pages/Book";
+import Quote from "./pages/Quote";
 import Layout from "./components/Layout";
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/book" element={<Book />} />
+      <Route path="/quote/:token" element={<Quote />} />
       <Route element={<Layout />}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />

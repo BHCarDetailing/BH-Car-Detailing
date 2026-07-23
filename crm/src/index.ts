@@ -11,6 +11,7 @@ import { messageRoutes } from "./routes/messages";
 import { sequenceRoutes } from "./routes/sequences";
 import { aiRoutes } from "./routes/ai";
 import { labelRoutes } from "./routes/labels";
+import { serviceRoutes } from "./routes/services";
 import { runReminders } from "./lib/reminders";
 import { runSequences } from "./lib/sequences";
 
@@ -23,6 +24,7 @@ app.route("/api/contacts", activityWriteRoutes); // POST /api/contacts/:id/activ
 app.route("/api/contacts", contactRoutes);
 app.route("/api/custom-fields", customFieldRoutes);
 app.route("/api/labels", labelRoutes);
+app.route("/api/services", serviceRoutes);
 app.route("/api/settings", settingsRoutes);
 app.route("/api/stats", statsRoutes);
 app.route("/api/jobs", jobRoutes);

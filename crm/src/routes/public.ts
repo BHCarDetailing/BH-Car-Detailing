@@ -229,6 +229,48 @@ publicRoutes.post("/book", async (c) => {
   return c.json({ ok: true }, 200, h);
 });
 
+// --- Public shareable quote (token-guarded, no auth). ---
+publicRoutes.get("/quote/:token", async (c) => {
+  const token = c.req.param("token");
+  if (!token) return c.json({ error: "not_found" }, 404);
+  const job = await one<Record<string, unknown>>(c.env.DB, "SELECT * FROM jobs WHERE quote_token = ?", token);
+  if (!job) return c.json({ error: "not_found" }, 404);
+  const contact = await one<{ first_name: string | null }>(c.env.DB, "SELECT first_name FROM contacts WHERE id = ?", job.contact_id);
+  if (!job.quote_viewed_at) {
+    await run(c.env.DB, "UPDATE jobs SET quote_viewed_at = ? WHERE id = ?", nowIso(), job.id);
+  }
+  let items: unknown[] = [];
+  try { items = JSON.parse((job.services as string) || "[]"); } catch { items = []; }
+  return c.json({
+    business: c.env.FROM_NAME || "BH Car Detailing",
+    title: job.title,
+    customer_first: contact?.first_name ?? null,
+    status: job.status,
+    accepted: !!job.quote_accepted_at,
+    items,
+    total_cents: job.price_cents ?? 0,
+    notes: job.notes ?? null,
+    created_at: job.created_at,
+  });
+});
+
+publicRoutes.post("/quote/:token/accept", async (c) => {
+  const token = c.req.param("token");
+  const job = await one<Record<string, unknown>>(c.env.DB, "SELECT * FROM jobs WHERE quote_token = ?", token);
+  if (!job) return c.json({ error: "not_found" }, 404);
+  if (!job.quote_accepted_at) {
+    await run(c.env.DB, "UPDATE jobs SET quote_accepted_at = ?, updated_at = ? WHERE id = ?", nowIso(), nowIso(), job.id);
+    await logActivity(c.env.DB, {
+      contactId: job.contact_id as string,
+      type: "note",
+      title: `Quote accepted by customer: ${job.title}`,
+      payload: { job_id: job.id, total_cents: job.price_cents },
+      actor: "system",
+    });
+  }
+  return c.json({ ok: true });
+});
+
 // --- Twilio inbound SMS webhook (signature-verified, fails closed) ---
 async function twilioParams(c: Context<{ Bindings: Env }>): Promise<Record<string, string>> {
   const form = await c.req.formData();

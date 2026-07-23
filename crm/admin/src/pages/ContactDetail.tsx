@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../api";
-import { fullName, STAGES, type Activity, type Contact, type Job, type Label, type SmsMessage, type Stage } from "../types";
+import { fullName, money, SIZE_CLASSES, STAGES, type Activity, type Contact, type Job, type Label, type QuoteItem, type Service, type SizeClass, type SmsMessage, type Stage } from "../types";
 
 interface TaskRow { id: string; title: string; due_at: string | null; status: string }
 
@@ -152,26 +152,30 @@ export default function ContactDetail() {
 
         <section className="rounded-xl bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-medium">Jobs & Quotes</h2>
-          <NewJob contactId={id!} onCreated={load} />
+          <QuoteBuilder contactId={id!} vehicles={contact.vehicles ?? []} onCreated={load} />
           {jobs.length === 0 ? (
             <p className="mt-3 text-sm text-neutral-500">No jobs yet.</p>
           ) : (
             <ul className="mt-3 space-y-2">
               {jobs.map((j) => (
-                <li key={j.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-neutral-200 p-3">
-                  <div className="min-w-0">
-                    <div className="font-medium">{j.title}</div>
-                    <div className="text-xs text-neutral-500">
-                      ${(j.price_cents / 100).toFixed(2)}{j.scheduled_start ? ` · ${new Date(j.scheduled_start).toLocaleString()}` : ""}
+                <li key={j.id} className="rounded-lg border border-neutral-200 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-medium">{j.title}</div>
+                      <div className="text-xs text-neutral-500">
+                        {money(j.price_cents)}{j.scheduled_start ? ` · ${new Date(j.scheduled_start).toLocaleString()}` : ""}
+                        {j.quote_accepted_at && <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700">✓ Accepted</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {(j.status === "completed" || j.status === "paid") && <button onClick={() => requestReview(j.id)} className="min-h-[40px] rounded-md bg-amber-100 px-3 text-sm text-amber-800">★ Review</button>}
+                      <select value={j.status} onChange={async (e) => { await api(`/api/jobs/${j.id}`, { method: "PATCH", body: JSON.stringify({ status: e.target.value }) }); load(); }}
+                        className="min-h-[44px] rounded-md border border-neutral-300 px-2 text-sm capitalize">
+                        {["draft","quoted","scheduled","in_progress","completed","paid","cancelled"].map((s) => <option key={s} value={s}>{s.replace("_"," ")}</option>)}
+                      </select>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {(j.status === "completed" || j.status === "paid") && <button onClick={() => requestReview(j.id)} className="min-h-[40px] rounded-md bg-amber-100 px-3 text-sm text-amber-800">★ Review</button>}
-                    <select value={j.status} onChange={async (e) => { await api(`/api/jobs/${j.id}`, { method: "PATCH", body: JSON.stringify({ status: e.target.value }) }); load(); }}
-                      className="min-h-[44px] rounded-md border border-neutral-300 px-2 text-sm capitalize">
-                      {["draft","quoted","scheduled","in_progress","completed","paid","cancelled"].map((s) => <option key={s} value={s}>{s.replace("_"," ")}</option>)}
-                    </select>
-                  </div>
+                  {j.status === "quoted" && <SendQuote job={j} customerName={contact.first_name} customerPhone={contact.phone} customerEmail={contact.email} onSent={load} />}
                 </li>
               ))}
             </ul>
@@ -405,37 +409,158 @@ function Composer({ contactId, onSent }: { contactId: string; onSent: () => void
   );
 }
 
-function NewJob({ contactId, onCreated }: { contactId: string; onCreated: () => void }) {
+function priceFor(svc: Service, size: SizeClass): number {
+  return svc.size_pricing[size] ?? svc.base_price_cents ?? 0;
+}
+
+function QuoteBuilder({ contactId, vehicles, onCreated }: { contactId: string; vehicles: Contact["vehicles"]; onCreated: () => void }) {
   const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [price, setPrice] = useState("");
+  const [services, setServices] = useState<Service[]>([]);
+  const [size, setSize] = useState<SizeClass>("sedan");
+  const [qty, setQty] = useState<Record<string, number>>({});
+  const [customName, setCustomName] = useState("");
+  const [customPrice, setCustomPrice] = useState("");
+  const [discount, setDiscount] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!title.trim()) return;
+  useEffect(() => {
+    if (!open) return;
+    api<{ items: Service[] }>("/api/services?active=1").then((r) => setServices(r.items)).catch(() => {});
+    const v0 = (vehicles ?? [])[0]?.size_class as SizeClass | undefined;
+    if (v0 && (SIZE_CLASSES as readonly string[]).includes(v0)) setSize(v0);
+  }, [open, vehicles]);
+
+  const items: QuoteItem[] = services
+    .filter((s) => (qty[s.id] ?? 0) > 0)
+    .map((s) => ({ service_id: s.id, name: s.name, price_cents: priceFor(s, size), qty: qty[s.id] }));
+  const customCents = Math.round((parseFloat(customPrice) || 0) * 100);
+  if (customName.trim() && customCents > 0) items.push({ name: customName.trim(), price_cents: customCents, qty: 1 });
+  const discountCents = Math.round((parseFloat(discount) || 0) * 100);
+  const subtotal = items.reduce((sum, it) => sum + it.price_cents * it.qty, 0);
+  const total = Math.max(0, subtotal - discountCents);
+
+  function bump(id: string, delta: number) {
+    setQty((q) => ({ ...q, [id]: Math.max(0, (q[id] ?? 0) + delta) }));
+  }
+
+  async function submit() {
+    if (items.length === 0) { setErr("Pick at least one service."); return; }
     setBusy(true); setErr("");
+    const lineItems: QuoteItem[] = [...items];
+    if (discountCents > 0) lineItems.push({ name: "Discount", price_cents: -discountCents, qty: 1 });
+    const title = items.map((i) => i.qty > 1 ? `${i.name} ×${i.qty}` : i.name).join(", ").slice(0, 120);
     try {
       await api("/api/jobs", { method: "POST", body: JSON.stringify({
-        contact_id: contactId, title: title.trim(), status: "quoted",
-        price_cents: Math.round((parseFloat(price) || 0) * 100),
+        contact_id: contactId, title, status: "quoted", price_cents: total, services: lineItems,
       }) });
-      setTitle(""); setPrice(""); setOpen(false); onCreated();
+      setQty({}); setCustomName(""); setCustomPrice(""); setDiscount(""); setOpen(false); onCreated();
     } catch { setErr("Couldn't save — try again."); }
     finally { setBusy(false); }
   }
 
-  if (!open) return <button onClick={() => setOpen(true)} className="min-h-[44px] rounded-md bg-neutral-900 px-4 text-sm text-white">＋ New quote / job</button>;
+  if (!open) return <button onClick={() => setOpen(true)} className="min-h-[44px] rounded-md bg-neutral-900 px-4 text-sm text-white">＋ Build a quote</button>;
+
   return (
-    <form onSubmit={submit} className="space-y-2">
-      <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Ceramic coating" className="min-h-[44px] w-full rounded-md border border-neutral-300 px-3 text-sm" autoFocus />
-      <input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" placeholder="Price (e.g. 750)" className="min-h-[44px] w-full rounded-md border border-neutral-300 px-3 text-sm" />
+    <div className="space-y-3 rounded-lg border border-neutral-200 p-3">
+      <label className="flex items-center gap-2 text-sm">
+        <span className="text-neutral-600">Vehicle size</span>
+        <select value={size} onChange={(e) => setSize(e.target.value as SizeClass)} className="min-h-[40px] rounded-md border border-neutral-300 px-2 text-sm capitalize">
+          {SIZE_CLASSES.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </label>
+
+      {services.length === 0 ? (
+        <p className="text-sm text-neutral-500">No services yet. Add your menu in Settings → Services.</p>
+      ) : (
+        <ul className="divide-y">
+          {services.map((s) => {
+            const n = qty[s.id] ?? 0;
+            return (
+              <li key={s.id} className="flex items-center justify-between gap-2 py-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">{s.name}</div>
+                  <div className="text-xs text-neutral-500">{money(priceFor(s, size))}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => bump(s.id, -1)} className="h-8 w-8 rounded-md bg-neutral-100 text-lg leading-none">−</button>
+                  <span className="w-5 text-center text-sm">{n}</span>
+                  <button type="button" onClick={() => bump(s.id, 1)} className="h-8 w-8 rounded-md bg-neutral-100 text-lg leading-none">＋</button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
       <div className="flex gap-2">
-        <button disabled={busy} className="min-h-[44px] flex-1 rounded-md bg-red-600 px-4 text-sm text-white disabled:opacity-50">{busy ? "Saving…" : "Save quote"}</button>
+        <input value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="Custom line (optional)" className="min-h-[40px] flex-1 rounded-md border border-neutral-300 px-2 text-sm" />
+        <input value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} inputMode="decimal" placeholder="$" className="min-h-[40px] w-20 rounded-md border border-neutral-300 px-2 text-sm" />
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <span className="text-neutral-600">Discount $</span>
+        <input value={discount} onChange={(e) => setDiscount(e.target.value)} inputMode="decimal" placeholder="0" className="min-h-[40px] w-24 rounded-md border border-neutral-300 px-2 text-sm" />
+      </label>
+
+      <div className="flex items-center justify-between border-t pt-2">
+        <span className="text-sm text-neutral-500">Total</span>
+        <span className="text-xl font-bold">{money(total)}</span>
+      </div>
+
+      {err && <p className="text-sm text-red-600">{err}</p>}
+      <div className="flex gap-2">
+        <button disabled={busy} onClick={submit} className="min-h-[44px] flex-1 rounded-md bg-red-600 px-4 text-sm text-white disabled:opacity-50">{busy ? "Saving…" : "Save quote"}</button>
         <button type="button" onClick={() => setOpen(false)} className="min-h-[44px] rounded-md bg-neutral-200 px-4 text-sm">Cancel</button>
       </div>
-      {err && <p className="text-sm text-red-600">{err}</p>}
-    </form>
+    </div>
+  );
+}
+
+function SendQuote({ job, customerName, customerPhone, customerEmail, onSent }: { job: Job; customerName: string | null; customerPhone: string | null; customerEmail: string | null; onSent: () => void }) {
+  const [link, setLink] = useState(job.quote_token ? `${location.origin}/quote/${job.quote_token}` : "");
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState("");
+
+  async function makeLink(): Promise<string> {
+    if (link) return link;
+    setBusy(true);
+    try {
+      const r = (await api(`/api/jobs/${job.id}/send-quote`, { method: "POST" })) as { path: string };
+      const url = `${location.origin}${r.path}`;
+      setLink(url); onSent();
+      return url;
+    } finally { setBusy(false); }
+  }
+  const message = (url: string) => `Hi${customerName ? " " + customerName : ""}! Here's your quote from BH Car Detailing for ${money(job.price_cents)}: ${url}`;
+
+  async function copy() {
+    const url = await makeLink();
+    navigator.clipboard?.writeText(message(url));
+    setCopied("msg"); setTimeout(() => setCopied(""), 1500);
+  }
+  async function copyLinkOnly() {
+    const url = await makeLink();
+    navigator.clipboard?.writeText(url);
+    setCopied("link"); setTimeout(() => setCopied(""), 1500);
+  }
+  async function openText() {
+    const url = await makeLink();
+    if (customerPhone) location.href = `sms:${customerPhone}?&body=${encodeURIComponent(message(url))}`;
+  }
+  async function openEmail() {
+    const url = await makeLink();
+    if (customerEmail) location.href = `mailto:${customerEmail}?subject=${encodeURIComponent("Your BH Car Detailing quote")}&body=${encodeURIComponent(message(url))}`;
+  }
+
+  return (
+    <div className="mt-3 border-t border-neutral-100 pt-3">
+      <div className="mb-2 flex flex-wrap gap-2">
+        {customerPhone && <button onClick={openText} disabled={busy} className="min-h-[40px] rounded-md bg-neutral-900 px-3 text-sm text-white disabled:opacity-50">Text quote</button>}
+        {customerEmail && <button onClick={openEmail} disabled={busy} className="min-h-[40px] rounded-md bg-neutral-200 px-3 text-sm disabled:opacity-50">Email quote</button>}
+        <button onClick={copy} disabled={busy} className="min-h-[40px] rounded-md bg-neutral-200 px-3 text-sm disabled:opacity-50">{copied === "msg" ? "Copied!" : "Copy message"}</button>
+        <button onClick={copyLinkOnly} disabled={busy} className="min-h-[40px] rounded-md bg-neutral-200 px-3 text-sm disabled:opacity-50">{copied === "link" ? "Copied!" : "Copy link"}</button>
+      </div>
+      {link && <input readOnly value={link} onFocus={(e) => e.currentTarget.select()} className="w-full rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs text-neutral-600" />}
+    </div>
   );
 }

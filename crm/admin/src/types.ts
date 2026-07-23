@@ -60,6 +60,29 @@ export interface Job {
   first_name?: string | null;
   last_name?: string | null;
   phone?: string | null;
+  quote_token?: string | null;
+  quote_sent_at?: string | null;
+  quote_accepted_at?: string | null;
+}
+
+export const SIZE_CLASSES = ["sedan", "suv", "truck", "van", "exotic", "other"] as const;
+export type SizeClass = (typeof SIZE_CLASSES)[number];
+
+export interface Service {
+  id: string;
+  name: string;
+  description: string | null;
+  size_pricing: Partial<Record<SizeClass, number>>;
+  base_price_cents: number;
+  active: boolean;
+  sort: number;
+}
+
+export interface QuoteItem {
+  service_id?: string;
+  name: string;
+  price_cents: number;
+  qty: number;
 }
 
 export interface SmsMessage {

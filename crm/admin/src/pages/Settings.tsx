@@ -1,12 +1,95 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
-import type { Label } from "../types";
+import { money, SIZE_CLASSES, type Label, type Service, type SizeClass } from "../types";
 
 const DEFAULT_TEMPLATE = "Hi {first_name}, this is BH Car Detailing — thanks for reaching out! Happy to get you a quote. When works for a quick call or text?";
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DEFAULT_HOURS = { days: [1, 2, 3, 4, 5, 6], start: "09:00", end: "18:00", slot_min: 120, buffer_min: 30 };
 const DEFAULT_MISSED_BODY = "Hey, this is BH Car Detailing - sorry we missed your call! Reply here with what you need and we'll be in touch.\nIf you'd like to book on your own our website is bhcardetails.com";
+
+function ServicesManager() {
+  const [items, setItems] = useState<Service[]>([]);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+
+  const load = () => api<{ items: Service[] }>("/api/services").then((r) => setItems(r.items)).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  async function addBlank() {
+    const r = (await api("/api/services", { method: "POST", body: JSON.stringify({ name: "New service", size_pricing: {}, sort: (items.length + 1) * 10 }) })) as { id: string };
+    await load();
+    setEditing(r.id);
+  }
+  async function save(s: Service) {
+    setNote("");
+    try {
+      await api(`/api/services/${s.id}`, { method: "PATCH", body: JSON.stringify({ name: s.name, description: s.description, size_pricing: s.size_pricing, active: s.active, sort: s.sort }) });
+      setEditing(null); setNote("Saved."); load();
+    } catch { setNote("Couldn't save — try again."); }
+  }
+  async function del(id: string) {
+    await api(`/api/services/${id}`, { method: "DELETE" });
+    load();
+  }
+  function patchLocal(id: string, patch: Partial<Service>) {
+    setItems((xs) => xs.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  }
+  function setPrice(id: string, size: SizeClass, dollars: string) {
+    const cents = Math.max(0, Math.round((parseFloat(dollars) || 0) * 100));
+    setItems((xs) => xs.map((x) => (x.id === id ? { ...x, size_pricing: { ...x.size_pricing, [size]: cents } } : x)));
+  }
+
+  return (
+    <section className="rounded-xl bg-white p-5 shadow-sm">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="font-medium">Services & pricing</h2>
+        <button onClick={addBlank} className="min-h-[40px] rounded-md bg-red-600 px-3 text-sm text-white">＋ Add service</button>
+      </div>
+      <p className="mb-3 text-sm text-neutral-500">Your menu with prices per vehicle size. Used by the quote builder on each contact.</p>
+      {note && <p className="mb-2 text-xs text-neutral-500">{note}</p>}
+      <ul className="space-y-2">
+        {items.map((s) => (
+          <li key={s.id} className="rounded-lg border border-neutral-200 p-3">
+            {editing === s.id ? (
+              <div className="space-y-2">
+                <input value={s.name} onChange={(e) => patchLocal(s.id, { name: e.target.value })} placeholder="Service name" className="min-h-[40px] w-full rounded-md border border-neutral-300 px-2 text-sm" />
+                <input value={s.description ?? ""} onChange={(e) => patchLocal(s.id, { description: e.target.value })} placeholder="Short description" className="min-h-[40px] w-full rounded-md border border-neutral-300 px-2 text-sm" />
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {SIZE_CLASSES.map((size) => (
+                    <label key={size} className="text-xs capitalize text-neutral-500">{size}
+                      <div className="mt-0.5 flex items-center rounded-md border border-neutral-300 px-2">
+                        <span className="text-neutral-400">$</span>
+                        <input inputMode="decimal" value={((s.size_pricing[size] ?? 0) / 100) || ""} onChange={(e) => setPrice(s.id, size, e.target.value)} placeholder="0" className="min-h-[40px] w-full px-1 text-sm outline-none" />
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.active} onChange={(e) => patchLocal(s.id, { active: e.target.checked })} /> Active (shown in quote builder)</label>
+                <div className="flex gap-2">
+                  <button onClick={() => save(s)} className="min-h-[40px] flex-1 rounded-md bg-red-600 px-3 text-sm text-white">Save</button>
+                  <button onClick={() => { setEditing(null); load(); }} className="min-h-[40px] rounded-md bg-neutral-200 px-3 text-sm">Cancel</button>
+                  <button onClick={() => del(s.id)} className="min-h-[40px] rounded-md bg-neutral-100 px-3 text-sm text-red-600">Delete</button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">{s.name}{!s.active && <span className="ml-2 text-xs text-neutral-400">(inactive)</span>}</div>
+                  <div className="text-xs text-neutral-500">
+                    {SIZE_CLASSES.filter((z) => s.size_pricing[z]).slice(0, 3).map((z) => `${z} ${money(s.size_pricing[z]!)}`).join(" · ") || `from ${money(s.base_price_cents)}`}
+                  </div>
+                </div>
+                <button onClick={() => setEditing(s.id)} className="min-h-[40px] shrink-0 rounded-md bg-neutral-100 px-3 text-sm">Edit</button>
+              </div>
+            )}
+          </li>
+        ))}
+        {items.length === 0 && <li className="text-sm text-neutral-400">No services yet — add your first one.</li>}
+      </ul>
+    </section>
+  );
+}
 
 export default function Settings() {
   const [template, setTemplate] = useState("");
@@ -140,6 +223,8 @@ export default function Settings() {
           </div>
           <span className="text-red-600">›</span>
         </Link>
+
+        <ServicesManager />
 
         <section className="rounded-xl bg-white p-5 shadow-sm">
           <h2 className="mb-2 font-medium">Text message template</h2>
