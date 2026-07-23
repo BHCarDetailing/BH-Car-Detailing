@@ -29,6 +29,38 @@ function corsHeaders(c: Context<{ Bindings: Env }>): Record<string, string> {
   return {};
 }
 
+// Record SMS consent — transactional and marketing kept separate (A2P 30913).
+// Marketing consent also tags the contact so promo sends can target only
+// those who explicitly opted in to marketing.
+async function recordSmsConsent(
+  env: Env, contactId: string,
+  o: { txn: boolean; mkt: boolean; source: string; sourceDetail?: string | null; at: string; ip: string }
+): Promise<void> {
+  if (!o.txn && !o.mkt) return;
+  await run(env.DB, "UPDATE contacts SET sms_opt_in = 1, sms_opt_out_auto = 0 WHERE id = ?", contactId);
+  if (o.txn) {
+    await logActivity(env.DB, {
+      contactId, type: "note", title: "SMS consent given — transactional (service messages)",
+      payload: { consent: "transactional", source: o.source, source_detail: o.sourceDetail ?? null, at: o.at, ip: o.ip },
+      actor: "system",
+    });
+  }
+  if (o.mkt) {
+    const row = await one<{ tags: string }>(env.DB, "SELECT tags FROM contacts WHERE id = ?", contactId);
+    let tags: string[] = [];
+    try { tags = JSON.parse(row?.tags || "[]"); } catch { tags = []; }
+    if (!tags.includes("sms_marketing")) {
+      tags.push("sms_marketing");
+      await run(env.DB, "UPDATE contacts SET tags = ? WHERE id = ?", JSON.stringify(tags), contactId);
+    }
+    await logActivity(env.DB, {
+      contactId, type: "note", title: "SMS consent given — marketing (promotions & offers)",
+      payload: { consent: "marketing", source: o.source, source_detail: o.sourceDetail ?? null, at: o.at, ip: o.ip },
+      actor: "system",
+    });
+  }
+}
+
 publicRoutes.get("/health", (c) => c.json({ ok: true, ts: nowIso() }));
 
 // --- Embeddable webchat widget (chat-to-text lead capture). One <script> tag
@@ -50,7 +82,9 @@ publicRoutes.get("/widget.js", (c) => {
     +'<input name="name" placeholder="Your name" style="padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px">'
     +'<input name="phone" required placeholder="Phone number" inputmode="tel" style="padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px">'
     +'<textarea name="message" rows="2" placeholder="How can we help?" style="padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;resize:none"></textarea>'
-    +'<label style="display:flex;gap:6px;align-items:flex-start;font-size:11px;line-height:1.4;color:#666"><input type="checkbox" name="sms_opt_in" style="margin-top:2px;flex:0 0 auto"><span>I agree to receive text messages from BH Car Detailing (quotes, reminders, offers). Consent is not a condition of purchase. Msg &amp; data rates may apply, frequency varies, reply STOP to opt out. <a href="https://bhcardetails.com/terms.html" target="_blank" style="color:'+BRAND+'">Terms</a></span></label>'
+    +'<label style="display:flex;gap:6px;align-items:flex-start;font-size:11px;line-height:1.4;color:#666"><input type="checkbox" name="sms_opt_in" style="margin-top:2px;flex:0 0 auto"><span>Text me about my quote and appointment (service messages).</span></label>'
+    +'<label style="display:flex;gap:6px;align-items:flex-start;font-size:11px;line-height:1.4;color:#666"><input type="checkbox" name="marketing_opt_in" style="margin-top:2px;flex:0 0 auto"><span>Also send me occasional offers &amp; promotions (optional).</span></label>'
+    +'<span style="font-size:10px;line-height:1.4;color:#999">Consent is not a condition of purchase. Msg &amp; data rates may apply, frequency varies, reply STOP to opt out, HELP for help. <a href="https://bhcardetails.com/terms.html" target="_blank" style="color:'+BRAND+'">Terms</a> &amp; <a href="https://bhcardetails.com/privacy-policy.html" target="_blank" style="color:'+BRAND+'">Privacy</a>.</span>'
     +'<input name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">'
     +'<button type="submit" style="background:'+BRAND+';color:#fff;border:0;border-radius:8px;padding:12px;font-size:15px;font-weight:600;cursor:pointer">Send</button>'
     +'<div id="bhchat-msg" style="font-size:13px;color:#666;text-align:center"></div></form>';
@@ -67,7 +101,7 @@ publicRoutes.get("/widget.js", (c) => {
     msg.textContent="Sending...";
     fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
       name:f.name.value,phone:phone,message:f.message.value,website:f.website.value,ts:TS,
-      sms_opt_in:f.sms_opt_in.checked,source:"webchat",source_detail:location.href
+      sms_opt_in:f.sms_opt_in.checked,marketing_opt_in:f.marketing_opt_in.checked,source:"webchat",source_detail:location.href
     })}).then(function(r){return r.json()}).then(function(){
       f.style.display="none";msg.textContent="Thanks! We'll text you shortly.";msg.style.color=BRAND;
     }).catch(function(){msg.textContent="Something went wrong — please call us.";});
@@ -191,18 +225,14 @@ publicRoutes.post("/lead", async (c) => {
     }
   }
 
-  // SMS consent capture (A2P 10DLC / TCPA evidence): record the opt-in and log a
-  // durable consent record with the source page, timestamp, and IP.
-  if (body.sms_opt_in === true) {
-    await run(c.env.DB, "UPDATE contacts SET sms_opt_in = 1, sms_opt_out_auto = 0 WHERE id = ?", contactId);
-    await logActivity(c.env.DB, {
-      contactId,
-      type: "note",
-      title: "SMS consent given (opt-in checkbox)",
-      payload: { sms_opt_in: true, source, source_detail: sourceDetail, at: now, ip },
-      actor: "system",
-    });
-  }
+  // SMS consent capture (A2P 10DLC / TCPA evidence). Transactional and marketing
+  // consent are SEPARATE (error 30913): each is its own checkbox, recorded and
+  // logged distinctly with source page, timestamp, and IP.
+  await recordSmsConsent(c.env, contactId, {
+    txn: body.sms_opt_in === true,
+    mkt: body.marketing_opt_in === true,
+    source, sourceDetail, at: now, ip,
+  });
 
   await logActivity(c.env.DB, {
     contactId,
@@ -293,14 +323,11 @@ publicRoutes.post("/book", async (c) => {
       contactId, first || null, last || null, email, phone, address, now, now);
   }
 
-  if (body.sms_opt_in === true) {
-    await run(c.env.DB, "UPDATE contacts SET sms_opt_in = 1, sms_opt_out_auto = 0 WHERE id = ?", contactId);
-    await logActivity(c.env.DB, {
-      contactId, type: "note", title: "SMS consent given (booking opt-in)",
-      payload: { sms_opt_in: true, source: "self-booking", at: now, ip },
-      actor: "system",
-    });
-  }
+  await recordSmsConsent(c.env, contactId, {
+    txn: body.sms_opt_in === true,
+    mkt: body.marketing_opt_in === true,
+    source: "self-booking", at: now, ip,
+  });
 
   const jobId = uuid();
   await run(c.env.DB,

@@ -18,6 +18,31 @@ describe("SMS consent capture", () => {
     expect(acts.items.some((a) => a.title.includes("SMS consent given"))).toBe(true);
   });
 
+  it("marketing opt-in is separate: tags the contact sms_marketing + logs a marketing consent", async () => {
+    const phone = "3055550099";
+    await SELF.fetch("http://x/api/lead", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Promo", phone, sms_opt_in: true, marketing_opt_in: true, source: "hero-quote", website: "", ts: Date.now() - 5000 }),
+    });
+    const found = (await (await SELF.fetch(`http://x/api/contacts?search=${phone}`, { headers: AUTH })).json()) as { items: Array<{ id: string; tags: string[] }> };
+    const contact = found.items[0];
+    expect(contact.tags).toContain("sms_marketing");
+    const acts = (await (await SELF.fetch(`http://x/api/contacts/${contact.id}/activities`, { headers: AUTH })).json()) as { items: Array<{ title: string }> };
+    expect(acts.items.some((a) => a.title.includes("marketing"))).toBe(true);
+    expect(acts.items.some((a) => a.title.includes("transactional"))).toBe(true);
+  });
+
+  it("transactional only: no marketing tag when marketing box unchecked", async () => {
+    const phone = "3055550088";
+    await SELF.fetch("http://x/api/lead", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "TxnOnly", phone, sms_opt_in: true, source: "hero-quote", website: "", ts: Date.now() - 5000 }),
+    });
+    const found = (await (await SELF.fetch(`http://x/api/contacts?search=${phone}`, { headers: AUTH })).json()) as { items: Array<{ tags: string[]; sms_opt_in: number }> };
+    expect(found.items[0].sms_opt_in).toBe(1);
+    expect(found.items[0].tags).not.toContain("sms_marketing");
+  });
+
   it("does not set sms_opt_in when the box is unchecked", async () => {
     const phone = "3055556644";
     await SELF.fetch("http://x/api/lead", {
