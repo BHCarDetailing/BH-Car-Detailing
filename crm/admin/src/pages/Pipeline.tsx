@@ -4,15 +4,21 @@ import { DndContext, PointerSensor, useSensor, useSensors, useDraggable, useDrop
 import { api } from "../api";
 import { fullName, type Contact, type Stage } from "../types";
 import { STAGE_META } from "../lib/stages";
+import { PageHeader } from "../components/ui";
 
 type Board = Record<Stage, Contact[]>;
 const empty = (): Board => ({ new: [], contacted: [], quoted: [], scheduled: [], customer: [], lost: [] });
 
+const STAGE_DOT: Record<Stage, string> = {
+  new: "bg-neutral-400", contacted: "bg-sky-500", quoted: "bg-amber-500",
+  scheduled: "bg-violet-500", customer: "bg-emerald-500", lost: "bg-rose-500",
+};
+
 function Card({ c }: { c: Contact }) {
   return (
-    <Link to={`/contacts/${c.id}`} className="block rounded-lg border border-neutral-200 bg-white p-3 shadow-sm">
-      <div className="font-medium">{fullName(c)}</div>
-      <div className="truncate text-xs text-neutral-500">{c.source ?? "—"}</div>
+    <Link to={`/contacts/${c.id}`} className="block rounded-lg bg-white p-2.5 shadow-sm ring-1 ring-steel-200 transition hover:ring-red-200">
+      <div className="truncate text-sm font-medium text-graphite-950">{fullName(c)}</div>
+      {c.source && <div className="truncate text-[11px] text-chrome-400">{c.source}</div>}
     </Link>
   );
 }
@@ -31,9 +37,14 @@ function Column({ stage, items }: { stage: Stage; items: Contact[] }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage });
   const meta = STAGE_META.find((m) => m.key === stage)!;
   return (
-    <div ref={setNodeRef} className={`flex w-72 shrink-0 flex-col gap-2 rounded-xl p-2 ${isOver ? "bg-red-50" : "bg-neutral-100"}`}>
-      <div className="px-1 text-sm font-semibold">{meta.label} <span className="text-neutral-400">{items.length}</span></div>
+    <div ref={setNodeRef} className={`flex w-60 shrink-0 flex-col gap-1.5 rounded-xl p-2 ring-1 transition ${isOver ? "bg-red-50 ring-red-200" : "bg-steel-100 ring-steel-200"}`}>
+      <div className="flex items-center gap-2 px-1.5 py-1">
+        <span className={`h-2 w-2 rounded-full ${STAGE_DOT[stage]}`} />
+        <span className="text-xs font-semibold uppercase tracking-wide text-graphite-800">{meta.label}</span>
+        <span className="ml-auto rounded-full bg-white px-1.5 text-xs font-medium text-chrome-400 ring-1 ring-steel-200">{items.length}</span>
+      </div>
       {items.map((c) => <DraggableCard key={c.id} c={c} />)}
+      {items.length === 0 && <div className="px-1.5 py-3 text-center text-[11px] text-chrome-300">Empty</div>}
     </div>
   );
 }
@@ -78,7 +89,7 @@ export default function Pipeline() {
 
   return (
     <div className="p-4 md:p-8">
-      <h1 className="mb-4 text-2xl font-semibold">Pipeline</h1>
+      <PageHeader eyebrow="Growth" title="Pipeline" subtitle="Drag leads across stages. Compact board for fast scanning." />
 
       {/* Mobile: segmented switcher + tap-to-move */}
       <div className="md:hidden">

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { PageHeader } from "../components/ui";
+import { PageHeader, BrandLogo } from "../components/ui";
 import { UpdateComposer, UpdateFeed, type UpdateRow } from "../components/UpdatesFeed";
 import { useCollection, type Row } from "../lib/collections";
 
@@ -46,9 +46,7 @@ export default function Home() {
       {/* Branded hero */}
       <div className="bh-bg relative mb-6 overflow-hidden rounded-3xl px-6 py-8 md:px-8 md:py-10">
         <div className="relative z-10 flex items-center gap-4">
-          <div className="bh-shine relative overflow-hidden">
-            <img src="/brand/logo-light.png" alt="BH Car Detailing" className="bh-float h-16 w-auto drop-shadow-[0_6px_20px_rgba(200,16,46,0.4)]" />
-          </div>
+          <BrandLogo h="h-14" chip className="bh-float shadow-xl shadow-red-600/20" />
           <div>
             <div className="eyebrow text-[10px] text-chrome-400">BH Car Details · Operating System</div>
             <h1 className="font-display mt-1 text-3xl leading-none text-white md:text-4xl">{greeting()}</h1>

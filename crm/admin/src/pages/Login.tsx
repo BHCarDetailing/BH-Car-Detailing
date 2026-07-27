@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
+import { BrandLogo } from "../components/ui";
 
 export default function Login() {
   const [password, setPassword] = useState("");
@@ -26,9 +27,7 @@ export default function Login() {
     <div className="bh-bg min-h-screen flex items-center justify-center p-4">
       <form onSubmit={submit} className="relative z-10 w-80 space-y-4 rounded-2xl border border-white/10 bg-graphite-900/80 p-8 shadow-2xl backdrop-blur-xl bh-gloss">
         <div className="flex flex-col items-center gap-3 pb-2">
-          <div className="bh-shine relative overflow-hidden">
-            <img src="/brand/logo-light.png" alt="BH Car Detailing" className="h-16 w-auto" />
-          </div>
+          <BrandLogo h="h-14" chip />
           <div className="text-center">
             <div className="font-display text-lg tracking-wide text-white">BH CRM</div>
             <div className="eyebrow text-[9px] text-chrome-400">Operating System</div>

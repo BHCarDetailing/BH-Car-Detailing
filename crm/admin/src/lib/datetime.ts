@@ -31,3 +31,36 @@ export function isOnDay(iso: string | null, d: Date): boolean {
   const j = new Date(iso);
   return j.getFullYear() === d.getFullYear() && j.getMonth() === d.getMonth() && j.getDate() === d.getDate();
 }
+
+/* ---- Universal timestamp helpers (used app-wide via <Timestamp/>) ---- */
+
+/** "Jul 27, 2026" */
+export function fmtDate(iso: string | number | Date): string {
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(iso));
+}
+
+/** "10:42 AM" */
+export function fmtTime(iso: string | number | Date): string {
+  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(iso));
+}
+
+/** "Jul 27, 2026 · 10:42 AM" */
+export function fmtDateTime(iso: string | number | Date): string {
+  return `${fmtDate(iso)} · ${fmtTime(iso)}`;
+}
+
+/** "just now" / "3h ago" / "5d ago" / falls back to date for older */
+export function relTime(iso: string | number | Date): string {
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return "";
+  const diff = Date.now() - then;
+  const min = Math.round(diff / 60000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.round(hr / 24);
+  if (day < 7) return `${day}d ago`;
+  if (day < 30) return `${Math.round(day / 7)}w ago`;
+  return fmtDate(iso);
+}

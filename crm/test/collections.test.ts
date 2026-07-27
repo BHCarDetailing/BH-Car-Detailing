@@ -45,12 +45,12 @@ describe("generic collections engine", () => {
     const badEnum = await post("clients", { name: "X", stage: "not-a-stage" });
     expect(badEnum.status).toBe(400);
 
-    const badKind = await post("revenue", { label: "Deal", kind: "bogus", amount_cents: 100 });
-    expect(badKind.status).toBe(400);
+    const badStatus = await post("revenue", { label: "Deal", amount_cents: 100, status: "bogus" });
+    expect(badStatus.status).toBe(400);
   });
 
   it("coerces ints and booleans", async () => {
-    const rev = await post("revenue", { label: "Dealership contract", kind: "mrr", amount_cents: 250000 });
+    const rev = await post("revenue", { label: "Dealership contract", amount_cents: 250000, status: "paid" });
     const { item } = (await rev.json()) as { item: { amount_cents: number } };
     expect(item.amount_cents).toBe(250000);
 
@@ -58,5 +58,36 @@ describe("generic collections engine", () => {
     const { item: u } = (await up.json()) as { item: { pinned: number; category: string } };
     expect(u.pinned).toBe(1);
     expect(u.category).toBe("win");
+  });
+
+  it("stores revenue-event fields and validates status", async () => {
+    const ok = await post("revenue", { label: "Full detail — 911", amount_cents: 30000, occurred_at: "2026-07-27", customer: "Alex", service: "Full Detail", status: "pending" });
+    expect(ok.status).toBe(201);
+    const { item } = (await ok.json()) as { item: { occurred_at: string; customer: string; status: string } };
+    expect(item.occurred_at).toBe("2026-07-27");
+    expect(item.customer).toBe("Alex");
+    expect(item.status).toBe("pending");
+
+    const bad = await post("revenue", { label: "X", amount_cents: 100, status: "bogus" });
+    expect(bad.status).toBe(400);
+  });
+
+  it("supports the GTM collections (prospects, campaigns, content)", async () => {
+    const p = await post("prospects", { name: "Miami Exotics", source: "LSA", status: "follow_up" });
+    expect(p.status).toBe(201);
+    expect(((await p.json()) as { item: { status: string } }).item.status).toBe("follow_up");
+
+    const c = await post("campaigns", { name: "July LSA", channel: "google_lsa", spend_cents: 50000, leads: 12 });
+    expect(c.status).toBe(201);
+    const cj = (await c.json()) as { item: { channel: string; leads: number } };
+    expect(cj.item.channel).toBe("google_lsa");
+    expect(cj.item.leads).toBe(12);
+
+    const ct = await post("content", { title: "Ceramic reel", channel: "instagram", status: "scheduled", scheduled_for: "2026-08-01" });
+    expect(ct.status).toBe(201);
+    expect(((await ct.json()) as { item: { status: string } }).item.status).toBe("scheduled");
+
+    const badChannel = await post("campaigns", { name: "X", channel: "tiktok" }); // tiktok not a campaign channel
+    expect(badChannel.status).toBe(400);
   });
 });

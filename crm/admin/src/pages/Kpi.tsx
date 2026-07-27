@@ -1,6 +1,29 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader, Button, Modal, Field, Input, EmptyState, DeleteButton } from "../components/ui";
 import { useCollection, type Row } from "../lib/collections";
+
+interface AcctTask extends Row { bucket: string; status: string }
+
+function TaskProgress() {
+  const { items } = useCollection<AcctTask>("acct_tasks");
+  const active = useMemo(() => items.filter((t) => t.bucket !== "wins"), [items]);
+  const done = active.filter((t) => t.status === "done").length;
+  const total = active.length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  const remaining = total - done;
+  return (
+    <div className="mb-6 bh-gloss rounded-2xl bg-gradient-to-br from-graphite-900 to-graphite-950 p-5 text-white shadow-sm ring-1 ring-white/5">
+      <div className="flex items-baseline justify-between">
+        <div className="eyebrow text-[10px] text-chrome-400">Task completion</div>
+        <div className="font-display text-3xl leading-none">{pct}%</div>
+      </div>
+      <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-white/10">
+        <div className="h-full rounded-full bg-gradient-to-r from-red-600 to-red-400" style={{ width: `${pct}%`, animation: "bh-bar 0.6s ease-out both" }} />
+      </div>
+      <div className="mt-2 text-xs text-chrome-400">{done} of {total} done · {remaining} remaining — updates as you close tasks in Accountability</div>
+    </div>
+  );
+}
 
 interface Kpi extends Row { label: string; target: string | null; current: string | null; unit: string | null; sort: number; }
 const BLANK = { label: "", target: "", current: "", unit: "" };
@@ -42,10 +65,12 @@ export default function Kpi() {
       <PageHeader eyebrow="Performance" title="KPIs" subtitle="The numbers that run the business — editable targets and current values."
         action={<Button onClick={openNew}>+ Add KPI</Button>} />
 
+      <TaskProgress />
+
       {loading ? <p className="text-sm text-neutral-400">Loading…</p> : items.length === 0 ? (
         <EmptyState title="No KPIs yet" hint="Add the metrics you want to steer by." action={<Button onClick={openNew}>+ Add KPI</Button>} />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           {items.map((k) => {
             const p = pct(k.current, k.target);
             return (

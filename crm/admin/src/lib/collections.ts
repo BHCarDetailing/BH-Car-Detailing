@@ -77,11 +77,48 @@ export const CLIENT_STAGES = [
   { value: "churned", label: "Churned", color: "red" },
 ] as const;
 
-export const REVENUE_KINDS = [
-  { value: "arr", label: "ARR" },
-  { value: "mrr", label: "MRR" },
-  { value: "pipeline", label: "Pipeline" },
-  { value: "active", label: "Active" },
+export const REVENUE_STATUS = [
+  { value: "paid", label: "Paid", color: "green" },
+  { value: "pending", label: "Pending", color: "amber" },
+  { value: "refunded", label: "Refunded", color: "violet" },
+  { value: "cancelled", label: "Cancelled", color: "red" },
+] as const;
+
+export const PROSPECT_STATUS = [
+  { value: "new", label: "New", color: "neutral" },
+  { value: "contacted", label: "Contacted", color: "blue" },
+  { value: "follow_up", label: "Follow-up", color: "amber" },
+  { value: "won", label: "Won", color: "green" },
+  { value: "lost", label: "Lost", color: "red" },
+] as const;
+
+export const CAMPAIGN_CHANNELS = [
+  { value: "google_ads", label: "Google Ads", color: "blue" },
+  { value: "google_lsa", label: "Google LSA", color: "green" },
+  { value: "instagram", label: "Instagram", color: "violet" },
+  { value: "facebook", label: "Facebook", color: "blue" },
+  { value: "other", label: "Other", color: "neutral" },
+] as const;
+
+export const CAMPAIGN_STATUS = [
+  { value: "active", label: "Active", color: "green" },
+  { value: "paused", label: "Paused", color: "amber" },
+  { value: "ended", label: "Ended", color: "neutral" },
+] as const;
+
+export const CONTENT_CHANNELS = [
+  { value: "instagram", label: "Instagram", color: "violet" },
+  { value: "facebook", label: "Facebook", color: "blue" },
+  { value: "tiktok", label: "TikTok", color: "neutral" },
+  { value: "youtube", label: "YouTube", color: "red" },
+  { value: "blog", label: "Blog", color: "amber" },
+  { value: "other", label: "Other", color: "neutral" },
+] as const;
+
+export const CONTENT_STATUS = [
+  { value: "draft", label: "Draft", color: "neutral" },
+  { value: "scheduled", label: "Scheduled", color: "blue" },
+  { value: "published", label: "Published", color: "green" },
 ] as const;
 
 export const ACCT_BUCKETS = [

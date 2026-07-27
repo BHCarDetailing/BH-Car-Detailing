@@ -2,23 +2,26 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { fullName, type Job } from "../types";
-import { addDays, dayLabel, isOnDay, startOfWeek, timeLabel, ymd } from "../lib/datetime";
+import { addDays, dayLabel, isOnDay, startOfWeek, timeLabel, ymd, fmtDate } from "../lib/datetime";
+import { PageHeader } from "../components/ui";
 
+// left accent bar + soft fill per job status
 const STATUS_COLOR: Record<string, string> = {
-  quoted: "bg-amber-100 text-amber-800",
-  scheduled: "bg-blue-100 text-blue-800",
-  in_progress: "bg-purple-100 text-purple-800",
-  completed: "bg-green-100 text-green-800",
-  paid: "bg-emerald-100 text-emerald-800",
-  cancelled: "bg-neutral-200 text-neutral-500",
-  draft: "bg-neutral-100 text-neutral-600",
+  quoted: "border-amber-400 bg-amber-50 text-amber-900",
+  scheduled: "border-sky-400 bg-sky-50 text-sky-900",
+  in_progress: "border-violet-400 bg-violet-50 text-violet-900",
+  completed: "border-emerald-400 bg-emerald-50 text-emerald-900",
+  paid: "border-emerald-500 bg-emerald-50 text-emerald-900",
+  cancelled: "border-neutral-300 bg-neutral-50 text-neutral-500",
+  draft: "border-neutral-300 bg-neutral-50 text-neutral-600",
 };
 
 function JobChip({ job, onClick }: { job: Job; onClick: () => void }) {
   return (
-    <button onClick={onClick} className={`w-full rounded-md px-2 py-1 text-left text-xs ${STATUS_COLOR[job.status] ?? "bg-neutral-100"}`}>
-      <div className="font-medium">{job.scheduled_start ? timeLabel(job.scheduled_start) : "—"} · {job.title}</div>
-      <div className="truncate opacity-80">{fullName({ first_name: job.first_name ?? null, last_name: job.last_name ?? null })}</div>
+    <button onClick={onClick} className={`w-full rounded-md border-l-[3px] px-2 py-1.5 text-left text-xs shadow-sm transition hover:brightness-[0.98] ${STATUS_COLOR[job.status] ?? "border-neutral-300 bg-neutral-50"}`}>
+      <div className="font-semibold">{job.scheduled_start ? timeLabel(job.scheduled_start) : "—"}</div>
+      <div className="truncate font-medium">{job.title}</div>
+      <div className="truncate opacity-70">{fullName({ first_name: job.first_name ?? null, last_name: job.last_name ?? null })}</div>
     </button>
   );
 }
@@ -69,42 +72,55 @@ export default function Calendar() {
     }
   }
 
+  const today = new Date();
+  const rangeLabel = `${fmtDate(weekStart)} – ${fmtDate(addDays(weekStart, 6))}`;
+  const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
   return (
     <div className="p-4 md:p-8">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Calendar</h1>
-        <div className="flex gap-2">
-          <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="min-h-[44px] rounded-md bg-neutral-200 px-3">‹</button>
-          <button onClick={() => setWeekStart(startOfWeek())} className="min-h-[44px] rounded-md bg-neutral-200 px-3 text-sm">Today</button>
-          <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="min-h-[44px] rounded-md bg-neutral-200 px-3">›</button>
-        </div>
-      </div>
+      <PageHeader eyebrow="Operations" title="Calendar" subtitle={rangeLabel}
+        action={
+          <div className="inline-flex items-center gap-1 rounded-xl bg-white p-1 shadow-sm ring-1 ring-steel-200">
+            <button onClick={() => setWeekStart(addDays(weekStart, -7))} aria-label="Previous week" className="grid h-9 w-9 place-items-center rounded-lg text-chrome-400 hover:bg-steel-100 hover:text-graphite-800">‹</button>
+            <button onClick={() => setWeekStart(startOfWeek())} className="rounded-lg px-3 py-1.5 text-sm font-medium text-graphite-800 hover:bg-steel-100">Today</button>
+            <button onClick={() => setWeekStart(addDays(weekStart, 7))} aria-label="Next week" className="grid h-9 w-9 place-items-center rounded-lg text-chrome-400 hover:bg-steel-100 hover:text-graphite-800">›</button>
+          </div>
+        } />
 
       {/* Mobile agenda */}
-      <div className="space-y-4 md:hidden">
+      <div className="space-y-3 md:hidden">
         {days.map((d) => {
           const dayJobs = jobs.filter((j) => isOnDay(j.scheduled_start, d));
+          const isToday = isOnDay(d.toISOString(), today);
           return (
-            <div key={ymd(d)}>
-              <div className="mb-1 text-sm font-semibold text-neutral-600">{dayLabel(d)}</div>
-              {dayJobs.length === 0 ? <div className="text-xs text-neutral-400">—</div> :
-                <div className="space-y-1">{dayJobs.map((j) => <JobChip key={j.id} job={j} onClick={() => openJob(j)} />)}</div>}
+            <div key={ymd(d)} className="rounded-xl bg-white p-3 shadow-sm ring-1 ring-steel-200">
+              <div className={`mb-2 flex items-center gap-2 text-sm font-semibold ${isToday ? "text-red-600" : "text-graphite-800"}`}>
+                {dayLabel(d)}{isToday && <span className="rounded-full bg-red-600 px-1.5 text-[10px] font-medium text-white">Today</span>}
+              </div>
+              {dayJobs.length === 0 ? <div className="text-xs text-chrome-300">No jobs</div> :
+                <div className="space-y-1.5">{dayJobs.map((j) => <JobChip key={j.id} job={j} onClick={() => openJob(j)} />)}</div>}
             </div>
           );
         })}
       </div>
 
       {/* Desktop week grid */}
-      <div className="hidden grid-cols-7 gap-2 md:grid">
-        {days.map((d) => {
-          const dayJobs = jobs.filter((j) => isOnDay(j.scheduled_start, d));
-          return (
-            <div key={ymd(d)} className="min-h-40 rounded-lg bg-neutral-100 p-2">
-              <div className="mb-2 text-xs font-semibold text-neutral-600">{dayLabel(d)}</div>
-              <div className="space-y-1">{dayJobs.map((j) => <JobChip key={j.id} job={j} onClick={() => openJob(j)} />)}</div>
-            </div>
-          );
-        })}
+      <div className="hidden overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-steel-200 md:block">
+        <div className="grid grid-cols-7">
+          {days.map((d) => {
+            const dayJobs = jobs.filter((j) => isOnDay(j.scheduled_start, d));
+            const isToday = isOnDay(d.toISOString(), today);
+            return (
+              <div key={ymd(d)} className="min-h-[22rem] border-r border-steel-100 last:border-r-0">
+                <div className={`sticky top-0 border-b border-steel-100 px-2 py-2 text-center ${isToday ? "bg-red-50" : "bg-steel-50"}`}>
+                  <div className={`text-[10px] font-semibold uppercase tracking-wide ${isToday ? "text-red-600" : "text-chrome-400"}`}>{WD[d.getDay()]}</div>
+                  <div className={`font-display text-lg leading-none ${isToday ? "text-red-600" : "text-graphite-900"}`}>{d.getDate()}</div>
+                </div>
+                <div className="space-y-1.5 p-1.5">{dayJobs.map((j) => <JobChip key={j.id} job={j} onClick={() => openJob(j)} />)}</div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Job drawer */}

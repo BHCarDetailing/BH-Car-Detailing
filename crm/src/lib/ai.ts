@@ -105,16 +105,15 @@ export async function askCrm(env: Env, question: string, history?: Array<{ role:
   const num = async (sql: string, ...b: unknown[]) => (await one<{ n: number }>(env.DB, sql, ...b))?.n ?? 0;
   const safe = async (fn: () => Promise<number>) => { try { return await fn(); } catch { return 0; } };
 
-  const [leads, clientsActive, clientsRecurring, openTasks, needsAttn, arr, mrr, pipeline, active, recentUpdates] = await Promise.all([
+  const [leads, clientsActive, clientsRecurring, openTasks, needsAttn, paidMonth, paidYear, pending, recentUpdates] = await Promise.all([
     safe(() => num("SELECT COUNT(*) AS n FROM contacts WHERE stage = 'new'")),
     safe(() => num("SELECT COUNT(*) AS n FROM clients WHERE stage = 'active'")),
     safe(() => num("SELECT COUNT(*) AS n FROM clients WHERE stage = 'recurring'")),
     safe(() => num("SELECT COUNT(*) AS n FROM acct_tasks WHERE status != 'done' AND bucket != 'wins'")),
     safe(() => num("SELECT COUNT(*) AS n FROM acct_tasks WHERE status = 'needs_attention'")),
-    safe(() => num("SELECT COALESCE(SUM(amount_cents),0) AS n FROM revenue_entries WHERE kind = 'arr'")),
-    safe(() => num("SELECT COALESCE(SUM(amount_cents),0) AS n FROM revenue_entries WHERE kind = 'mrr'")),
-    safe(() => num("SELECT COALESCE(SUM(amount_cents),0) AS n FROM revenue_entries WHERE kind = 'pipeline'")),
-    safe(() => num("SELECT COALESCE(SUM(amount_cents),0) AS n FROM revenue_entries WHERE kind = 'active'")),
+    safe(() => num("SELECT COALESCE(SUM(amount_cents),0) AS n FROM revenue_entries WHERE status = 'paid' AND occurred_at >= strftime('%Y-%m-01','now')")),
+    safe(() => num("SELECT COALESCE(SUM(amount_cents),0) AS n FROM revenue_entries WHERE status = 'paid' AND occurred_at >= strftime('%Y-01-01','now')")),
+    safe(() => num("SELECT COALESCE(SUM(amount_cents),0) AS n FROM revenue_entries WHERE status = 'pending'")),
     safe(() => num("SELECT COUNT(*) AS n FROM updates WHERE created_at >= datetime('now','-7 days')")),
   ]);
 
@@ -124,7 +123,7 @@ export async function askCrm(env: Env, question: string, history?: Array<{ role:
     `New leads: ${leads}`,
     `Active clients: ${clientsActive} · Recurring: ${clientsRecurring}`,
     `Open accountability tasks: ${openTasks} (needs attention: ${needsAttn})`,
-    `ARR: ${d(arr)} · MRR: ${d(mrr)} · Pipeline: ${d(pipeline)} · Active revenue: ${d(active)}`,
+    `Revenue paid this month: ${d(paidMonth)} · this year: ${d(paidYear)} · pending: ${d(pending)}`,
     `Updates posted this week: ${recentUpdates}`,
   ].join("\n");
 

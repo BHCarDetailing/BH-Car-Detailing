@@ -17,6 +17,12 @@
       "migrations_dir": "migrations"
     }
   ],
+  // Content-media storage. Enable R2 in the Cloudflare dashboard, then
+  // `wrangler r2 bucket create bh-crm-media` and uncomment to activate uploads.
+  // Until then the /api/media route returns 503 and the UI degrades gracefully.
+  // "r2_buckets": [
+  //   { "binding": "MEDIA", "bucket_name": "bh-crm-media" }
+  // ],
   "vars": {
     "ALLOWED_ORIGINS": "https://bhcardetails.com,https://www.bhcardetails.com,http://localhost:4173,http://127.0.0.1:4173",
     "HOME_TZ": "America/New_York"

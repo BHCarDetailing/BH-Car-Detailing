@@ -13,6 +13,7 @@ import { aiRoutes } from "./routes/ai";
 import { labelRoutes } from "./routes/labels";
 import { serviceRoutes } from "./routes/services";
 import { collectionRoutes } from "./routes/collections";
+import { mediaRoutes } from "./routes/media";
 import { runReminders } from "./lib/reminders";
 import { runSequences } from "./lib/sequences";
 
@@ -35,6 +36,7 @@ app.route("/api/sequences", sequenceRoutes);
 app.route("/api/ai", aiRoutes);
 app.route("/api/agent", agentRoutes);
 app.route("/api/c", collectionRoutes);           // generic operating-system collections
+app.route("/api/media", mediaRoutes);            // R2-backed content uploads
 
 export default {
   fetch: app.fetch,

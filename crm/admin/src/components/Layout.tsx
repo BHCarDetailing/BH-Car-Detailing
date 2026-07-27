@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { NAV_GROUPS } from "../lib/nav";
 import BottomNav from "./BottomNav";
+import { BrandLogo } from "./ui";
 
 function NavIcon({ d }: { d: string }) {
   return (
@@ -14,7 +15,7 @@ function NavIcon({ d }: { d: string }) {
 function Brand({ collapsed }: { collapsed: boolean }) {
   return (
     <div className={`flex items-center gap-2.5 ${collapsed ? "justify-center" : ""}`}>
-      <img src="/brand/logo-light.png" alt="BH Car Detailing" className="h-9 w-auto shrink-0" />
+      <BrandLogo h="h-8" chip className="shrink-0" />
       {!collapsed && (
         <div className="leading-none">
           <div className="font-display text-base tracking-wide text-white">BH CRM</div>
@@ -136,7 +137,7 @@ export default function Layout() {
         {/* Mobile top brand bar with hamburger */}
         <header className={`sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-white/5 px-3 md:hidden ${sidebarSurface}`}>
           <Hamburger onClick={() => setMobileOpen(true)} label="Open menu" />
-          <img src="/brand/logo-light.png" alt="BH Car Detailing" className="h-8 w-auto" />
+          <BrandLogo h="h-7" chip />
           <span className="font-display tracking-wide text-white">BH Car Details</span>
         </header>
         <Outlet />

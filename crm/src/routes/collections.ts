@@ -56,13 +56,17 @@ export const COLLECTIONS: Record<string, Collection> = {
   },
   revenue: {
     table: "revenue_entries",
-    orderBy: "created_at DESC",
+    orderBy: "occurred_at DESC, created_at DESC",
     timestamps: "created",
     fields: {
       label: { type: "text", required: true, max: 160 },
-      kind: { type: "text", enum: ["arr", "mrr", "pipeline", "active"], max: 20 },
       amount_cents: { type: "int", min: 0, max: 100_000_000_00 },
+      occurred_at: { type: "text", max: 40 },
+      customer: { type: "text", max: 160 },
+      service: { type: "text", max: 160 },
+      status: { type: "text", enum: ["paid", "pending", "refunded", "cancelled"], max: 20 },
       note: { type: "text", max: 2000 },
+      // kind retained in DB for back-compat but no longer set from the UI
     },
   },
   team: {
@@ -93,7 +97,7 @@ export const COLLECTIONS: Record<string, Collection> = {
   kpis: {
     table: "kpis",
     orderBy: "sort ASC",
-    timestamps: "none",
+    timestamps: "created",
     fields: {
       label: { type: "text", required: true, max: 120 },
       target: { type: "text", max: 40 },
@@ -116,7 +120,7 @@ export const COLLECTIONS: Record<string, Collection> = {
   products: {
     table: "products",
     orderBy: "sort ASC, name ASC",
-    timestamps: "none",
+    timestamps: "created",
     fields: {
       name: { type: "text", required: true, max: 160 },
       price_cents: { type: "int", min: 0, max: 100_000_000_00 },
@@ -146,6 +150,46 @@ export const COLLECTIONS: Record<string, Collection> = {
       cadence: { type: "text", enum: ["weekly", "monthly", "quarterly", "none"], max: 20 },
       last_contact: { type: "text", max: 40 },
       notes: { type: "text", max: 4000 },
+    },
+  },
+  prospects: {
+    table: "prospects",
+    orderBy: "created_at DESC",
+    timestamps: "created",
+    fields: {
+      name: { type: "text", required: true, max: 160 },
+      source: { type: "text", max: 80 },
+      status: { type: "text", enum: ["new", "contacted", "follow_up", "won", "lost"], max: 20 },
+      next_follow_up: { type: "text", max: 40 },
+      notes: { type: "text", max: 4000 },
+    },
+  },
+  campaigns: {
+    table: "marketing_campaigns",
+    orderBy: "created_at DESC",
+    timestamps: "created",
+    fields: {
+      name: { type: "text", required: true, max: 160 },
+      channel: { type: "text", enum: ["google_ads", "google_lsa", "instagram", "facebook", "other"], max: 20 },
+      status: { type: "text", enum: ["active", "paused", "ended"], max: 20 },
+      spend_cents: { type: "int", min: 0, max: 100_000_000_00 },
+      leads: { type: "int", min: 0, max: 10_000_000 },
+      start_date: { type: "text", max: 40 },
+      end_date: { type: "text", max: 40 },
+      notes: { type: "text", max: 4000 },
+    },
+  },
+  content: {
+    table: "content_items",
+    orderBy: "scheduled_for DESC, created_at DESC",
+    timestamps: "created",
+    fields: {
+      title: { type: "text", required: true, max: 200 },
+      channel: { type: "text", enum: ["instagram", "facebook", "tiktok", "youtube", "blog", "other"], max: 20 },
+      body: { type: "text", max: 8000 },
+      scheduled_for: { type: "text", max: 40 },
+      status: { type: "text", enum: ["draft", "scheduled", "published"], max: 20 },
+      media_key: { type: "text", max: 200 },
     },
   },
   discovery: {
@@ -193,13 +237,20 @@ function coerce(name: string, spec: Field, raw: unknown): unknown {
   return s || null;
 }
 
-/** Build column/value pairs from a request body for create (all fields) or patch (present fields only). */
+/**
+ * Build column/value pairs from a request body. Absent fields are skipped so
+ * DB column defaults apply (important for NOT NULL DEFAULT columns like
+ * `status`); required fields that are absent throw on create.
+ */
 function buildValues(col: Collection, body: Record<string, unknown>, mode: "create" | "patch") {
   const cols: string[] = [];
   const vals: unknown[] = [];
   for (const [name, spec] of Object.entries(col.fields)) {
     const present = Object.prototype.hasOwnProperty.call(body, name);
-    if (mode === "patch" && !present) continue;
+    if (!present) {
+      if (mode === "create" && spec.required) throw `${name}_required`;
+      continue; // let the DB default fill it
+    }
     cols.push(name);
     vals.push(coerce(name, spec, body[name]));
   }

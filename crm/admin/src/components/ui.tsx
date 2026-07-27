@@ -1,4 +1,5 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { fmtDate, fmtDateTime, relTime } from "../lib/datetime";
 
 /* Reusable, premium UI primitives shared by every operating-system page.
    Kept intentionally small and composable — modals, tags, headers, fields. */
@@ -12,6 +13,21 @@ const TAG_COLORS: Record<string, string> = {
   amber: "bg-amber-50 text-amber-700 ring-amber-100",
   violet: "bg-violet-50 text-violet-700 ring-violet-100",
 };
+
+/**
+ * Brand logo. The source art has a light background, so on dark surfaces it
+ * sits on a clean white "chip" (rounded, subtle ring) to stay legible and
+ * consistent; on light surfaces render it plain.
+ */
+export function BrandLogo({ h = "h-9", chip = false, className = "" }: { h?: string; chip?: boolean; className?: string }) {
+  const img = <img src="/brand/logo.png" alt="BH Car Detailing" className={`${h} w-auto ${chip ? "" : className}`} />;
+  if (!chip) return img;
+  return (
+    <span className={`inline-flex items-center justify-center rounded-xl bg-white px-2.5 py-1.5 shadow-sm ring-1 ring-black/5 ${className}`}>
+      {img}
+    </span>
+  );
+}
 
 export function Tag({ color = "neutral", children }: { color?: string; children: ReactNode }) {
   return (
@@ -143,6 +159,62 @@ export function EmptyState({ title, hint, action }: { title: string; hint?: stri
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <div className={`rounded-2xl bg-white p-5 shadow-sm ring-1 ring-neutral-100 ${className}`}>{children}</div>;
+}
+
+/**
+ * Universal timestamp — the app-wide standard for showing when something was
+ * created/updated. Renders relative time with the exact date+time on hover,
+ * or the full stamp inline when `full`. Use everywhere an entity has a date.
+ */
+export function Timestamp({ value, full = false, prefix, className = "" }: {
+  value?: string | null; full?: boolean; prefix?: string; className?: string;
+}) {
+  if (!value) return null;
+  const rel = relTime(value);
+  if (full) {
+    return <span className={`text-xs text-chrome-400 ${className}`} title={fmtDateTime(value)}>{prefix ? `${prefix} ` : ""}{fmtDate(value)} · {rel}</span>;
+  }
+  return <span className={`text-xs text-chrome-400 ${className}`} title={fmtDateTime(value)}>{prefix ? `${prefix} ` : ""}{rel}</span>;
+}
+
+/** Segmented tabs. Controlled via value/onChange. */
+export function Tabs({ tabs, value, onChange }: {
+  tabs: readonly { value: string; label: string }[]; value: string; onChange: (v: string) => void;
+}) {
+  return (
+    <div className="mb-5 inline-flex flex-wrap gap-1 rounded-xl bg-steel-100 p-1 ring-1 ring-inset ring-steel-200">
+      {tabs.map((t) => (
+        <button key={t.value} onClick={() => onChange(t.value)}
+          className={`rounded-lg px-3.5 py-1.5 text-sm font-medium transition ${
+            value === t.value ? "bg-white text-graphite-950 shadow-sm ring-1 ring-steel-200" : "text-chrome-400 hover:text-graphite-800"
+          }`}>
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Compact hook for tab state. */
+export function useTabs(initial: string) {
+  return useState(initial);
+}
+
+/** Metric tile — label + big display-face value + optional sub/delta. */
+export function StatTile({ label, value, sub, tone = "light" }: {
+  label: string; value: ReactNode; sub?: ReactNode; tone?: "light" | "dark" | "brand";
+}) {
+  const cls = tone === "dark"
+    ? "bg-gradient-to-br from-graphite-900 to-graphite-950 text-white ring-white/5 bh-gloss"
+    : "bg-white ring-steel-200";
+  const valCls = tone === "brand" ? "text-red-600" : tone === "dark" ? "text-white" : "text-graphite-950";
+  return (
+    <div className={`rounded-2xl p-4 shadow-sm ring-1 ${cls}`}>
+      <div className="eyebrow text-[10px] text-chrome-400">{label}</div>
+      <div className={`font-display mt-1.5 text-2xl leading-none ${valCls}`}>{value}</div>
+      {sub != null && <div className="mt-1 text-xs text-chrome-400">{sub}</div>}
+    </div>
+  );
 }
 
 /** Small icon delete button used across list/table rows. */
