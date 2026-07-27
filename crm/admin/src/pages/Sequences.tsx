@@ -1,14 +1,107 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api";
+import { Modal, Button, Tag, DeleteButton } from "../components/ui";
+import { fmtDateTime } from "../lib/datetime";
 
 interface Step { delay_hours: number; subject: string; body_text: string }
 interface Sequence { id: string; name: string; status: string; trigger: string; step_count: number; active_count: number }
+interface Enrollment { id: string; contact_id: string; status: string; current_step: number; next_run_at: string | null; first_name: string | null; last_name: string | null; email: string | null }
+interface ContactHit { id: string; first_name: string | null; last_name: string | null; email: string | null }
+
+const ENROLL_STATUS: Record<string, string> = { active: "green", completed: "blue", exited: "neutral", unsubscribed: "red" };
+
+function ManagePeople({ seq, onClose }: { seq: Sequence; onClose: () => void }) {
+  const [rows, setRows] = useState<Enrollment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
+  const [hits, setHits] = useState<ContactHit[]>([]);
+  const [note, setNote] = useState("");
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { setRows((await api<{ items: Enrollment[] }>(`/api/sequences/${seq.id}/enrollments`)).items); }
+    finally { setLoading(false); }
+  }, [seq.id]);
+  useEffect(() => { load(); }, [load]);
+
+  function onSearch(v: string) {
+    setQ(v); setNote("");
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (!v.trim()) { setHits([]); return; }
+    searchTimer.current = setTimeout(async () => {
+      try { setHits((await api<{ items: ContactHit[] }>(`/api/contacts?search=${encodeURIComponent(v)}&limit=8`)).items); }
+      catch { setHits([]); }
+    }, 250);
+  }
+
+  async function enroll(contactId: string) {
+    const r = await api<{ status: string }>(`/api/sequences/${seq.id}/enroll`, { method: "POST", body: JSON.stringify({ contact_id: contactId }) });
+    setNote(r.status === "enrolled" ? "Added." : r.status === "already_enrolled" ? "Already in this sequence." : r.status === "no_steps" ? "Add a step to the sequence first." : r.status);
+    setQ(""); setHits([]); load();
+  }
+  async function remove(eid: string) {
+    await api(`/api/sequences/${seq.id}/enrollments/${eid}`, { method: "DELETE" });
+    load();
+  }
+
+  const name = (e: Enrollment | ContactHit) => [e.first_name, e.last_name].filter(Boolean).join(" ") || e.email || "(no name)";
+
+  return (
+    <Modal open onClose={onClose} title={`People in "${seq.name}"`} size="lg">
+      <div className="space-y-4">
+        {/* Add someone */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-neutral-600">Add someone</label>
+          <input value={q} onChange={(e) => onSearch(e.target.value)} placeholder="Search contacts by name, email, phone…"
+            className="w-full rounded-lg border border-steel-200 px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100" />
+          {hits.length > 0 && (
+            <div className="mt-1 overflow-hidden rounded-lg border border-steel-200">
+              {hits.map((h) => (
+                <button key={h.id} onClick={() => enroll(h.id)} className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-steel-50">
+                  <span className="font-medium text-graphite-950">{name(h)}</span>
+                  <span className="text-xs text-chrome-400">{h.email}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {note && <p className="mt-1 text-xs text-chrome-400">{note}</p>}
+        </div>
+
+        {/* Enrolled list */}
+        <div>
+          <div className="mb-1 text-xs font-medium text-neutral-600">Enrolled ({rows.length})</div>
+          {loading ? <p className="text-sm text-chrome-400">Loading…</p> : rows.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-steel-200 px-3 py-6 text-center text-sm text-chrome-400">Nobody enrolled yet. Search above to add someone.</p>
+          ) : (
+            <ul className="divide-y divide-steel-100 rounded-lg ring-1 ring-steel-200">
+              {rows.map((e) => (
+                <li key={e.id} className="flex items-center gap-3 px-3 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-graphite-950">{name(e)}</div>
+                    <div className="truncate text-xs text-chrome-400">
+                      {e.email}
+                      {e.status === "active" && e.next_run_at ? ` · next ${fmtDateTime(e.next_run_at)}` : ""}
+                    </div>
+                  </div>
+                  <Tag color={ENROLL_STATUS[e.status] ?? "neutral"}>{e.status}</Tag>
+                  <DeleteButton onClick={() => remove(e.id)} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 const BLANK_STEP: Step = { delay_hours: 24, subject: "", body_text: "" };
 
 export default function Sequences() {
   const [items, setItems] = useState<Sequence[]>([]);
   const [editing, setEditing] = useState<{ id?: string; name: string; trigger: string; steps: Step[] } | null>(null);
+  const [managing, setManaging] = useState<Sequence | null>(null);
   const [testTo, setTestTo] = useState("info@bhcardetails.com");
   const [testMsg, setTestMsg] = useState("");
   const [testOk, setTestOk] = useState(false);
@@ -92,6 +185,7 @@ export default function Sequences() {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button onClick={() => toggle(s)} className={`min-h-[44px] rounded-md px-3 text-sm ${s.status === "active" ? "bg-green-100 text-green-800" : "bg-neutral-200 text-neutral-700"}`}>{s.status === "active" ? "Active" : "Draft"}</button>
+                <button onClick={() => setManaging(s)} className="min-h-[44px] rounded-md bg-neutral-100 px-3 text-sm text-neutral-700">People ({s.active_count})</button>
                 <button onClick={() => openEdit(s.id)} className="min-h-[44px] rounded-md bg-neutral-900 px-3 text-sm text-white">Edit</button>
                 <button onClick={() => remove(s.id)} className="min-h-[44px] rounded-md bg-neutral-100 px-3 text-sm text-neutral-500">Delete</button>
               </div>
@@ -134,6 +228,8 @@ export default function Sequences() {
           </div>
         </div>
       )}
+
+      {managing && <ManagePeople seq={managing} onClose={() => { setManaging(null); load(); }} />}
     </div>
   );
 }

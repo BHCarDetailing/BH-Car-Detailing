@@ -36,7 +36,7 @@ export const COLLECTIONS: Record<string, Collection> = {
     orderBy: "pinned DESC, created_at DESC",
     timestamps: "created",
     fields: {
-      category: { type: "text", enum: ["meeting", "car_event", "call", "general", "win", "follow_up"], max: 40 },
+      category: { type: "text", enum: ["meeting", "car_event", "call", "general", "win", "follow_up", "sequence"], max: 40 },
       body: { type: "text", required: true, max: 4000 },
       author: { type: "text", max: 80 },
       pinned: { type: "bool" },

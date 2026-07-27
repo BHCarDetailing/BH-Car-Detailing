@@ -59,6 +59,7 @@ export const UPDATE_CATS = [
   { value: "call", label: "Call", color: "green" },
   { value: "follow_up", label: "Follow-up", color: "amber" },
   { value: "win", label: "Win", color: "violet" },
+  { value: "sequence", label: "Sequence", color: "blue" },
 ] as const;
 
 export const CLIENT_TYPES = [

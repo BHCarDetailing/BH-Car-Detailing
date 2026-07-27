@@ -90,3 +90,9 @@ sequenceRoutes.get("/:id/enrollments", async (c) => {
      WHERE e.sequence_id = ? ORDER BY e.enrolled_at DESC LIMIT 200`, c.req.param("id"));
   return c.json({ items });
 });
+
+// Remove someone from a sequence (deletes the enrollment so they can be re-added later).
+sequenceRoutes.delete("/:id/enrollments/:eid", async (c) => {
+  await run(c.env.DB, "DELETE FROM enrollments WHERE id = ? AND sequence_id = ?", c.req.param("eid"), c.req.param("id"));
+  return c.json({ ok: true });
+});

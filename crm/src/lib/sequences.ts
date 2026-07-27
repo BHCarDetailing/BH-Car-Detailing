@@ -1,5 +1,5 @@
 import type { Env } from "../types";
-import { all, nowIso, one, run } from "./db";
+import { all, nowIso, one, run, uuid } from "./db";
 import { logActivity } from "./activity";
 import { sendEmail } from "./email";
 
@@ -81,8 +81,8 @@ export async function runSequences(env: Env, nowMs: number): Promise<{ sent: num
   let sent = 0;
 
   for (const e of due) {
-    const contact = await one<{ id: string; email: string | null; email_opt_in: number; first_name: string | null }>(
-      env.DB, "SELECT id, email, email_opt_in, first_name FROM contacts WHERE id = ?", e.contact_id);
+    const contact = await one<{ id: string; email: string | null; email_opt_in: number; first_name: string | null; last_name: string | null }>(
+      env.DB, "SELECT id, email, email_opt_in, first_name, last_name FROM contacts WHERE id = ?", e.contact_id);
     if (!contact || !contact.email || contact.email_opt_in === 0) {
       await run(env.DB, "UPDATE enrollments SET status = 'exited', completed_at = ? WHERE id = ?", nowIso(), e.id);
       continue;
@@ -106,6 +106,14 @@ export async function runSequences(env: Env, nowMs: number): Promise<{ sent: num
     });
     await logActivity(env.DB, { contactId: contact.id, type: "email_sent", title: `Sequence email (${r.status})`, payload: { sequence_id: e.sequence_id, step: e.current_step, message_id: r.id }, actor: "workflow:" + e.sequence_id });
     sent++;
+
+    // Post to the Updates feed: who got a sequence email, with a "Sequence" tag + timestamp.
+    if (r.status === "sent" || r.status === "logged") {
+      const who = [contact.first_name, contact.last_name].filter(Boolean).join(" ") || contact.email || "a contact";
+      await run(env.DB,
+        "INSERT INTO updates (id, category, body, author, pinned, created_at) VALUES (?,?,?,?,0,?)",
+        uuid(), "sequence", `Sequence email sent to ${who} — "${step.subject.replace(/\{first_name\}/g, contact.first_name || "there")}"`, "system", nowIso());
+    }
 
     const nextStep = await stepAt(env, e.sequence_id, e.current_step + 1);
     if (nextStep) {
