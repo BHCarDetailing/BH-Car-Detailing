@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api } from "../api";
+import { api, ApiError } from "../api";
 
 interface Step { delay_hours: number; subject: string; body_text: string }
 interface Sequence { id: string; name: string; status: string; trigger: string; step_count: number; active_count: number }
@@ -9,6 +9,22 @@ const BLANK_STEP: Step = { delay_hours: 24, subject: "", body_text: "" };
 export default function Sequences() {
   const [items, setItems] = useState<Sequence[]>([]);
   const [editing, setEditing] = useState<{ id?: string; name: string; trigger: string; steps: Step[] } | null>(null);
+  const [testTo, setTestTo] = useState("info@bhcardetails.com");
+  const [testMsg, setTestMsg] = useState("");
+  const [testOk, setTestOk] = useState(false);
+  const [testBusy, setTestBusy] = useState(false);
+
+  async function sendTest() {
+    setTestBusy(true); setTestMsg(""); setTestOk(false);
+    try {
+      await api("/api/email/test", { method: "POST", body: JSON.stringify({ to: testTo }) });
+      setTestOk(true); setTestMsg(`Sent to ${testTo} — check the inbox (and spam folder).`);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 503) setTestMsg("Email isn't connected yet — set RESEND_API_KEY as a Worker secret.");
+      else if (e instanceof ApiError && e.status === 400) setTestMsg("Enter a valid email address.");
+      else setTestMsg("Send failed — check your Resend domain is verified (Resend → Logs shows why).");
+    } finally { setTestBusy(false); }
+  }
 
   const load = useCallback(() => {
     api<{ items: Sequence[] }>("/api/sequences").then((r) => setItems(r.items)).catch(() => {});
@@ -47,6 +63,21 @@ export default function Sequences() {
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Email sequences</h1>
         <button onClick={newSequence} className="min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">＋ New sequence</button>
+      </div>
+
+      {/* One-click delivery test — sends immediately, no cron/quiet-hours wait */}
+      <div className="mb-6 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-steel-200">
+        <h2 className="text-sm font-semibold text-graphite-950">Send a test email</h2>
+        <p className="mb-3 text-xs text-chrome-400">Fires immediately so you can confirm delivery. Uses your connected Resend sender.</p>
+        <div className="flex flex-wrap gap-2">
+          <input type="email" value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder="you@email.com"
+            className="min-w-[200px] flex-1 rounded-lg border border-steel-200 px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100" />
+          <button onClick={sendTest} disabled={testBusy || !testTo.trim()}
+            className="inline-flex min-h-[40px] items-center rounded-lg bg-gradient-to-b from-red-500 to-red-600 px-4 text-sm font-medium text-white shadow-sm ring-1 ring-inset ring-white/10 hover:from-red-500 hover:to-red-500 disabled:opacity-50">
+            {testBusy ? "Sending…" : "Send test"}
+          </button>
+        </div>
+        {testMsg && <p className={`mt-2 text-sm ${testOk ? "text-emerald-600" : "text-amber-600"}`}>{testMsg}</p>}
       </div>
 
       {items.length === 0 ? (
