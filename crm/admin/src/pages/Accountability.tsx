@@ -1,12 +1,31 @@
 import { useMemo, useState } from "react";
 import { PageHeader, Tag, DeleteButton, Button } from "../components/ui";
 import { useCollection, ACCT_BUCKETS, ACCT_STATUS, labelOf, colorOf, type Row } from "../lib/collections";
+import { startOfWeek, addDays, fmtDate } from "../lib/datetime";
 
 interface Task extends Row {
   title: string; bucket: string; status: string; progress: number; owner: string | null; due_date: string | null; created_at: string;
 }
 
 const STATUS_ORDER: Record<string, number> = { needs_attention: 0, flagged: 1, started: 2, not_started: 3, done: 4 };
+
+const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** Real dated header for each bucket, derived from now(). */
+function bucketDates(bucket: string): { title: string; sub: string } {
+  const now = new Date();
+  if (bucket === "today") {
+    return { title: "Today", sub: new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(now) };
+  }
+  if (bucket === "week") {
+    const s = startOfWeek(now); const e = addDays(s, 6);
+    return { title: "This week", sub: `Week of ${fmtDate(s).replace(/, \d{4}$/, "")} – ${fmtDate(e).replace(/, \d{4}$/, "")}` };
+  }
+  if (bucket === "month") {
+    return { title: "This month", sub: `${MONTHS_LONG[now.getMonth()]} ${now.getFullYear()}` };
+  }
+  return { title: "Wins", sub: "Log completed goals" };
+}
 
 function MomentumBar({ pct }: { pct: number }) {
   return (
@@ -34,6 +53,15 @@ export default function Accountability() {
     if (active.length === 0) return 0;
     const sum = active.reduce((a, t) => a + (t.status === "done" ? 100 : t.progress ?? 0), 0);
     return Math.round(sum / active.length);
+  }, [items]);
+
+  const winsThisMonth = useMemo(() => {
+    const now = new Date();
+    return items.filter((t) => {
+      if (t.bucket !== "wins") return false;
+      const d = new Date(t.created_at);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    }).length;
   }, [items]);
 
   const byBucket = useMemo(() => {
@@ -69,7 +97,14 @@ export default function Accountability() {
     <div className="mx-auto max-w-5xl p-4 md:p-8">
       <PageHeader eyebrow="Performance" title="Accountability" subtitle="What's getting done today, this week, this month — and the wins." />
 
-      <div className="mb-6"><MomentumBar pct={momentum} /></div>
+      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+        <div className="sm:col-span-2"><MomentumBar pct={momentum} /></div>
+        <div className="bh-gloss flex flex-col justify-center rounded-2xl bg-gradient-to-br from-red-600 to-red-700 p-5 text-white shadow-sm ring-1 ring-white/10">
+          <div className="eyebrow text-[10px] text-white/70">Wins this month</div>
+          <div className="font-display mt-1 text-5xl leading-none">{winsThisMonth}</div>
+          <div className="mt-1 text-xs text-white/70">completed goals in {new Intl.DateTimeFormat("en-US", { month: "long" }).format(new Date())}</div>
+        </div>
+      </div>
 
       {/* Add task */}
       <div className="mb-6 flex flex-wrap gap-2 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-neutral-100">
@@ -86,11 +121,13 @@ export default function Accountability() {
           {ACCT_BUCKETS.map((b) => {
             const rows = byBucket[b.value] ?? [];
             const isWins = b.value === "wins";
+            const hd = bucketDates(b.value);
             return (
               <section key={b.value}>
-                <div className="mb-2 flex items-center gap-2">
-                  <h2 className="text-sm font-semibold uppercase tracking-wider text-neutral-500">{b.label}</h2>
-                  <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500">{rows.length}</span>
+                <div className="mb-2 flex items-baseline gap-2">
+                  <h2 className="text-sm font-semibold uppercase tracking-wider text-graphite-800">{hd.title}</h2>
+                  <span className="text-xs text-chrome-400">{hd.sub}</span>
+                  <span className="ml-auto rounded-full bg-steel-100 px-2 py-0.5 text-xs text-chrome-400">{rows.length}</span>
                 </div>
                 {rows.length === 0 ? (
                   <p className="rounded-xl border border-dashed border-neutral-200 px-4 py-5 text-center text-xs text-neutral-400">

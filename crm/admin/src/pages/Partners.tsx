@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { PageHeader, Button, Modal, Field, Input, Select, Textarea, Toolbar, Tag, EmptyState, DeleteButton } from "../components/ui";
+import { PageHeader, Button, Modal, Field, Input, Select, Textarea, Toolbar, Tag, EmptyState, DeleteButton, Timestamp } from "../components/ui";
 import { useCollection, type Row } from "../lib/collections";
 
-interface Partner extends Row { name: string; kind: string; email: string | null; phone: string | null; notes: string | null; }
+interface Partner extends Row { name: string; kind: string; email: string | null; phone: string | null; notes: string | null; created_at: string; }
 const KINDS = [{ value: "partner", label: "Partner" }, { value: "sdr", label: "SDR" }] as const;
 const BLANK = { name: "", kind: "partner", email: "", phone: "", notes: "" };
 
@@ -48,6 +48,7 @@ export default function Partners() {
                 {p.email && <div><a href={`mailto:${p.email}`} className="hover:text-red-600">{p.email}</a></div>}
                 {p.phone && <div><a href={`tel:${p.phone}`} className="hover:text-red-600">{p.phone}</a></div>}
                 {p.notes && <p className="text-neutral-500">{p.notes}</p>}
+                <Timestamp value={p.created_at} prefix="Added" full />
               </div>
             </div>
           ))}

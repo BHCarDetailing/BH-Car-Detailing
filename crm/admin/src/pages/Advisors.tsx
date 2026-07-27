@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { PageHeader, Button, Modal, Field, Input, Select, Textarea, EmptyState, Tag, DeleteButton } from "../components/ui";
+import { PageHeader, Button, Modal, Field, Input, Select, Textarea, EmptyState, Tag, DeleteButton, Timestamp } from "../components/ui";
 import { useCollection, CADENCES, labelOf, type Row } from "../lib/collections";
 
-interface Advisor extends Row { name: string; email: string | null; cadence: string | null; last_contact: string | null; notes: string | null; }
+interface Advisor extends Row { name: string; email: string | null; cadence: string | null; last_contact: string | null; notes: string | null; created_at: string; }
 const BLANK = { name: "", email: "", cadence: "monthly", notes: "" };
 
 function dueLabel(a: Advisor): { text: string; color: string } {
@@ -43,6 +43,7 @@ export default function Advisors() {
                   <div className="font-semibold text-neutral-900">{a.name}</div>
                   {a.email && <a href={`mailto:${a.email}`} className="text-sm text-neutral-500 hover:text-red-600">{a.email}</a>}
                   {a.notes && <p className="mt-1 text-sm text-neutral-500">{a.notes}</p>}
+                  <div className="mt-1"><Timestamp value={a.created_at} prefix="Added" full /></div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-neutral-400">{labelOf(CADENCES, a.cadence)}</span>

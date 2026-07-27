@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { PageHeader, Button, Modal, Field, Input, Textarea, EmptyState, DeleteButton } from "../components/ui";
+import { PageHeader, Button, Modal, Field, Input, Textarea, EmptyState, DeleteButton, Timestamp } from "../components/ui";
 import { useCollection, type Row } from "../lib/collections";
 
-interface Member extends Row { name: string; role: string | null; focus: string | null; bandwidth: string | null; }
+interface Member extends Row { name: string; role: string | null; focus: string | null; bandwidth: string | null; created_at: string; }
 const BLANK = { name: "", role: "", focus: "", bandwidth: "" };
 
 export default function Team() {
@@ -38,6 +38,7 @@ export default function Team() {
               {m.role && <div className="text-sm text-red-600">{m.role}</div>}
               {m.focus && <div className="mt-2 text-sm text-neutral-600">{m.focus}</div>}
               {m.bandwidth && <div className="mt-2 rounded-lg bg-neutral-50 px-3 py-2 text-xs text-neutral-500">{m.bandwidth}</div>}
+              <div className="mt-3"><Timestamp value={m.created_at} prefix="Added" full /></div>
             </div>
           ))}
         </div>

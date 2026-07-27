@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { money, SIZE_CLASSES, type Label, type Service, type SizeClass } from "../types";
+import { PageHeader } from "../components/ui";
 
 const DEFAULT_TEMPLATE = "Hi {first_name}, this is BH Car Detailing — thanks for reaching out! Happy to get you a quote. When works for a quick call or text? Reply STOP to opt out.";
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -239,7 +240,7 @@ export default function Settings() {
 
   return (
     <div className="p-4 md:p-8">
-      <h1 className="mb-4 text-2xl font-semibold">Settings</h1>
+      <PageHeader eyebrow="Configuration" title="Settings" subtitle="Services, messaging, booking, AI, and integrations." />
 
       <div className="max-w-xl space-y-6">
         <Link to="/sequences" className="flex items-center justify-between rounded-xl bg-white p-5 shadow-sm hover:shadow">

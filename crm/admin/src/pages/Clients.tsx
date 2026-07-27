@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import { PageHeader, Button, Modal, Field, Input, Select, Textarea, Toolbar, Tag, EmptyState, DeleteButton } from "../components/ui";
+import { PageHeader, Button, Modal, Field, Input, Select, Textarea, Toolbar, Tag, EmptyState, DeleteButton, Timestamp } from "../components/ui";
 import { useCollection, CLIENT_TYPES, CLIENT_STAGES, labelOf, colorOf, type Row } from "../lib/collections";
 
 interface Client extends Row {
-  name: string; type: string; stage: string; email: string | null; notes: string | null; updated_at: string;
+  name: string; type: string; stage: string; email: string | null; notes: string | null; created_at: string; updated_at: string;
 }
 
 const BLANK = { name: "", type: "residential", stage: "lead", email: "", notes: "" };
@@ -84,6 +84,7 @@ export default function Clients() {
                   <td className="px-4 py-3">
                     <div className="font-medium text-neutral-900">{c.name}</div>
                     {c.notes && <div className="truncate text-xs text-neutral-400">{c.notes}</div>}
+                    <Timestamp value={c.created_at} prefix="Added" />
                   </td>
                   <td className="px-4 py-3 text-neutral-600">{labelOf(CLIENT_TYPES, c.type)}</td>
                   <td className="px-4 py-3"><Tag color={colorOf(CLIENT_STAGES, c.stage)}>{labelOf(CLIENT_STAGES, c.stage)}</Tag></td>

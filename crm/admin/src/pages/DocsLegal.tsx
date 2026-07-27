@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { PageHeader, Button, Modal, Field, Input, Textarea, Toolbar, EmptyState, DeleteButton } from "../components/ui";
+import { PageHeader, Button, Modal, Field, Input, Textarea, Toolbar, EmptyState, DeleteButton, Timestamp } from "../components/ui";
 import { useCollection, type Row } from "../lib/collections";
 
-interface Doc extends Row { title: string; category: string | null; url: string | null; notes: string | null; }
+interface Doc extends Row { title: string; category: string | null; url: string | null; notes: string | null; created_at: string; }
 const BLANK = { title: "", category: "", url: "", notes: "" };
 
 export default function DocsLegal() {
@@ -55,6 +55,7 @@ export default function DocsLegal() {
                           <a href={d.url} target="_blank" rel="noopener noreferrer" className="font-medium text-neutral-900 hover:text-red-600">{d.title}</a>
                         ) : <span className="font-medium text-neutral-900">{d.title}</span>}
                         {d.notes && <div className="truncate text-xs text-neutral-400">{d.notes}</div>}
+                        <Timestamp value={d.created_at} prefix="Added" />
                       </div>
                       {d.url && <span className="text-xs text-neutral-400">↗</span>}
                       <div className="opacity-0 transition group-hover:opacity-100"><DeleteButton onClick={() => remove(d.id)} /></div>

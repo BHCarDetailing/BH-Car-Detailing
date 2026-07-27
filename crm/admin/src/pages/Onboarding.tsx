@@ -5,11 +5,39 @@ import { useCollection, ONBOARD_STATUS, type Row } from "../lib/collections";
 interface Item extends Row { subject: string; step: string; status: string; }
 const BLANK = { subject: "", step: "", status: "todo" };
 
+// Reusable onboarding templates per role — applied as a checklist for a person.
+const TEMPLATES: { role: string; steps: string[] }[] = [
+  { role: "Employee", steps: ["Sign employment agreement", "Complete safety training", "Learn products & pricing", "Shadow a full detail", "Receive equipment & supplies", "First solo job reviewed"] },
+  { role: "Door Knocker", steps: ["Assign territory", "Script & pitch training", "Objection handling practice", "Ride-along with a closer", "Knock first 25 doors", "Set up daily reporting"] },
+  { role: "Founder", steps: ["Review vision, mission & values", "Access to all systems", "Set quarterly KPIs", "Establish weekly cadence", "Review legal & financial docs"] },
+  { role: "Partner", steps: ["Sign partnership agreement", "Confirm revenue-share terms", "Set primary point of contact", "Set up referral tracking", "Kickoff call"] },
+  { role: "Car Club Partner", steps: ["Sign club agreement", "Create member discount code", "Share event schedule", "Plan social cross-promo", "Book first club event"] },
+  { role: "Brand Partner", steps: ["Sign brand agreement", "Share brand asset kit", "Build co-marketing plan", "Set up tracking links", "Confirm launch date"] },
+  { role: "Contractor", steps: ["Collect W-9 & agreement", "Verify insurance", "Define scope of work", "Confirm payment terms", "Grant portal access"] },
+];
+
 export default function Onboarding() {
-  const { items, loading, create, update, remove } = useCollection<Item>("onboarding");
+  const { items, loading, create, update, remove, reload } = useCollection<Item>("onboarding");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(BLANK);
   const [busy, setBusy] = useState(false);
+  const [tplOpen, setTplOpen] = useState(false);
+  const [tplRole, setTplRole] = useState(TEMPLATES[0].role);
+  const [tplSubject, setTplSubject] = useState("");
+  const [tplBusy, setTplBusy] = useState(false);
+
+  async function applyTemplate() {
+    const tpl = TEMPLATES.find((t) => t.role === tplRole);
+    const subject = tplSubject.trim() || tplRole;
+    if (!tpl) return;
+    setTplBusy(true);
+    try {
+      let sort = items.filter((i) => i.subject === subject).length;
+      for (const step of tpl.steps) await create({ subject, step, status: "todo", sort: sort++ });
+      await reload();
+      setTplOpen(false); setTplSubject("");
+    } finally { setTplBusy(false); }
+  }
 
   const subjects = useMemo(() => {
     const map = new Map<string, Item[]>();
@@ -27,7 +55,10 @@ export default function Onboarding() {
   return (
     <div className="mx-auto max-w-4xl p-4 md:p-8">
       <PageHeader eyebrow="Operations" title="Onboarding" subtitle="Bring new team members and users up to speed — step by step."
-        action={<Button onClick={() => { setForm(BLANK); setOpen(true); }}>+ Add step</Button>} />
+        action={<div className="flex gap-2">
+          <Button variant="ghost" onClick={() => { setTplSubject(""); setTplOpen(true); }}>Use a template</Button>
+          <Button onClick={() => { setForm(BLANK); setOpen(true); }}>+ Add step</Button>
+        </div>} />
 
       {loading ? <p className="text-sm text-neutral-400">Loading…</p> : subjects.length === 0 ? (
         <EmptyState title="No onboarding tracks yet" hint="Add steps for a new hire or user to track their progress." action={<Button onClick={() => setOpen(true)}>+ Add step</Button>} />
@@ -72,6 +103,24 @@ export default function Onboarding() {
           </Field>
           <Field label="Step"><Input value={form.step} onChange={(e) => setForm({ ...form, step: e.target.value })} placeholder="e.g. Complete safety training" /></Field>
           <Field label="Status"><Select options={ONBOARD_STATUS} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} /></Field>
+        </div>
+      </Modal>
+
+      <Modal open={tplOpen} onClose={() => setTplOpen(false)} title="Apply onboarding template" size="sm"
+        footer={<><Button variant="ghost" onClick={() => setTplOpen(false)}>Cancel</Button><Button onClick={applyTemplate} disabled={tplBusy}>{tplBusy ? "Adding…" : "Apply template"}</Button></>}>
+        <div className="space-y-3">
+          <Field label="Role template">
+            <Select options={TEMPLATES.map((t) => ({ value: t.role, label: t.role }))} value={tplRole} onChange={(e) => setTplRole(e.target.value)} />
+          </Field>
+          <Field label="Person / subject" hint="Leave blank to use the role name.">
+            <Input value={tplSubject} autoFocus onChange={(e) => setTplSubject(e.target.value)} placeholder="e.g. Jordan (new detailer)" />
+          </Field>
+          <div className="rounded-lg bg-steel-50 p-3">
+            <div className="mb-1 text-xs font-medium text-neutral-600">Adds {TEMPLATES.find((t) => t.role === tplRole)?.steps.length} steps:</div>
+            <ul className="space-y-0.5 text-xs text-chrome-400">
+              {TEMPLATES.find((t) => t.role === tplRole)?.steps.map((s) => <li key={s}>• {s}</li>)}
+            </ul>
+          </div>
         </div>
       </Modal>
     </div>
