@@ -14,7 +14,7 @@ export default function Updates() {
 
   return (
     <div className="mx-auto max-w-3xl p-4 md:p-8">
-      <PageHeader title="Updates" subtitle="Team activity feed — meetings, calls, car events, and wins in one timeline." />
+      <PageHeader eyebrow="Performance" title="Updates" subtitle="Team activity feed — meetings, calls, car events, and wins in one timeline." />
 
       <div className="mb-5">
         <UpdateComposer onPost={(d) => create(d)} />

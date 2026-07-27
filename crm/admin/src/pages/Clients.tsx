@@ -47,6 +47,7 @@ export default function Clients() {
   return (
     <div className="mx-auto max-w-5xl p-4 md:p-8">
       <PageHeader
+        eyebrow="Growth"
         title="Clients"
         subtitle="Managed accounts — residential, fleet, dealership, exotic, and commercial."
         action={<Button onClick={openNew}>+ Add client</Button>}

@@ -26,7 +26,7 @@ export default function Partners() {
 
   return (
     <div className="mx-auto max-w-4xl p-4 md:p-8">
-      <PageHeader title="Partners & SDRs" subtitle="Outreach contacts and sales development reps."
+      <PageHeader eyebrow="People" title="Partners & SDRs" subtitle="Outreach contacts and sales development reps."
         action={<Button onClick={() => { setForm(BLANK); setOpen(true); }}>+ Add contact</Button>} />
 
       <Toolbar search={q} onSearch={setQ} placeholder="Search partners & SDRs…" />

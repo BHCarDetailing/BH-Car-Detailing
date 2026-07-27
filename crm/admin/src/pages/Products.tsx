@@ -24,7 +24,7 @@ export default function Products() {
 
   return (
     <div className="mx-auto max-w-4xl p-4 md:p-8">
-      <PageHeader title="Products" subtitle="Services, packages, and pricing."
+      <PageHeader eyebrow="Operations" title="Products" subtitle="Services, packages, and pricing."
         action={<Button onClick={() => { setForm(BLANK); setErr(""); setOpen(true); }}>+ Add product</Button>} />
 
       {loading ? <p className="text-sm text-neutral-400">Loading…</p> : items.length === 0 ? (

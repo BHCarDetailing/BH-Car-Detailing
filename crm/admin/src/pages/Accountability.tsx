@@ -10,16 +10,16 @@ const STATUS_ORDER: Record<string, number> = { needs_attention: 0, flagged: 1, s
 
 function MomentumBar({ pct }: { pct: number }) {
   return (
-    <div className="rounded-2xl bg-neutral-950 p-5 text-white shadow-sm">
+    <div className="bh-gloss relative overflow-hidden rounded-2xl bg-gradient-to-br from-graphite-900 to-graphite-950 p-5 text-white shadow-sm ring-1 ring-white/5">
       <div className="flex items-baseline justify-between">
-        <div className="text-xs uppercase tracking-wide text-neutral-400">Momentum</div>
-        <div className="text-2xl font-bold">{pct}%</div>
+        <div className="eyebrow text-[10px] text-chrome-400">Momentum</div>
+        <div className="font-display text-3xl leading-none">{pct}%</div>
       </div>
       <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-white/10">
-        <div className="h-full rounded-full bg-gradient-to-r from-red-600 to-red-400"
+        <div className="bh-shine relative h-full overflow-hidden rounded-full bg-gradient-to-r from-red-600 to-red-400"
           style={{ width: `${pct}%`, transformOrigin: "left", animation: "bh-bar 0.6s ease-out both" }} />
       </div>
-      <div className="mt-2 text-xs text-neutral-400">Average completion across active goals</div>
+      <div className="mt-2 text-xs text-chrome-400">Average completion across active goals</div>
     </div>
   );
 }
@@ -67,7 +67,7 @@ export default function Accountability() {
 
   return (
     <div className="mx-auto max-w-5xl p-4 md:p-8">
-      <PageHeader title="Accountability" subtitle="What's getting done today, this week, this month — and the wins." />
+      <PageHeader eyebrow="Performance" title="Accountability" subtitle="What's getting done today, this week, this month — and the wins." />
 
       <div className="mb-6"><MomentumBar pct={momentum} /></div>
 

@@ -70,24 +70,24 @@ export default function Dashboard() {
       {/* Money influx */}
       <section className="space-y-4">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <div className="rounded-xl bg-neutral-950 p-4 text-white shadow-sm">
-            <div className="text-xs uppercase tracking-wide text-neutral-400">Revenue this month</div>
-            <div className="mt-1 text-3xl font-bold">{stats?.revenue ? money(stats.revenue.month_cents) : "—"}</div>
+          <div className="bh-gloss rounded-xl bg-gradient-to-br from-graphite-900 to-graphite-950 p-4 text-white shadow-sm ring-1 ring-white/5">
+            <div className="eyebrow text-[10px] text-chrome-400">Revenue this month</div>
+            <div className="mt-1 font-display text-3xl">{stats?.revenue ? money(stats.revenue.month_cents) : "—"}</div>
             <div className="mt-1 text-xs text-neutral-400">{stats?.revenue ? `${money(stats.revenue.week_cents)} this week` : ""}</div>
           </div>
           <div className="rounded-xl bg-white p-4 shadow-sm">
             <div className="text-xs uppercase tracking-wide text-neutral-500">Pipeline value</div>
-            <div className="mt-1 text-3xl font-bold text-red-600">{stats?.revenue ? money(stats.revenue.pipeline_cents) : "—"}</div>
+            <div className="mt-1 font-display text-3xl text-red-600">{stats?.revenue ? money(stats.revenue.pipeline_cents) : "—"}</div>
             <div className="mt-1 text-xs text-neutral-500">{stats?.revenue ? `${stats.revenue.pipeline_jobs} open job${stats.revenue.pipeline_jobs === 1 ? "" : "s"}` : ""}</div>
           </div>
           <div className="rounded-xl bg-white p-4 shadow-sm">
             <div className="text-xs uppercase tracking-wide text-neutral-500">Avg ticket</div>
-            <div className="mt-1 text-3xl font-bold">{stats?.revenue ? money(stats.revenue.avg_ticket_cents) : "—"}</div>
+            <div className="mt-1 font-display text-3xl">{stats?.revenue ? money(stats.revenue.avg_ticket_cents) : "—"}</div>
             <div className="mt-1 text-xs text-neutral-500">across paid jobs</div>
           </div>
           <div className="rounded-xl bg-white p-4 shadow-sm">
             <div className="text-xs uppercase tracking-wide text-neutral-500">All-time revenue</div>
-            <div className="mt-1 text-3xl font-bold">{stats?.revenue ? money(stats.revenue.all_time_cents) : "—"}</div>
+            <div className="mt-1 font-display text-3xl">{stats?.revenue ? money(stats.revenue.all_time_cents) : "—"}</div>
             <div className="mt-1 text-xs text-neutral-500">{stats?.revenue ? `${stats.revenue.jobs_paid_all} jobs paid` : ""}</div>
           </div>
         </div>

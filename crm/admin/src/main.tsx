@@ -3,6 +3,8 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import LoadingScreen from "./components/LoadingScreen";
+import "@fontsource-variable/inter";
+import "@fontsource-variable/oswald";
 import "./index.css";
 
 /** Branded boot splash: shows once on hard load, then reveals the app.

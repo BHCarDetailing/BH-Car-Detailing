@@ -21,12 +21,18 @@ export function Tag({ color = "neutral", children }: { color?: string; children:
   );
 }
 
-export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
+export function PageHeader({ title, subtitle, action, eyebrow }: { title: string; subtitle?: string; action?: ReactNode; eyebrow?: string }) {
   return (
-    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-neutral-500">{subtitle}</p>}
+    <div className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        {eyebrow && (
+          <div className="mb-1.5 flex items-center gap-2">
+            <span className="h-3 w-1 -skew-x-12 rounded-sm bg-red-600" />
+            <span className="eyebrow text-[11px] text-red-600">{eyebrow}</span>
+          </div>
+        )}
+        <h1 className="font-display text-3xl leading-none text-graphite-950">{title}</h1>
+        {subtitle && <p className="mt-2 text-sm text-chrome-400">{subtitle}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
@@ -40,9 +46,9 @@ export function Button({
   type?: "button" | "submit"; disabled?: boolean; className?: string;
 }) {
   const styles = {
-    primary: "bg-red-600 text-white hover:bg-red-500 shadow-sm",
-    ghost: "bg-white text-neutral-700 ring-1 ring-inset ring-neutral-200 hover:bg-neutral-50",
-    subtle: "bg-neutral-100 text-neutral-700 hover:bg-neutral-200",
+    primary: "bg-gradient-to-b from-red-500 to-red-600 text-white shadow-sm shadow-red-600/25 ring-1 ring-inset ring-white/10 hover:from-red-500 hover:to-red-500",
+    ghost: "bg-white text-graphite-900 ring-1 ring-inset ring-steel-200 hover:bg-steel-50",
+    subtle: "bg-steel-100 text-graphite-800 hover:bg-steel-200",
     danger: "bg-white text-rose-600 ring-1 ring-inset ring-rose-200 hover:bg-rose-50",
   }[variant];
   return (

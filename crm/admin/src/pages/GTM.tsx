@@ -44,7 +44,7 @@ export default function GTM() {
 
   return (
     <div className="mx-auto max-w-4xl p-4 md:p-8">
-      <PageHeader title="Go-To-Market" subtitle="Alignment hub — mission, vision, values, team, and the plan."
+      <PageHeader eyebrow="Growth" title="Go-To-Market" subtitle="Alignment hub — mission, vision, values, team, and the plan."
         action={dirty.size > 0
           ? <Button onClick={save} disabled={saving}>{saving ? "Saving…" : `Save ${dirty.size} change${dirty.size === 1 ? "" : "s"}`}</Button>
           : savedAt ? <span className="text-xs text-neutral-400">Saved {savedAt}</span> : undefined} />

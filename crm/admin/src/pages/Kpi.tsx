@@ -39,7 +39,7 @@ export default function Kpi() {
 
   return (
     <div className="mx-auto max-w-5xl p-4 md:p-8">
-      <PageHeader title="KPIs" subtitle="The numbers that run the business — editable targets and current values."
+      <PageHeader eyebrow="Performance" title="KPIs" subtitle="The numbers that run the business — editable targets and current values."
         action={<Button onClick={openNew}>+ Add KPI</Button>} />
 
       {loading ? <p className="text-sm text-neutral-400">Loading…</p> : items.length === 0 ? (
@@ -60,8 +60,8 @@ export default function Kpi() {
                   </div>
                 </div>
                 <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-neutral-900">{fmt(k.current, k.unit)}</span>
-                  <span className="text-sm text-neutral-400">/ {fmt(k.target, k.unit)}</span>
+                  <span className="font-display text-4xl leading-none text-graphite-950">{fmt(k.current, k.unit)}</span>
+                  <span className="text-sm text-chrome-400">/ {fmt(k.target, k.unit)}</span>
                 </div>
                 {p !== null && (
                   <div className="mt-3">

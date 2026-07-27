@@ -28,7 +28,7 @@ export default function Advisors() {
 
   return (
     <div className="mx-auto max-w-4xl p-4 md:p-8">
-      <PageHeader title="Advisors" subtitle="Mentors and advisors — keep periodic outreach on track."
+      <PageHeader eyebrow="People" title="Advisors" subtitle="Mentors and advisors — keep periodic outreach on track."
         action={<Button onClick={() => { setForm(BLANK); setOpen(true); }}>+ Add advisor</Button>} />
 
       {loading ? <p className="text-sm text-neutral-400">Loading…</p> : items.length === 0 ? (

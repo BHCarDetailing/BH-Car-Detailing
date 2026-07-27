@@ -19,7 +19,7 @@ export default function Team() {
 
   return (
     <div className="mx-auto max-w-5xl p-4 md:p-8">
-      <PageHeader title="Team" subtitle="Who's on the crew, what they own, and their bandwidth."
+      <PageHeader eyebrow="People" title="Team" subtitle="Who's on the crew, what they own, and their bandwidth."
         action={<Button onClick={() => { setForm(BLANK); setOpen(true); }}>+ Add member</Button>} />
 
       {loading ? <p className="text-sm text-neutral-400">Loading…</p> : items.length === 0 ? (

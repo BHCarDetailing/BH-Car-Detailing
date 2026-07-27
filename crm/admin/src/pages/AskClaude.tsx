@@ -44,7 +44,7 @@ export default function AskClaude() {
 
   return (
     <div className="mx-auto flex h-[calc(100vh-3.5rem)] max-w-3xl flex-col p-4 md:h-screen md:p-8">
-      <PageHeader title="Ask Claude" subtitle="Your operations copilot — grounded in live CRM context." />
+      <PageHeader eyebrow="Tools" title="Ask Claude" subtitle="Your operations copilot — grounded in live CRM context." />
 
       {notConfigured && (
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

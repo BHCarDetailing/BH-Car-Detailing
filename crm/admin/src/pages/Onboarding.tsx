@@ -26,7 +26,7 @@ export default function Onboarding() {
 
   return (
     <div className="mx-auto max-w-4xl p-4 md:p-8">
-      <PageHeader title="Onboarding" subtitle="Bring new team members and users up to speed — step by step."
+      <PageHeader eyebrow="Operations" title="Onboarding" subtitle="Bring new team members and users up to speed — step by step."
         action={<Button onClick={() => { setForm(BLANK); setOpen(true); }}>+ Add step</Button>} />
 
       {loading ? <p className="text-sm text-neutral-400">Loading…</p> : subjects.length === 0 ? (

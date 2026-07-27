@@ -31,7 +31,7 @@ export default function DocsLegal() {
 
   return (
     <div className="mx-auto max-w-4xl p-4 md:p-8">
-      <PageHeader title="Docs & Legal" subtitle="Agreements, internal files, and important references."
+      <PageHeader eyebrow="Tools" title="Docs & Legal" subtitle="Agreements, internal files, and important references."
         action={<Button onClick={() => { setForm(BLANK); setOpen(true); }}>+ Add doc</Button>} />
 
       <Toolbar search={q} onSearch={setQ} placeholder="Search docs…" />

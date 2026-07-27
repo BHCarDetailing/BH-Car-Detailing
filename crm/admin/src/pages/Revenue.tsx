@@ -41,15 +41,15 @@ export default function Revenue() {
 
   return (
     <div className="mx-auto max-w-5xl p-4 md:p-8">
-      <PageHeader title="Revenue" subtitle="Recurring, pipeline, and active revenue at a glance."
+      <PageHeader eyebrow="Growth" title="Revenue" subtitle="Recurring, pipeline, and active revenue at a glance."
         action={<Button onClick={() => { setForm(BLANK); setErr(""); setOpen(true); }}>+ Add revenue</Button>} />
 
       <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
         {TILES.map((t, i) => (
-          <div key={t.kind} className={`rounded-2xl p-5 shadow-sm ring-1 ${i === 0 ? "bg-neutral-950 text-white ring-neutral-950" : "bg-white ring-neutral-100"}`}>
-            <div className={`text-xs uppercase tracking-wide ${i === 0 ? "text-neutral-400" : "text-neutral-500"}`}>{t.label}</div>
-            <div className={`mt-1 text-2xl font-bold ${i === 0 ? "text-white" : i === 3 ? "text-red-600" : "text-neutral-900"}`}>{money(totals[t.kind] ?? 0)}</div>
-            <div className={`mt-1 text-xs ${i === 0 ? "text-neutral-500" : "text-neutral-400"}`}>{t.hint}</div>
+          <div key={t.kind} className={`bh-gloss rounded-2xl p-5 shadow-sm ring-1 ${i === 0 ? "bg-gradient-to-br from-graphite-900 to-graphite-950 text-white ring-white/5" : "bg-white ring-steel-200"}`}>
+            <div className={`eyebrow text-[10px] ${i === 0 ? "text-chrome-400" : "text-chrome-400"}`}>{t.label}</div>
+            <div className={`font-display mt-1.5 text-3xl leading-none ${i === 0 ? "text-white" : i === 3 ? "text-red-600" : "text-graphite-950"}`}>{money(totals[t.kind] ?? 0)}</div>
+            <div className={`mt-1.5 text-xs ${i === 0 ? "text-chrome-400" : "text-chrome-400"}`}>{t.hint}</div>
           </div>
         ))}
       </div>

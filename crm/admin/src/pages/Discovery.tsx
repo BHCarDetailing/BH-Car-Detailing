@@ -25,7 +25,7 @@ export default function Discovery() {
 
   return (
     <div className="mx-auto max-w-3xl p-4 md:p-8">
-      <PageHeader title="Discovery" subtitle="Early leads, call notes, and research — captured fast."
+      <PageHeader eyebrow="Growth" title="Discovery" subtitle="Early leads, call notes, and research — captured fast."
         action={<Button onClick={() => { setForm(BLANK); setOpen(true); }}>+ New note</Button>} />
 
       <Toolbar search={q} onSearch={setQ} placeholder="Search notes…" />

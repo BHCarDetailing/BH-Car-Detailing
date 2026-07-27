@@ -46,10 +46,12 @@ export default function Home() {
       {/* Branded hero */}
       <div className="bh-bg relative mb-6 overflow-hidden rounded-3xl px-6 py-8 md:px-8 md:py-10">
         <div className="relative z-10 flex items-center gap-4">
-          <img src="/brand/logo.png" alt="BH Car Detailing" className="bh-float h-16 w-auto drop-shadow-[0_6px_20px_rgba(200,16,46,0.4)]" />
+          <div className="bh-shine relative overflow-hidden">
+            <img src="/brand/logo-light.png" alt="BH Car Detailing" className="bh-float h-16 w-auto drop-shadow-[0_6px_20px_rgba(200,16,46,0.4)]" />
+          </div>
           <div>
-            <div className="text-xs uppercase tracking-[0.25em] text-neutral-400">BH Car Details · Operating System</div>
-            <h1 className="mt-1 text-2xl font-semibold text-white md:text-3xl">{greeting()}</h1>
+            <div className="eyebrow text-[10px] text-chrome-400">BH Car Details · Operating System</div>
+            <h1 className="font-display mt-1 text-3xl leading-none text-white md:text-4xl">{greeting()}</h1>
           </div>
         </div>
       </div>
@@ -58,8 +60,8 @@ export default function Home() {
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((s) => (
           <Link key={s.label} to={s.to} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-100 transition hover:shadow">
-            <div className="text-2xl font-bold text-neutral-900">{s.value}</div>
-            <div className="text-xs text-neutral-500">{s.label}</div>
+            <div className="font-display text-3xl leading-none text-graphite-950">{s.value}</div>
+            <div className="mt-1 text-xs text-chrome-400">{s.label}</div>
           </Link>
         ))}
       </div>
