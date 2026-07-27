@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { fullName, STAGES, type Contact, type Label } from "../types";
-import { PageHeader, Tag } from "../components/ui";
+import { PageHeader, Tag, Button, Modal, Field, Input, Select } from "../components/ui";
+
+const NEW_CONTACT = { first_name: "", last_name: "", email: "", phone: "", stage: "new" };
 
 const COLS: Array<{ key: string; label: string }> = [
   { key: "first_name", label: "Name" },
@@ -26,6 +28,22 @@ export default function Contacts() {
   const [seqs, setSeqs] = useState<Array<{ id: string; name: string; status: string }>>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reload, setReload] = useState(0);
+  const [addOpen, setAddOpen] = useState(false);
+  const [form, setForm] = useState(NEW_CONTACT);
+  const [saving, setSaving] = useState(false);
+  const [addErr, setAddErr] = useState("");
+
+  async function saveContact() {
+    if (!form.first_name.trim() && !form.email.trim() && !form.phone.trim()) {
+      setAddErr("Add at least a name, email, or phone."); return;
+    }
+    setSaving(true); setAddErr("");
+    try {
+      await api("/api/contacts", { method: "POST", body: JSON.stringify(form) });
+      setForm(NEW_CONTACT); setAddOpen(false); setReload((n) => n + 1);
+    } catch { setAddErr("Couldn't save — try again."); }
+    finally { setSaving(false); }
+  }
 
   const search = params.get("search") ?? "";
   const stage = params.get("stage") ?? "";
@@ -81,7 +99,10 @@ export default function Contacts() {
   return (
     <div className="space-y-4 p-4 md:p-8 pb-24">
       <PageHeader eyebrow="Operations" title="Contacts" subtitle={`${total} ${total === 1 ? "person" : "people"} in your book`}
-        action={<Link to="/import" className="inline-flex min-h-[40px] items-center rounded-lg bg-graphite-950 px-4 text-sm font-medium text-white hover:bg-graphite-900">Import</Link>} />
+        action={<div className="flex gap-2">
+          <Button onClick={() => { setForm(NEW_CONTACT); setAddErr(""); setAddOpen(true); }}>+ Add contact</Button>
+          <Link to="/import" className="inline-flex min-h-[40px] items-center rounded-lg bg-graphite-950 px-4 text-sm font-medium text-white hover:bg-graphite-900">Import</Link>
+        </div>} />
 
       <div className="flex flex-wrap gap-2">
         <div className="relative w-full sm:w-72">
@@ -166,6 +187,23 @@ export default function Contacts() {
           <button onClick={() => setSelected(new Set())} className="ml-auto text-neutral-400">Clear</button>
         </div>
       )}
+
+      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add contact"
+        footer={<><Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button><Button onClick={saveContact} disabled={saving}>{saving ? "Saving…" : "Add contact"}</Button></>}>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="First name"><Input value={form.first_name} autoFocus onChange={(e) => setForm({ ...form, first_name: e.target.value })} placeholder="Jordan" /></Field>
+            <Field label="Last name"><Input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} placeholder="Rivera" /></Field>
+          </div>
+          <Field label="Email"><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="name@email.com" /></Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Phone"><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+1 305…" /></Field>
+            <Field label="Stage"><Select options={STAGES.map((s) => ({ value: s, label: s }))} value={form.stage} onChange={(e) => setForm({ ...form, stage: e.target.value })} /></Field>
+          </div>
+          <p className="text-xs text-chrome-400">Opted-in to email by default, so they can be enrolled in sequences right away.</p>
+          {addErr && <p className="text-sm text-rose-600">{addErr}</p>}
+        </div>
+      </Modal>
     </div>
   );
 }
