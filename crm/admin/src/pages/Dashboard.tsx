@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { fullName, money, STAGES, type Contact, type Revenue, type Stats } from "../types";
+import { useCollection } from "../lib/collections";
+import { UpdateComposer, UpdateFeed, type UpdateRow } from "../components/UpdatesFeed";
 
 function MonthBars({ series }: { series: Revenue["series"] }) {
   const rows = series ?? [];
@@ -33,6 +35,7 @@ export default function Dashboard() {
   const [newLeads, setNewLeads] = useState<Contact[]>([]);
   const [digest, setDigest] = useState<Digest | null>(null);
   const [digestBusy, setDigestBusy] = useState(false);
+  const { items: updates, create: postUpdate, remove: removeUpdate } = useCollection<UpdateRow>("updates");
 
   useEffect(() => {
     api<Stats>("/api/stats").then(setStats).catch(() => {});
@@ -49,6 +52,20 @@ export default function Dashboard() {
   return (
     <div className="space-y-8 p-4 md:p-8">
       <h1 className="text-2xl font-semibold">Dashboard</h1>
+
+      {/* Quick post update */}
+      <section className="space-y-4">
+        <UpdateComposer onPost={(d) => postUpdate(d)} compact />
+        {updates.length > 0 && (
+          <div className="rounded-xl bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-medium text-neutral-600">Latest updates</h2>
+              <Link to="/updates" className="text-xs font-medium text-red-600 hover:underline">View all →</Link>
+            </div>
+            <UpdateFeed items={updates} limit={3} onDelete={removeUpdate} />
+          </div>
+        )}
+      </section>
 
       {/* Money influx */}
       <section className="space-y-4">

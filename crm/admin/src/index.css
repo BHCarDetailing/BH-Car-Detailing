@@ -12,3 +12,55 @@
   --color-brand-bright: #ff4153;
   --color-brand-dark: #7e0a1d;
 }
+
+/* ---- Branding: loading screen + animated background ---- */
+@keyframes bh-logo-in {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.94); }
+  60%  { opacity: 1; transform: translateY(-4px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes bh-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-9px); }
+}
+@keyframes bh-sweep {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+@keyframes bh-drift {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(6%, -4%) scale(1.08); }
+  66%  { transform: translate(-5%, 5%) scale(0.96); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes bh-bar {
+  0%   { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
+}
+
+/* Deep branded backdrop with two slow-drifting brand-red glows */
+.bh-bg {
+  position: relative;
+  background: radial-gradient(120% 120% at 50% -10%, #1a1a1d 0%, #0a0a0b 60%, #050506 100%);
+  overflow: hidden;
+}
+.bh-bg::before,
+.bh-bg::after {
+  content: "";
+  position: absolute;
+  width: 55vmax;
+  height: 55vmax;
+  border-radius: 9999px;
+  filter: blur(60px);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.bh-bg::before { top: -18%; left: -12%; background: radial-gradient(circle, rgba(200,16,46,0.55), transparent 65%); animation: bh-drift 14s ease-in-out infinite; }
+.bh-bg::after  { bottom: -22%; right: -14%; background: radial-gradient(circle, rgba(255,65,83,0.35), transparent 65%); animation: bh-drift 18s ease-in-out infinite reverse; }
+
+.bh-logo-in { animation: bh-logo-in 0.7s cubic-bezier(0.22,1,0.36,1) both; }
+.bh-float   { animation: bh-float 3s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bh-logo-in, .bh-float, .bh-bg::before, .bh-bg::after { animation: none; }
+}
