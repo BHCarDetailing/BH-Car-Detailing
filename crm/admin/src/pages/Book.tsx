@@ -49,6 +49,7 @@ export default function Book() {
 
   if (done) return (
     <div className="mx-auto max-w-md p-6 text-center">
+      <img src="/brand/logo.png" alt="BH Car Detailing" className="mx-auto mb-5 h-16 w-auto" />
       <h1 className="mb-2 text-2xl font-semibold text-neutral-900">You're booked! 🎉</h1>
       <p className="text-neutral-600">We've got you down for {service} on {new Date(slot).toLocaleString()}. We'll be in touch to confirm.</p>
     </div>
@@ -56,8 +57,11 @@ export default function Book() {
 
   return (
     <div className="mx-auto max-w-md p-4 sm:p-6">
-      <h1 className="mb-1 text-2xl font-semibold text-neutral-900">Book your detail</h1>
-      <p className="mb-5 text-sm text-neutral-500">BH Car Detailing — Miami / Fort Lauderdale</p>
+      <div className="mb-5 flex flex-col items-center text-center">
+        <img src="/brand/logo.png" alt="BH Car Detailing" className="mb-3 h-16 w-auto" />
+        <h1 className="font-display text-3xl leading-none text-graphite-950">Book your detail</h1>
+        <p className="eyebrow mt-1.5 text-[10px] text-chrome-400">Miami · Fort Lauderdale</p>
+      </div>
 
       <form onSubmit={submit} className="space-y-4">
         <label className="block text-sm">
