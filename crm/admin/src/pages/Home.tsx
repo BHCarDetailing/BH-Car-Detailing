@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { PageHeader, BrandLogo } from "../components/ui";
+import { PageHeader, BrandLogo, Skeleton } from "../components/ui";
 import { UpdateComposer, UpdateFeed, type UpdateRow } from "../components/UpdatesFeed";
 import { useCollection, type Row } from "../lib/collections";
 
@@ -21,9 +21,10 @@ function greeting(): string {
 }
 
 export default function Home() {
-  const { items: updates, create } = useCollection<UpdateRow>("updates");
-  const { items: tasks } = useCollection<Task>("acct_tasks");
-  const { items: clients } = useCollection("clients");
+  const { items: updates, create, loading: lu } = useCollection<UpdateRow>("updates");
+  const { items: tasks, loading: lt } = useCollection<Task>("acct_tasks");
+  const { items: clients, loading: lc } = useCollection("clients");
+  const loading = lu || lt || lc;
 
   const momentum = useMemo(() => {
     const active = tasks.filter((t) => t.bucket !== "wins");
@@ -58,7 +59,7 @@ export default function Home() {
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((s) => (
           <Link key={s.label} to={s.to} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-100 transition hover:shadow">
-            <div className="font-display text-3xl leading-none text-graphite-950">{s.value}</div>
+            <div className="font-display text-3xl leading-none text-graphite-950">{loading ? <Skeleton className="h-8 w-12" /> : s.value}</div>
             <div className="mt-1 text-xs text-chrome-400">{s.label}</div>
           </Link>
         ))}

@@ -33,34 +33,41 @@ function DraggableCard({ c }: { c: Contact }) {
   );
 }
 
-function Column({ stage, items }: { stage: Stage; items: Contact[] }) {
+function Column({ stage, items, total }: { stage: Stage; items: Contact[]; total: number }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage });
   const meta = STAGE_META.find((m) => m.key === stage)!;
+  const more = total - items.length;
   return (
     <div ref={setNodeRef} className={`flex w-60 shrink-0 flex-col gap-1.5 rounded-xl p-2 ring-1 transition ${isOver ? "bg-red-50 ring-red-200" : "bg-steel-100 ring-steel-200"}`}>
       <div className="flex items-center gap-2 px-1.5 py-1">
         <span className={`h-2 w-2 rounded-full ${STAGE_DOT[stage]}`} />
         <span className="text-xs font-semibold uppercase tracking-wide text-graphite-800">{meta.label}</span>
-        <span className="ml-auto rounded-full bg-white px-1.5 text-xs font-medium text-chrome-400 ring-1 ring-steel-200">{items.length}</span>
+        <span className="ml-auto rounded-full bg-white px-1.5 text-xs font-medium text-chrome-400 ring-1 ring-steel-200">{total}</span>
       </div>
       {items.map((c) => <DraggableCard key={c.id} c={c} />)}
       {items.length === 0 && <div className="px-1.5 py-3 text-center text-[11px] text-chrome-300">Empty</div>}
+      {more > 0 && <div className="px-1.5 py-2 text-center text-[11px] text-chrome-400">+{more} more — <Link to={`/contacts?stage=${stage}`} className="font-medium text-red-600 hover:underline">view all</Link></div>}
     </div>
   );
 }
 
+const PER_COLUMN = 200; // matches the contacts API hard cap
+
 export default function Pipeline() {
   const [board, setBoard] = useState<Board>(empty());
+  const [totals, setTotals] = useState<Record<Stage, number>>(() => ({ new: 0, contacted: 0, quoted: 0, scheduled: 0, customer: 0, lost: 0 }));
   const [mobileStage, setMobileStage] = useState<Stage>("new");
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   const load = useCallback(() => {
     Promise.all(STAGE_META.map((m) =>
-      api<{ items: Contact[] }>(`/api/contacts?stage=${m.key}&limit=100`).then((r) => [m.key, r.items] as const)
-    )).then((pairs) => {
+      api<{ items: Contact[]; total: number }>(`/api/contacts?stage=${m.key}&limit=${PER_COLUMN}`).then((r) => [m.key, r.items, r.total] as const)
+    )).then((triples) => {
       const b = empty();
-      for (const [k, items] of pairs) b[k] = items;
+      const t = { new: 0, contacted: 0, quoted: 0, scheduled: 0, customer: 0, lost: 0 } as Record<Stage, number>;
+      for (const [k, items, total] of triples) { b[k] = items; t[k] = total; }
       setBoard(b);
+      setTotals(t);
     }).catch(() => {});
   }, []);
   useEffect(load, [load]);
@@ -72,6 +79,7 @@ export default function Pipeline() {
       if (!card) return b;
       return { ...b, [from]: b[from].filter((c) => c.id !== contactId), [to]: [{ ...card, stage: to }, ...b[to]] };
     });
+    setTotals((t) => ({ ...t, [from]: Math.max(0, t[from] - 1), [to]: t[to] + 1 }));
     try {
       await api(`/api/contacts/${contactId}`, { method: "PATCH", body: JSON.stringify({ stage: to }) });
     } catch {
@@ -97,7 +105,7 @@ export default function Pipeline() {
           {STAGE_META.map((m) => (
             <button key={m.key} onClick={() => setMobileStage(m.key)}
               className={`whitespace-nowrap rounded-full px-3 py-2 text-sm ${mobileStage === m.key ? "bg-red-600 text-white" : "bg-neutral-200 text-neutral-700"}`}>
-              {m.label} <span className="opacity-70">{board[m.key].length}</span>
+              {m.label} <span className="opacity-70">{totals[m.key]}</span>
             </button>
           ))}
         </div>
@@ -121,7 +129,7 @@ export default function Pipeline() {
       <div className="hidden md:block">
         <DndContext sensors={sensors} onDragEnd={onDragEnd}>
           <div className="flex gap-3 overflow-x-auto pb-4">
-            {STAGE_META.map((m) => <Column key={m.key} stage={m.key} items={board[m.key]} />)}
+            {STAGE_META.map((m) => <Column key={m.key} stage={m.key} items={board[m.key]} total={totals[m.key]} />)}
           </div>
         </DndContext>
       </div>

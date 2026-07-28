@@ -1,12 +1,43 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api";
-import { Modal, Button, Tag, DeleteButton } from "../components/ui";
+import { Modal, Button, Tag, DeleteButton, Tabs } from "../components/ui";
 import { fmtDateTime } from "../lib/datetime";
 
 interface Step { delay_hours: number; subject: string; body_text: string }
 interface Sequence { id: string; name: string; status: string; trigger: string; step_count: number; active_count: number }
 interface Enrollment { id: string; contact_id: string; status: string; current_step: number; next_run_at: string | null; first_name: string | null; last_name: string | null; email: string | null }
 interface ContactHit { id: string; first_name: string | null; last_name: string | null; email: string | null }
+interface Send { id: string; to_email: string | null; subject: string | null; body_text: string | null; status: string; created_at: string; first_name: string | null; last_name: string | null }
+
+const SEND_STATUS: Record<string, string> = { sent: "green", logged: "neutral", failed: "red", queued: "amber" };
+
+function SentLog({ seqId }: { seqId: string }) {
+  const [rows, setRows] = useState<Send[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let stale = false;
+    api<{ items: Send[] }>(`/api/sequences/${seqId}/sends`).then((r) => { if (!stale) setRows(r.items); }).finally(() => { if (!stale) setLoading(false); });
+    return () => { stale = true; };
+  }, [seqId]);
+  const who = (s: Send) => [s.first_name, s.last_name].filter(Boolean).join(" ") || s.to_email || "(unknown)";
+  if (loading) return <p className="text-sm text-chrome-400">Loading…</p>;
+  if (rows.length === 0) return <p className="rounded-lg border border-dashed border-steel-200 px-3 py-6 text-center text-sm text-chrome-400">No emails sent yet. Sends appear here once this sequence fires (or when email is connected).</p>;
+  return (
+    <ul className="divide-y divide-steel-100 rounded-lg ring-1 ring-steel-200">
+      {rows.map((s) => (
+        <li key={s.id} className="px-3 py-2.5">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium text-graphite-950">{who(s)}</div>
+              <div className="truncate text-xs text-chrome-400">{s.subject || "(no subject)"} · {fmtDateTime(s.created_at)}</div>
+            </div>
+            <Tag color={SEND_STATUS[s.status] ?? "neutral"}>{s.status}</Tag>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 const ENROLL_STATUS: Record<string, string> = { active: "green", completed: "blue", exited: "neutral", unsubscribed: "red" };
 
@@ -46,9 +77,12 @@ function ManagePeople({ seq, onClose }: { seq: Sequence; onClose: () => void }) 
   }
 
   const name = (e: Enrollment | ContactHit) => [e.first_name, e.last_name].filter(Boolean).join(" ") || e.email || "(no name)";
+  const [tab, setTab] = useState("people");
 
   return (
-    <Modal open onClose={onClose} title={`People in "${seq.name}"`} size="lg">
+    <Modal open onClose={onClose} title={`"${seq.name}"`} size="lg">
+      <Tabs tabs={[{ value: "people", label: "People" }, { value: "sent", label: "Sent log" }]} value={tab} onChange={setTab} />
+      {tab === "sent" ? <SentLog seqId={seq.id} /> : (
       <div className="space-y-4">
         {/* Add someone */}
         <div>
@@ -92,6 +126,7 @@ function ManagePeople({ seq, onClose }: { seq: Sequence; onClose: () => void }) 
           )}
         </div>
       </div>
+      )}
     </Modal>
   );
 }

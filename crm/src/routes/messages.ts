@@ -21,7 +21,7 @@ messageRoutes.get("/inbox", async (c) => {
        UNION
        SELECT contact_id FROM missed_calls WHERE contact_id IS NOT NULL
      ) ids
-     JOIN contacts ct ON ct.id = ids.contact_id
+     JOIN contacts ct ON ct.id = ids.contact_id AND ct.deleted_at IS NULL
      LEFT JOIN messages m ON m.id = (
        SELECT id FROM messages
        WHERE contact_id = ids.contact_id AND channel IN ('sms','webchat')
@@ -45,23 +45,33 @@ messageRoutes.get("/inbox", async (c) => {
   return c.json({ items });
 });
 
-// Thread for one contact (ascending).
+// Thread for one contact (ascending). Defaults to the texting channels; pass
+// ?channel=email to read the contact's email history (subject + body are stored
+// on every send, so this is the full record of what actually went out).
 messageRoutes.get("/", async (c) => {
   const contactId = c.req.query("contact_id");
   if (!contactId) return c.json({ error: "contact_id_required" }, 400);
   const limit = Math.min(Number(c.req.query("limit")) > 0 ? Number(c.req.query("limit")) : 200, 500);
-  await run(
-    c.env.DB,
-    "UPDATE missed_calls SET acknowledged_at = ? WHERE contact_id = ? AND acknowledged_at IS NULL",
-    new Date().toISOString(), contactId
-  );
-  const items = await all(
-    c.env.DB,
-    `SELECT * FROM messages
-     WHERE channel IN ('sms','webchat') AND contact_id = ?
-     ORDER BY created_at ASC, id ASC LIMIT ?`,
-    contactId, limit
-  );
+  const wantEmail = c.req.query("channel") === "email";
+  if (!wantEmail) {
+    // Reading the text thread also acknowledges any pending missed calls.
+    await run(
+      c.env.DB,
+      "UPDATE missed_calls SET acknowledged_at = ? WHERE contact_id = ? AND acknowledged_at IS NULL",
+      new Date().toISOString(), contactId
+    );
+  }
+  const items = wantEmail
+    ? await all(
+        c.env.DB,
+        `SELECT * FROM messages WHERE channel = 'email' AND contact_id = ?
+         ORDER BY created_at DESC, id DESC LIMIT ?`,
+        contactId, limit)
+    : await all(
+        c.env.DB,
+        `SELECT * FROM messages WHERE channel IN ('sms','webchat') AND contact_id = ?
+         ORDER BY created_at ASC, id ASC LIMIT ?`,
+        contactId, limit);
   return c.json({ items });
 });
 

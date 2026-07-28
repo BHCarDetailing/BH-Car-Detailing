@@ -75,11 +75,16 @@ describe("contacts CRUD", () => {
     expect(Array.isArray(stats.recent)).toBe(true);
   });
 
-  it("DELETE removes the contact", async () => {
+  it("DELETE archives the contact (soft delete); ?purge=1 hard-deletes", async () => {
     const { id } = (await (await createContact({ first_name: "Gone", email: "gone@x.com" })).json()) as { id: string };
     await SELF.fetch(`http://x/api/contacts/${id}`, { method: "DELETE", headers: AUTH });
-    const got = await SELF.fetch(`http://x/api/contacts/${id}`, { headers: AUTH });
-    expect(got.status).toBe(404);
+    // Archived: hidden from the default list but still fetchable for restore.
+    const list = (await (await SELF.fetch("http://x/api/contacts?limit=200", { headers: AUTH })).json()) as { items: Array<{ id: string }> };
+    expect(list.items.some((c) => c.id === id)).toBe(false);
+    expect((await SELF.fetch(`http://x/api/contacts/${id}`, { headers: AUTH })).status).toBe(200);
+    // Purge = permanent hard delete.
+    await SELF.fetch(`http://x/api/contacts/${id}?purge=1`, { method: "DELETE", headers: AUTH });
+    expect((await SELF.fetch(`http://x/api/contacts/${id}`, { headers: AUTH })).status).toBe(404);
   });
 
   it("PATCH with null JSON body returns 400", async () => {

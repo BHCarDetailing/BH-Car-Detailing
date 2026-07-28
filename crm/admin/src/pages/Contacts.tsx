@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { fullName, STAGES, type Contact, type Label } from "../types";
 import { PageHeader, Tag, Button, Modal, Field, Input, Select } from "../components/ui";
+import { useToast } from "../components/Toast";
 
 const NEW_CONTACT = { first_name: "", last_name: "", email: "", phone: "", stage: "new" };
 
@@ -45,9 +46,11 @@ export default function Contacts() {
     finally { setSaving(false); }
   }
 
+  const toast = useToast();
   const search = params.get("search") ?? "";
   const stage = params.get("stage") ?? "";
   const tag = params.get("tag") ?? "";
+  const archived = params.get("archived") === "1";
   const orderBy = params.get("order_by") ?? "created_at";
   const order = params.get("order") ?? "desc";
 
@@ -64,6 +67,7 @@ export default function Contacts() {
     if (search) q.set("search", search);
     if (stage) q.set("stage", stage);
     if (tag) q.set("tag", tag);
+    if (archived) q.set("archived", "1");
     q.set("order_by", orderBy);
     q.set("order", order);
     q.set("limit", "200");
@@ -71,7 +75,30 @@ export default function Contacts() {
       .then((r) => { if (!stale) { setItems(r.items); setTotal(r.total); setSelected(new Set()); } })
       .catch(() => {});
     return () => { stale = true; };
-  }, [search, stage, tag, orderBy, order, reload]);
+  }, [search, stage, tag, archived, orderBy, order, reload]);
+
+  async function archiveRow(c: Contact) {
+    setItems((prev) => prev.filter((x) => x.id !== c.id));
+    setTotal((t) => Math.max(0, t - 1));
+    try { await api(`/api/contacts/${c.id}`, { method: "DELETE" }); }
+    catch { setReload((n) => n + 1); return; }
+    toast({
+      message: `Archived ${fullName(c)}.`, actionLabel: "Undo", duration: 6000,
+      onAction: async () => { await api(`/api/contacts/${c.id}/restore`, { method: "POST" }).catch(() => {}); setReload((n) => n + 1); },
+    });
+  }
+  async function restoreRow(c: Contact) {
+    setItems((prev) => prev.filter((x) => x.id !== c.id));
+    try { await api(`/api/contacts/${c.id}/restore`, { method: "POST" }); }
+    catch { setReload((n) => n + 1); return; }
+    toast({ message: `Restored ${fullName(c)}.`, tone: "success" });
+  }
+  async function purgeRow(c: Contact) {
+    if (!window.confirm(`Permanently delete ${fullName(c)}? This cannot be undone.`)) return;
+    setItems((prev) => prev.filter((x) => x.id !== c.id));
+    try { await api(`/api/contacts/${c.id}?purge=1`, { method: "DELETE" }); }
+    catch { setReload((n) => n + 1); }
+  }
 
   function update(key: string, value: string) {
     const next = new URLSearchParams(params);
@@ -119,6 +146,10 @@ export default function Contacts() {
             {labels.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}
           </select>
         )}
+        <button onClick={() => update("archived", archived ? "" : "1")}
+          className={`rounded-lg border px-3 py-2 text-sm transition ${archived ? "border-graphite-800 bg-graphite-900 text-white" : "border-steel-200 bg-white text-chrome-400 hover:text-graphite-800"}`}>
+          {archived ? "← Back to active" : "Archived"}
+        </button>
       </div>
 
       <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-steel-200">
@@ -134,6 +165,7 @@ export default function Contacts() {
                 ))}
                 <th className="p-3 font-medium">Labels</th>
                 <th className="p-3 font-medium">Phone</th>
+                <th className="p-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-steel-100">
@@ -158,6 +190,20 @@ export default function Contacts() {
                     </div>
                   </td>
                   <td className="p-3">{c.phone && <a className="text-neutral-600 hover:text-red-600" href={`sms:${c.phone}`}>{c.phone}</a>}</td>
+                  <td className="p-3 text-right">
+                    {archived ? (
+                      <div className="flex justify-end gap-1.5">
+                        <button onClick={() => restoreRow(c)} className="rounded-md bg-steel-100 px-2.5 py-1 text-xs font-medium text-graphite-800 hover:bg-steel-200">Restore</button>
+                        <button onClick={() => purgeRow(c)} aria-label="Delete forever" className="grid h-7 w-7 place-items-center rounded-md text-neutral-300 hover:bg-rose-50 hover:text-rose-500">
+                          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" /></svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => archiveRow(c)} aria-label="Archive contact" className="grid h-7 w-7 place-items-center rounded-md text-neutral-300 hover:bg-rose-50 hover:text-rose-500">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" /></svg>
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -152,7 +152,7 @@ jobRoutes.post("/:id/send-quote", async (c) => {
 });
 
 // Record a manual (non-Stripe) payment — Zelle, cash, check, etc.
-const MANUAL_METHODS = new Set(["zelle", "cash", "check", "card_external", "other"]);
+const MANUAL_METHODS = new Set(["zelle", "cash", "check", "card_external", "deposit", "other"]);
 jobRoutes.post("/:id/mark-paid", async (c) => {
   const id = c.req.param("id");
   const job = await one<Record<string, unknown>>(c.env.DB, "SELECT * FROM jobs WHERE id = ?", id);

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api";
+import type { ToastFn } from "../components/Toast";
 
 /**
  * useCollection — the single client-side data layer for every operating-system
@@ -48,7 +49,44 @@ export function useCollection<T extends Row = Row>(name: string) {
     setItems((prev) => prev.filter((it) => it.id !== id));
   }, [name]);
 
-  return { items, loading, error, reload, create, update, remove };
+  /**
+   * Delete with a grace window. The row leaves the UI immediately and the
+   * server DELETE is deferred; an "Undo" toast can cancel it and restore the
+   * row at its original position. Gives real recovery without a soft-delete
+   * column. Pass the `toast` fn from useToast().
+   */
+  const removeWithUndo = useCallback((id: string, toast: ToastFn, opts?: { label?: string; grace?: number }) => {
+    let snapshot: { row: T; index: number } | null = null;
+    setItems((prev) => {
+      const index = prev.findIndex((it) => it.id === id);
+      if (index < 0) return prev;
+      snapshot = { row: prev[index], index };
+      return prev.filter((it) => it.id !== id);
+    });
+    const grace = opts?.grace ?? 5000;
+    let undone = false;
+    const timer = setTimeout(() => {
+      if (undone) return;
+      api(`/api/c/${name}/${id}`, { method: "DELETE" }).catch(() => reload());
+    }, grace);
+    toast({
+      message: opts?.label ?? "Deleted.",
+      actionLabel: "Undo",
+      duration: grace,
+      onAction: () => {
+        undone = true;
+        clearTimeout(timer);
+        setItems((prev) => {
+          if (!snapshot || prev.some((it) => it.id === snapshot!.row.id)) return prev;
+          const next = prev.slice();
+          next.splice(Math.min(snapshot.index, next.length), 0, snapshot.row);
+          return next;
+        });
+      },
+    });
+  }, [name, reload]);
+
+  return { items, loading, error, reload, create, update, remove, removeWithUndo };
 }
 
 /** Shared option maps + labels (mirror the enum whitelists in the worker). */

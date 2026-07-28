@@ -74,6 +74,8 @@ body {
   100% { transform: translate(0, 0) scale(1); }
 }
 @keyframes bh-bar { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
+@keyframes bh-toast-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes bh-pop-in { from { opacity: 0; transform: translateY(-6px) scale(0.98); } to { opacity: 1; transform: none; } }
 
 /* Signature: "polish shine" — a specular streak buffs across a panel */
 @keyframes bh-shine {

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { PageHeader, Button, Modal, Field, Input, EmptyState, DeleteButton } from "../components/ui";
+import { PageHeader, Button, Modal, Field, Input, EmptyState, DeleteButton, Skeleton } from "../components/ui";
 import { useCollection, type Row } from "../lib/collections";
+import { useToast } from "../components/Toast";
 
 interface AcctTask extends Row { bucket: string; status: string }
 
@@ -41,7 +42,8 @@ function fmt(v: string | null, unit: string | null): string {
 }
 
 export default function Kpi() {
-  const { items, loading, create, update, remove } = useCollection<Kpi>("kpis");
+  const { items, loading, create, update, removeWithUndo } = useCollection<Kpi>("kpis");
+  const toast = useToast();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Kpi | null>(null);
   const [form, setForm] = useState(BLANK);
@@ -67,7 +69,17 @@ export default function Kpi() {
 
       <TaskProgress />
 
-      {loading ? <p className="text-sm text-neutral-400">Loading…</p> : items.length === 0 ? (
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-neutral-100">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="mt-3 h-9 w-32" />
+              <Skeleton className="mt-4 h-1.5 w-full" />
+            </div>
+          ))}
+        </div>
+      ) : items.length === 0 ? (
         <EmptyState title="No KPIs yet" hint="Add the metrics you want to steer by." action={<Button onClick={openNew}>+ Add KPI</Button>} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -81,7 +93,7 @@ export default function Kpi() {
                     <button onClick={() => openEdit(k)} className="grid h-8 w-8 place-items-center rounded-lg text-neutral-300 hover:bg-neutral-100 hover:text-neutral-700">
                       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" /></svg>
                     </button>
-                    <DeleteButton onClick={() => remove(k.id)} />
+                    <DeleteButton onClick={() => removeWithUndo(k.id, toast, { label: `Deleted “${k.label}”.` })} />
                   </div>
                 </div>
                 <div className="mt-2 flex items-baseline gap-2">

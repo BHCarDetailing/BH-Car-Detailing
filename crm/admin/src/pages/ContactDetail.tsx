@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
-import { fullName, money, SIZE_CLASSES, STAGES, type Activity, type Contact, type Job, type Label, type QuoteItem, type Service, type SizeClass, type SmsMessage, type Stage } from "../types";
+import { fullName, money, SIZE_CLASSES, STAGES, type Activity, type Contact, type EmailMessage, type Job, type Label, type QuoteItem, type Service, type SizeClass, type SmsMessage, type Stage } from "../types";
+import { Modal, Button, Tag } from "../components/ui";
+import { REVENUE_STATUS, colorOf, labelOf } from "../lib/collections";
+import { useToast } from "../components/Toast";
+import { fmtDate } from "../lib/datetime";
 
 interface TaskRow { id: string; title: string; due_at: string | null; status: string }
 
@@ -12,14 +16,19 @@ function touch(contactId: string, channel: "sms" | "call") {
 
 export default function ContactDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const toast = useToast();
   const [contact, setContact] = useState<Contact | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [messages, setMessages] = useState<SmsMessage[]>([]);
+  const [emails, setEmails] = useState<EmailMessage[]>([]);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [labels, setLabels] = useState<Label[]>([]);
   const [note, setNote] = useState("");
   const [actionError, setActionError] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [hiddenJobs, setHiddenJobs] = useState<Set<string>>(new Set());
 
   const load = useCallback(() => {
     if (!id) return;
@@ -27,10 +36,41 @@ export default function ContactDetail() {
     api<{ items: Activity[] }>(`/api/contacts/${id}/activities`).then((r) => setActivities(r.items)).catch(() => {});
     api<{ items: Job[] }>(`/api/jobs?contact_id=${id}`).then((r) => setJobs(r.items)).catch(() => {});
     api<{ items: SmsMessage[] }>(`/api/messages?contact_id=${id}`).then((r) => setMessages(r.items)).catch(() => {});
+    api<{ items: EmailMessage[] }>(`/api/messages?contact_id=${id}&channel=email`).then((r) => setEmails(r.items)).catch(() => {});
     api<{ items: TaskRow[] }>(`/api/tasks?contact_id=${id}&status=open`).then((r) => setTasks(r.items)).catch(() => {});
   }, [id]);
   useEffect(load, [load]);
   useEffect(() => { api<{ items: Label[] }>("/api/labels").then((r) => setLabels(r.items)).catch(() => {}); }, []);
+
+  async function archiveContact() {
+    if (!id || !contact) return;
+    const name = fullName(contact);
+    setConfirmDelete(false);
+    try {
+      await api(`/api/contacts/${id}`, { method: "DELETE" });
+      navigate("/contacts");
+      toast({
+        message: `Archived ${name}.`, actionLabel: "Undo", duration: 6000,
+        onAction: async () => { await api(`/api/contacts/${id}/restore`, { method: "POST" }).catch(() => {}); navigate(`/contacts/${id}`); },
+      });
+    } catch {
+      setActionError("Couldn't archive — try again.");
+    }
+  }
+
+  // Delete a job/quote with a 5-second grace window (Undo) before the server
+  // DELETE fires.
+  function deleteJob(job: Job) {
+    setHiddenJobs((prev) => new Set(prev).add(job.id));
+    let undone = false;
+    const timer = setTimeout(() => {
+      if (!undone) api(`/api/jobs/${job.id}`, { method: "DELETE" }).then(load).catch(load);
+    }, 5000);
+    toast({
+      message: `Deleted “${job.title}”.`, actionLabel: "Undo", duration: 5000,
+      onAction: () => { undone = true; clearTimeout(timer); setHiddenJobs((prev) => { const n = new Set(prev); n.delete(job.id); return n; }); },
+    });
+  }
 
   async function quicklog(type: "call_logged" | "note", title: string) {
     await api(`/api/contacts/${id}/activities`, { method: "POST", body: JSON.stringify({ type, title }) });
@@ -90,13 +130,19 @@ export default function ContactDetail() {
               {contact.source} {contact.area_slug && `· ${contact.area_slug}`}
             </div>
           </div>
-          <select
-            value={contact.stage}
-            onChange={(e) => setStage(e.target.value as Stage)}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm capitalize min-h-[44px]"
-          >
-            {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              value={contact.stage}
+              onChange={(e) => setStage(e.target.value as Stage)}
+              className="rounded-md border border-neutral-300 px-3 py-2 text-sm capitalize min-h-[44px]"
+            >
+              {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <button onClick={() => setConfirmDelete(true)} aria-label="Delete contact"
+              className="grid h-11 w-11 place-items-center rounded-md border border-neutral-200 text-neutral-400 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-500">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" /></svg>
+            </button>
+          </div>
         </div>
 
         {actionError && <p className="text-sm text-red-600">{actionError}</p>}
@@ -135,6 +181,11 @@ export default function ContactDetail() {
         )}
 
         <section className="rounded-xl bg-white p-5 shadow-sm">
+          <h2 className="mb-3 font-medium">Emails</h2>
+          <EmailHistory emails={emails} />
+        </section>
+
+        <section className="rounded-xl bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-medium">Vehicles</h2>
           {(contact.vehicles ?? []).length === 0 ? (
             <p className="text-sm text-neutral-500">None recorded.</p>
@@ -153,11 +204,11 @@ export default function ContactDetail() {
         <section className="rounded-xl bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-medium">Jobs & Quotes</h2>
           <QuoteBuilder contactId={id!} vehicles={contact.vehicles ?? []} onCreated={load} />
-          {jobs.length === 0 ? (
+          {jobs.filter((j) => !hiddenJobs.has(j.id)).length === 0 ? (
             <p className="mt-3 text-sm text-neutral-500">No jobs yet.</p>
           ) : (
             <ul className="mt-3 space-y-2">
-              {jobs.map((j) => (
+              {jobs.filter((j) => !hiddenJobs.has(j.id)).map((j) => (
                 <li key={j.id} className="rounded-lg border border-neutral-200 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="min-w-0">
@@ -174,6 +225,9 @@ export default function ContactDetail() {
                         className="min-h-[44px] rounded-md border border-neutral-300 px-2 text-sm capitalize">
                         {["draft","quoted","scheduled","in_progress","completed","paid","cancelled"].map((s) => <option key={s} value={s}>{s.replace("_"," ")}</option>)}
                       </select>
+                      <button onClick={() => deleteJob(j)} aria-label="Delete job" className="grid h-9 w-9 place-items-center rounded-md text-neutral-300 hover:bg-rose-50 hover:text-rose-500">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" /></svg>
+                      </button>
                     </div>
                   </div>
                   {j.status === "quoted" && <SendQuote job={j} customerName={contact.first_name} customerPhone={contact.phone} customerEmail={contact.email} onSent={load} />}
@@ -183,6 +237,29 @@ export default function ContactDetail() {
             </ul>
           )}
         </section>
+
+        {(contact.revenue?.length ?? 0) > 0 && (
+          <section className="rounded-xl bg-white p-5 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-medium">Revenue</h2>
+              <span className="text-sm font-semibold text-graphite-950">{money(contact.related?.paid_revenue_cents ?? 0)} <span className="font-normal text-neutral-400">paid</span></span>
+            </div>
+            <ul className="divide-y divide-steel-100">
+              {contact.revenue!.map((r) => (
+                <li key={r.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium text-graphite-950">{r.label}</div>
+                    <div className="text-xs text-neutral-400">{fmtDate(new Date(r.occurred_at ?? r.created_at))}{r.service ? ` · ${r.service}` : ""}</div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Tag color={colorOf(REVENUE_STATUS, r.status)}>{labelOf(REVENUE_STATUS, r.status)}</Tag>
+                    <span className={`font-semibold ${r.status === "paid" ? "text-graphite-950" : "text-neutral-400"}`}>{money(r.amount_cents)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <section className="rounded-xl bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-medium">Timeline</h2>
@@ -229,7 +306,52 @@ export default function ContactDetail() {
         )}
         <EditableDetails contact={contact} onSaved={load} />
       </aside>
+
+      <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Archive this contact?" size="sm"
+        footer={<><Button variant="ghost" onClick={() => setConfirmDelete(false)}>Cancel</Button><Button variant="danger" onClick={archiveContact}>Archive contact</Button></>}>
+        <div className="space-y-3 text-sm">
+          <p className="text-neutral-700"><span className="font-medium">{fullName(contact)}</span> will be hidden from your contacts. You can restore them anytime from the Archive, and you'll get a 5-second Undo.</p>
+          {((contact.related?.jobs ?? 0) > 0 || (contact.related?.paid_revenue_cents ?? 0) > 0) && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-800">
+              <div className="font-medium">Heads up — this contact has money history</div>
+              <div className="mt-0.5 text-xs">
+                {(contact.related?.jobs ?? 0) > 0 && <>{contact.related!.jobs} job{contact.related!.jobs === 1 ? "" : "s"}</>}
+                {(contact.related?.jobs ?? 0) > 0 && (contact.related?.paid_revenue_cents ?? 0) > 0 && " · "}
+                {(contact.related?.paid_revenue_cents ?? 0) > 0 && <>{money(contact.related!.paid_revenue_cents)} paid revenue</>}
+                . It's preserved and comes back on restore.
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
+  );
+}
+
+function EmailHistory({ emails }: { emails: EmailMessage[] }) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  if (emails.length === 0) return <p className="text-sm text-neutral-500">No emails yet. Sent sequence and booking emails show here with their full content.</p>;
+  const badge: Record<string, string> = { sent: "green", logged: "neutral", failed: "red", queued: "amber" };
+  return (
+    <ul className="divide-y divide-steel-100">
+      {emails.map((m) => {
+        const open = openId === m.id;
+        return (
+          <li key={m.id} className="py-2.5">
+            <button onClick={() => setOpenId(open ? null : m.id)} className="flex w-full items-center gap-3 text-left">
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium text-graphite-950">{m.subject || "(no subject)"}</div>
+                <div className="text-xs text-neutral-400">{new Date(m.created_at).toLocaleString()}{m.kind ? ` · ${m.kind}` : ""}</div>
+              </div>
+              <Tag color={badge[m.status] ?? "neutral"}>{m.status}</Tag>
+            </button>
+            {open && m.body_text && (
+              <div className="mt-2 whitespace-pre-wrap rounded-lg bg-steel-50 p-3 text-sm text-neutral-700">{m.body_text}</div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

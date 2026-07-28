@@ -4,6 +4,7 @@ import { nowIso, run, uuid } from "./db";
 export interface OutgoingEmail {
   contactId?: string;
   jobId?: string;
+  sequenceId?: string; // set for sequence steps so the send-log can group by sequence
   kind: string; // transactional | reminder | sequence | oneoff
   toEmail: string;
   subject: string;
@@ -58,9 +59,9 @@ export async function sendEmail(env: Env, msg: OutgoingEmail): Promise<{ id: str
   const now = nowIso();
   const insert = (status: string, providerId: string | null, error: string | null, sentAt: string | null) =>
     run(env.DB,
-      `INSERT INTO messages (id, contact_id, job_id, kind, to_email, subject, body_html, body_text, provider_id, status, error, created_at, sent_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      id, msg.contactId ?? null, msg.jobId ?? null, msg.kind, msg.toEmail, msg.subject,
+      `INSERT INTO messages (id, contact_id, job_id, sequence_id, kind, to_email, subject, body_html, body_text, provider_id, status, error, created_at, sent_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      id, msg.contactId ?? null, msg.jobId ?? null, msg.sequenceId ?? null, msg.kind, msg.toEmail, msg.subject,
       msg.html, msg.text, providerId, status, error, now, sentAt);
 
   if (!env.RESEND_API_KEY) {

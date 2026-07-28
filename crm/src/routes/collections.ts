@@ -66,6 +66,7 @@ export const COLLECTIONS: Record<string, Collection> = {
       service: { type: "text", max: 160 },
       status: { type: "text", enum: ["paid", "pending", "refunded", "cancelled"], max: 20 },
       note: { type: "text", max: 2000 },
+      contact_id: { type: "text", max: 40 }, // optional link to a real contact
       // kind retained in DB for back-compat but no longer set from the UI
     },
   },

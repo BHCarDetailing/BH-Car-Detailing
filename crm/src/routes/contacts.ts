@@ -58,6 +58,8 @@ contactRoutes.get("/", async (c) => {
   const offset = Number(q.offset) > 0 ? Number(q.offset) : 0;
   const where: string[] = [];
   const binds: unknown[] = [];
+  // Archive filter: default hides soft-deleted contacts; ?archived=1 shows only them.
+  where.push(q.archived === "1" ? "deleted_at IS NOT NULL" : "deleted_at IS NULL");
   if (q.search) {
     const term = `%${q.search.replace(/[%_]/g, "")}%`;
     where.push("(first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR phone LIKE ?)");
@@ -156,11 +158,19 @@ contactRoutes.get("/:id", async (c) => {
   if (!row) return c.json({ error: "not_found" }, 404);
   const vehicles = await all(
     c.env.DB, "SELECT * FROM vehicles WHERE contact_id = ? ORDER BY created_at DESC", row.id);
+  // Revenue events linked to this contact + summary counts (used for the
+  // delete warning and the contact's Revenue panel).
+  const revenue = await all(
+    c.env.DB, "SELECT * FROM revenue_entries WHERE contact_id = ? ORDER BY COALESCE(occurred_at, created_at) DESC, created_at DESC LIMIT 100", row.id);
+  const jobsRow = await one<{ n: number }>(c.env.DB, "SELECT COUNT(*) AS n FROM jobs WHERE contact_id = ?", row.id);
+  const revRow = await one<{ cents: number }>(c.env.DB, "SELECT COALESCE(SUM(amount_cents),0) AS cents FROM revenue_entries WHERE contact_id = ? AND status = 'paid'", row.id);
   return c.json({
     ...row,
     tags: JSON.parse((row.tags as string) || "[]"),
     custom: JSON.parse((row.custom as string) || "{}"),
     vehicles,
+    revenue,
+    related: { jobs: jobsRow?.n ?? 0, paid_revenue_cents: revRow?.cents ?? 0 },
   });
 });
 
@@ -205,8 +215,22 @@ contactRoutes.patch("/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+// Soft delete (archive): sets deleted_at so the contact is hidden but fully
+// restorable — jobs, revenue, messages and timeline are preserved. ?purge=1
+// hard-deletes (cascades jobs/tasks/messages via FK) for a permanent wipe from
+// the Archive view.
 contactRoutes.delete("/:id", async (c) => {
-  await run(c.env.DB, "DELETE FROM contacts WHERE id = ?", c.req.param("id"));
+  const id = c.req.param("id");
+  if (c.req.query("purge") === "1") {
+    await run(c.env.DB, "DELETE FROM contacts WHERE id = ?", id);
+    return c.json({ ok: true, purged: true });
+  }
+  await run(c.env.DB, "UPDATE contacts SET deleted_at = ?, updated_at = ? WHERE id = ?", nowIso(), nowIso(), id);
+  return c.json({ ok: true, archived: true });
+});
+
+contactRoutes.post("/:id/restore", async (c) => {
+  await run(c.env.DB, "UPDATE contacts SET deleted_at = NULL, updated_at = ? WHERE id = ?", nowIso(), c.req.param("id"));
   return c.json({ ok: true });
 });
 
@@ -223,7 +247,7 @@ export const statsRoutes = new Hono<{ Bindings: Env }>();
 statsRoutes.use("*", requireAuth());
 statsRoutes.get("/", async (c) => {
   const rows = await all<{ stage: string; n: number }>(
-    c.env.DB, "SELECT stage, COUNT(*) AS n FROM contacts GROUP BY stage");
+    c.env.DB, "SELECT stage, COUNT(*) AS n FROM contacts WHERE deleted_at IS NULL GROUP BY stage");
   const byStage: Record<string, number> = {};
   for (const s of STAGES) byStage[s] = 0;
   for (const r of rows) byStage[r.stage] = r.n;
@@ -231,6 +255,7 @@ statsRoutes.get("/", async (c) => {
     c.env.DB,
     `SELECT a.id, a.type, a.title, a.created_at, a.contact_id, c.first_name, c.last_name
      FROM activities a JOIN contacts c ON c.id = a.contact_id
+     WHERE c.deleted_at IS NULL
      ORDER BY a.id DESC LIMIT 20`
   );
   const todayJobs = await all(
@@ -240,44 +265,99 @@ statsRoutes.get("/", async (c) => {
      WHERE j.status IN ('scheduled','in_progress')
        AND j.scheduled_start IS NOT NULL
        AND date(j.scheduled_start) = date('now')
+       AND c.deleted_at IS NULL
      ORDER BY j.scheduled_start ASC`
   );
   const openTasks = await all(
     c.env.DB,
     `SELECT t.id, t.title, t.due_at, t.contact_id, c.first_name, c.last_name
      FROM tasks t LEFT JOIN contacts c ON c.id = t.contact_id
-     WHERE t.status = 'open'
+     WHERE t.status = 'open' AND (c.id IS NULL OR c.deleted_at IS NULL)
      ORDER BY (t.due_at IS NULL), t.due_at ASC LIMIT 10`
   );
 
-  // --- Money influx. Revenue = completed/paid jobs, dated by job date
-  // (scheduled_start, falling back to last update). Pipeline = money in flight. ---
+  // --- Money influx. A "sale" is realized revenue from EITHER source:
+  //   • a completed/paid job (dated by scheduled_start, falling back to update), or
+  //   • a paid revenue_entries row (the manually-logged Revenue Events ledger).
+  // Both are folded together so the Dashboard matches the Revenue page exactly.
+  // Pipeline = money in flight = quoted/scheduled jobs + pending revenue entries. ---
   const EARNED = "status IN ('completed','paid')";
   const jobDate = "COALESCE(scheduled_start, updated_at)";
-  const totals = await one<{ cents: number; n: number }>(
+  const entDate = "COALESCE(occurred_at, created_at)";
+
+  const jobTotals = await one<{ cents: number; n: number }>(
     c.env.DB, `SELECT COALESCE(SUM(price_cents),0) AS cents, COUNT(*) AS n FROM jobs WHERE ${EARNED}`);
-  const monthRow = await one<{ cents: number; n: number }>(
-    c.env.DB, `SELECT COALESCE(SUM(price_cents),0) AS cents, COUNT(*) AS n FROM jobs
+  const jobMonth = await one<{ cents: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(price_cents),0) AS cents FROM jobs
                WHERE ${EARNED} AND strftime('%Y-%m', ${jobDate}) = strftime('%Y-%m','now')`);
-  const weekRow = await one<{ cents: number }>(
+  const jobWeek = await one<{ cents: number }>(
     c.env.DB, `SELECT COALESCE(SUM(price_cents),0) AS cents FROM jobs
                WHERE ${EARNED} AND strftime('%Y-%W', ${jobDate}) = strftime('%Y-%W','now')`);
-  const pipe = await one<{ cents: number; n: number }>(
-    c.env.DB, `SELECT COALESCE(SUM(price_cents),0) AS cents, COUNT(*) AS n FROM jobs
+  // Pipeline = the UNPAID remainder of in-flight jobs (a collected deposit is no
+  // longer "in flight" — it's cash in hand, counted below).
+  const jobPipe = await one<{ cents: number; n: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(price_cents - COALESCE(amount_paid_cents,0)),0) AS cents, COUNT(*) AS n FROM jobs
                WHERE status IN ('quoted','scheduled','in_progress')`);
-  const seriesRows = await all<{ ym: string; cents: number; n: number }>(
+  const jobSeries = await all<{ ym: string; cents: number; n: number }>(
     c.env.DB, `SELECT strftime('%Y-%m', ${jobDate}) AS ym, COALESCE(SUM(price_cents),0) AS cents, COUNT(*) AS n
                FROM jobs WHERE ${EARNED} AND ${jobDate} >= date('now','-6 months','start of month')
                GROUP BY ym ORDER BY ym ASC`);
-  const paidAll = totals?.n ?? 0;
+
+  // Deposits collected on still-in-flight jobs — real cash received before the
+  // job is finished. Dated by paid_at. Counted as realized revenue (the balance
+  // is picked up when the job flips to completed/paid, so no double-count).
+  const IN_FLIGHT = "status IN ('quoted','scheduled','in_progress') AND COALESCE(amount_paid_cents,0) > 0";
+  const depDate = "COALESCE(paid_at, updated_at)";
+  const depAll = await one<{ cents: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(amount_paid_cents),0) AS cents FROM jobs WHERE ${IN_FLIGHT}`);
+  const depMonth = await one<{ cents: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(amount_paid_cents),0) AS cents FROM jobs WHERE ${IN_FLIGHT} AND strftime('%Y-%m', ${depDate}) = strftime('%Y-%m','now')`);
+  const depWeek = await one<{ cents: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(amount_paid_cents),0) AS cents FROM jobs WHERE ${IN_FLIGHT} AND strftime('%Y-%W', ${depDate}) = strftime('%Y-%W','now')`);
+  const depSeries = await all<{ ym: string; cents: number; n: number }>(
+    c.env.DB, `SELECT strftime('%Y-%m', ${depDate}) AS ym, COALESCE(SUM(amount_paid_cents),0) AS cents, 0 AS n
+               FROM jobs WHERE ${IN_FLIGHT} AND ${depDate} >= date('now','-6 months','start of month')
+               GROUP BY ym ORDER BY ym ASC`);
+
+  // Same aggregates over the paid revenue_entries ledger (guarded — table is
+  // additive from migration 0009/0010 and always present, but stay defensive).
+  const entTotals = await one<{ cents: number; n: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(amount_cents),0) AS cents, COUNT(*) AS n FROM revenue_entries WHERE status = 'paid'`).catch(() => null);
+  const entMonth = await one<{ cents: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(amount_cents),0) AS cents FROM revenue_entries
+               WHERE status = 'paid' AND strftime('%Y-%m', ${entDate}) = strftime('%Y-%m','now')`).catch(() => null);
+  const entWeek = await one<{ cents: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(amount_cents),0) AS cents FROM revenue_entries
+               WHERE status = 'paid' AND strftime('%Y-%W', ${entDate}) = strftime('%Y-%W','now')`).catch(() => null);
+  const entPending = await one<{ cents: number; n: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(amount_cents),0) AS cents, COUNT(*) AS n FROM revenue_entries WHERE status = 'pending'`).catch(() => null);
+  const entSeries = await all<{ ym: string; cents: number; n: number }>(
+    c.env.DB, `SELECT strftime('%Y-%m', ${entDate}) AS ym, COALESCE(SUM(amount_cents),0) AS cents, COUNT(*) AS n
+               FROM revenue_entries WHERE status = 'paid' AND ${entDate} >= date('now','-6 months','start of month')
+               GROUP BY ym ORDER BY ym ASC`).catch(() => []);
+
+  // Merge the monthly series (completed jobs + deposits + ledger) by year-month.
+  const seriesMap = new Map<string, { ym: string; cents: number; n: number }>();
+  for (const r of [...(jobSeries ?? []), ...(depSeries ?? []), ...(entSeries ?? [])]) {
+    if (!r.ym) continue;
+    const cur = seriesMap.get(r.ym) ?? { ym: r.ym, cents: 0, n: 0 };
+    cur.cents += r.cents; cur.n += r.n;
+    seriesMap.set(r.ym, cur);
+  }
+  const seriesRows = [...seriesMap.values()].sort((a, b) => a.ym.localeCompare(b.ym));
+
+  const completedCents = (jobTotals?.cents ?? 0) + (entTotals?.cents ?? 0);
+  const allCents = completedCents + (depAll?.cents ?? 0);
+  const salesAll = (jobTotals?.n ?? 0) + (entTotals?.n ?? 0);
   const revenue = {
-    month_cents: monthRow?.cents ?? 0,
-    week_cents: weekRow?.cents ?? 0,
-    pipeline_cents: pipe?.cents ?? 0,
-    pipeline_jobs: pipe?.n ?? 0,
-    all_time_cents: totals?.cents ?? 0,
-    jobs_paid_all: paidAll,
-    avg_ticket_cents: paidAll > 0 ? Math.round((totals?.cents ?? 0) / paidAll) : 0,
+    month_cents: (jobMonth?.cents ?? 0) + (depMonth?.cents ?? 0) + (entMonth?.cents ?? 0),
+    week_cents: (jobWeek?.cents ?? 0) + (depWeek?.cents ?? 0) + (entWeek?.cents ?? 0),
+    pipeline_cents: (jobPipe?.cents ?? 0) + (entPending?.cents ?? 0),
+    pipeline_jobs: (jobPipe?.n ?? 0) + (entPending?.n ?? 0),
+    all_time_cents: allCents,
+    jobs_paid_all: salesAll,
+    // avg ticket is per completed sale — deposits on open jobs don't count as sales yet
+    avg_ticket_cents: salesAll > 0 ? Math.round(completedCents / salesAll) : 0,
     series: seriesRows,
   };
   return c.json({ byStage, recent, todayJobs, openTasks, revenue });

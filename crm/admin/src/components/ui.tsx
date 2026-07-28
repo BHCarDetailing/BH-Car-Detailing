@@ -217,6 +217,30 @@ export function StatTile({ label, value, sub, tone = "light" }: {
   );
 }
 
+/** Shimmer placeholder — use in place of a value while data is loading so the
+    UI never flashes an empty "—"/0 that looks like real (missing) data. */
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded-md bg-steel-200/80 ${className}`} aria-hidden="true" />;
+}
+
+/** Small icon edit (pencil) button — mirrors DeleteButton for row actions. */
+export function EditButton({ onClick, label = "Edit" }: { onClick: () => void; label?: string }) {
+  return (
+    <button onClick={onClick} aria-label={label} className="grid h-8 w-8 place-items-center rounded-lg text-neutral-300 hover:bg-neutral-100 hover:text-neutral-700">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" /></svg>
+    </button>
+  );
+}
+
+/** Small icon duplicate button — clones a row. */
+export function DuplicateButton({ onClick, label = "Duplicate" }: { onClick: () => void; label?: string }) {
+  return (
+    <button onClick={onClick} aria-label={label} className="grid h-8 w-8 place-items-center rounded-lg text-neutral-300 hover:bg-neutral-100 hover:text-neutral-700">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 012-2h8" /></svg>
+    </button>
+  );
+}
+
 /** Small icon delete button used across list/table rows. */
 export function DeleteButton({ onClick }: { onClick: () => void }) {
   return (

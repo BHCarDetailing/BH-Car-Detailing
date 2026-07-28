@@ -3,6 +3,18 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { NAV_GROUPS } from "../lib/nav";
 import BottomNav from "./BottomNav";
 import { BrandLogo } from "./ui";
+import { useCommandPalette } from "./CommandPalette";
+
+function SearchTrigger({ onClick }: { onClick: () => void }) {
+  return (
+    <button onClick={onClick}
+      className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-chrome-400 transition hover:border-white/20 hover:text-white">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
+      <span>Search…</span>
+      <kbd className="ml-auto rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-chrome-400">⌘K</kbd>
+    </button>
+  );
+}
 
 function NavIcon({ d }: { d: string }) {
   return (
@@ -86,8 +98,8 @@ function Hamburger({ onClick, label = "Toggle sidebar" }: { onClick: () => void;
 export default function Layout() {
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("bh_sidebar_collapsed") === "1");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [query, setQuery] = useState("");
   const loc = useLocation();
+  const openPalette = useCommandPalette();
 
   useEffect(() => { localStorage.setItem("bh_sidebar_collapsed", collapsed ? "1" : "0"); }, [collapsed]);
   useEffect(() => { setMobileOpen(false); }, [loc.pathname]); // close drawer on navigate
@@ -104,12 +116,11 @@ export default function Layout() {
         </div>
         {!collapsed && (
           <div className="px-3 pb-2">
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…"
-              className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-sm text-white placeholder-chrome-400 outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-600/30" />
+            <SearchTrigger onClick={openPalette} />
           </div>
         )}
         <div className="flex-1 overflow-y-auto px-2 pb-6">
-          <SidebarNav collapsed={collapsed} query={query} />
+          <SidebarNav collapsed={collapsed} query="" />
         </div>
       </aside>
 
@@ -124,10 +135,9 @@ export default function Layout() {
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
               </button>
             </div>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…"
-              className="mb-3 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder-chrome-400 outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-600/30" />
+            <div className="mb-3"><SearchTrigger onClick={() => { setMobileOpen(false); openPalette(); }} /></div>
             <div className="flex-1 overflow-y-auto px-1">
-              <SidebarNav collapsed={false} query={query} onNavigate={() => setMobileOpen(false)} />
+              <SidebarNav collapsed={false} query="" onNavigate={() => setMobileOpen(false)} />
             </div>
           </aside>
         </div>

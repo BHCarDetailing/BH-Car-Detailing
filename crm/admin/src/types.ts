@@ -24,12 +24,39 @@ export interface Contact {
   source_detail: string | null;
   created_at: string;
   last_activity_at: string | null;
+  deleted_at?: string | null;
   vehicle_count?: number;
   vehicles?: Vehicle[];
   tags?: string[];
   custom?: Record<string, unknown>;
   ai_summary?: string | null;
   ai_next_action?: string | null;
+  revenue?: ContactRevenue[];
+  related?: { jobs: number; paid_revenue_cents: number };
+}
+
+export interface ContactRevenue {
+  id: string;
+  label: string;
+  amount_cents: number;
+  occurred_at: string | null;
+  status: string;
+  service: string | null;
+  created_at: string;
+}
+
+export interface EmailMessage {
+  id: string;
+  subject: string | null;
+  body_text: string | null;
+  body_html: string | null;
+  status: string;
+  kind: string;
+  created_at: string;
+  sent_at: string | null;
+  to_email: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
 }
 
 export interface Label {

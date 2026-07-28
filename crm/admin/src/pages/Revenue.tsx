@@ -1,13 +1,15 @@
 import { useMemo, useState } from "react";
-import { PageHeader, Button, Modal, Field, Input, Select, EmptyState, Tag, DeleteButton, StatTile, Tabs } from "../components/ui";
+import { PageHeader, Button, Modal, Field, Input, Select, EmptyState, Tag, DeleteButton, EditButton, DuplicateButton, StatTile, Tabs } from "../components/ui";
 import { LineChart, Delta, type Point } from "../components/charts";
 import { useCollection, REVENUE_STATUS, labelOf, colorOf, type Row } from "../lib/collections";
+import { useToast } from "../components/Toast";
+import { ContactPicker } from "../components/ContactPicker";
 import { money } from "../types";
 import { ymd, startOfWeek, fmtDate } from "../lib/datetime";
 
 interface Entry extends Row {
   label: string; amount_cents: number; occurred_at: string | null; customer: string | null;
-  service: string | null; status: string; note: string | null; created_at: string;
+  service: string | null; status: string; note: string | null; created_at: string; contact_id: string | null;
 }
 
 interface Product extends Row { name: string }
@@ -53,14 +55,18 @@ function trailingPeriods(g: Gran): { key: string; label: string; date: Date }[] 
   return out;
 }
 
-const BLANK = { label: "", amount: "", occurred_at: ymd(new Date()), customer: "", service: "", status: "paid", note: "" };
+const BLANK = { label: "", amount: "", occurred_at: ymd(new Date()), customer: "", contact_id: "", service: "", status: "paid", note: "" };
+type FormState = typeof BLANK;
 
 export default function Revenue() {
-  const { items, loading, create, remove } = useCollection<Entry>("revenue");
+  const { items, loading, create, update, removeWithUndo } = useCollection<Entry>("revenue");
   const { items: products } = useCollection<Product>("products");
+  const toast = useToast();
   const [gran, setGran] = useState<Gran>("monthly");
+  const [scope, setScope] = useState<"period" | "all">("period");
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<typeof BLANK>(BLANK);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState>(BLANK);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
@@ -91,17 +97,49 @@ export default function Revenue() {
 
   const pending = useMemo(() => items.filter((e) => e.status === "pending").reduce((a, e) => a + e.amount_cents, 0), [items]);
 
+  // Table rows: filtered by the selected period tab (or all-time) then sorted by
+  // date desc with a stable created_at secondary sort so same-day rows hold order.
+  const rows = useMemo(() => {
+    const list = scope === "all" ? items : items.filter((e) => bucketKey(when(e), gran) === curKey);
+    return list.slice().sort((a, b) => {
+      const dw = when(b).getTime() - when(a).getTime();
+      return dw !== 0 ? dw : (b.created_at || "").localeCompare(a.created_at || "");
+    });
+  }, [items, scope, gran, curKey]);
+
+  function openNew() { setEditingId(null); setForm({ ...BLANK, occurred_at: ymd(new Date()) }); setErr(""); setOpen(true); }
+  function openEdit(e: Entry) {
+    setEditingId(e.id);
+    setForm({
+      label: e.label ?? "", amount: e.amount_cents != null ? (e.amount_cents / 100).toString() : "",
+      occurred_at: e.occurred_at ?? ymd(new Date()), customer: e.customer ?? "", contact_id: e.contact_id ?? "",
+      service: e.service ?? "", status: e.status ?? "paid", note: e.note ?? "",
+    });
+    setErr(""); setOpen(true);
+  }
+  function openDuplicate(e: Entry) {
+    setEditingId(null);
+    setForm({
+      label: e.label ?? "", amount: e.amount_cents != null ? (e.amount_cents / 100).toString() : "",
+      occurred_at: ymd(new Date()), customer: e.customer ?? "", contact_id: e.contact_id ?? "",
+      service: e.service ?? "", status: "paid", note: e.note ?? "",
+    });
+    setErr(""); setOpen(true);
+  }
+
   async function save() {
     const cents = Math.round(parseFloat(form.amount) * 100);
     if (!form.label.trim()) { setErr("Add a label."); return; }
     if (!Number.isFinite(cents) || cents < 0) { setErr("Enter a valid amount."); return; }
     setBusy(true); setErr("");
+    const payload = {
+      label: form.label, amount_cents: cents, occurred_at: form.occurred_at,
+      customer: form.customer, contact_id: form.contact_id, service: form.service, status: form.status, note: form.note,
+    };
     try {
-      await create({
-        label: form.label, amount_cents: cents, occurred_at: form.occurred_at,
-        customer: form.customer, service: form.service, status: form.status, note: form.note,
-      });
-      setForm({ ...BLANK, occurred_at: form.occurred_at }); setOpen(false);
+      if (editingId) { await update(editingId, payload); toast({ message: "Revenue event updated.", tone: "success" }); }
+      else { await create(payload); }
+      setForm({ ...BLANK, occurred_at: form.occurred_at }); setEditingId(null); setOpen(false);
     } catch { setErr("Could not save."); }
     finally { setBusy(false); }
   }
@@ -109,7 +147,7 @@ export default function Revenue() {
   return (
     <div className="mx-auto max-w-5xl p-4 md:p-8">
       <PageHeader eyebrow="Growth" title="Revenue Events" subtitle="Every sale, dated and tracked — with weekly, monthly, quarterly, and yearly reporting."
-        action={<Button onClick={() => { setForm({ ...BLANK, occurred_at: ymd(new Date()) }); setErr(""); setOpen(true); }}>+ Add revenue event</Button>} />
+        action={<Button onClick={openNew}>+ Add revenue event</Button>} />
 
       <Tabs tabs={GRAN_TABS} value={gran} onChange={(v) => setGran(v as Gran)} />
 
@@ -136,41 +174,64 @@ export default function Revenue() {
         <p className="text-sm text-chrome-400">Loading…</p>
       ) : items.length === 0 ? (
         <EmptyState title="No revenue events yet" hint="Log your first sale to start tracking monthly and yearly revenue."
-          action={<Button onClick={() => setOpen(true)}>+ Add revenue event</Button>} />
+          action={<Button onClick={openNew}>+ Add revenue event</Button>} />
       ) : (
-        <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-steel-200">
-          <table className="w-full text-sm">
-            <thead className="bg-steel-50 text-left text-xs uppercase tracking-wide text-chrome-400">
-              <tr>
-                <th className="px-4 py-3 font-medium">Date</th>
-                <th className="px-4 py-3 font-medium">Event</th>
-                <th className="hidden px-4 py-3 font-medium sm:table-cell">Customer</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 text-right font-medium">Amount</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-steel-100">
-              {items.map((e) => (
-                <tr key={e.id} className="hover:bg-steel-50">
-                  <td className="px-4 py-3 whitespace-nowrap text-neutral-600">{fmtDate(when(e))}</td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-graphite-950">{e.label}</div>
-                    {(e.service || e.note) && <div className="truncate text-xs text-chrome-400">{[e.service, e.note].filter(Boolean).join(" · ")}</div>}
-                  </td>
-                  <td className="hidden px-4 py-3 text-neutral-600 sm:table-cell">{e.customer || "—"}</td>
-                  <td className="px-4 py-3"><Tag color={colorOf(REVENUE_STATUS, e.status)}>{labelOf(REVENUE_STATUS, e.status)}</Tag></td>
-                  <td className={`px-4 py-3 text-right font-semibold ${e.status === "paid" ? "text-graphite-950" : "text-chrome-400"}`}>{money(e.amount_cents)}</td>
-                  <td className="px-4 py-3 text-right"><DeleteButton onClick={() => remove(e.id)} /></td>
-                </tr>
+        <>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="text-xs text-chrome-400">{rows.length} event{rows.length === 1 ? "" : "s"} · {scope === "period" ? `this ${periodWord}` : "all time"}</div>
+            <div className="inline-flex rounded-lg bg-steel-100 p-0.5 text-xs ring-1 ring-inset ring-steel-200">
+              {(["period", "all"] as const).map((s) => (
+                <button key={s} onClick={() => setScope(s)}
+                  className={`rounded-md px-2.5 py-1 font-medium transition ${scope === s ? "bg-white text-graphite-950 shadow-sm ring-1 ring-steel-200" : "text-chrome-400 hover:text-graphite-800"}`}>
+                  {s === "period" ? `This ${periodWord}` : "All time"}
+                </button>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          </div>
+          <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-steel-200">
+            <table className="w-full text-sm">
+              <thead className="bg-steel-50 text-left text-xs uppercase tracking-wide text-chrome-400">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Date</th>
+                  <th className="px-4 py-3 font-medium">Event</th>
+                  <th className="hidden px-4 py-3 font-medium sm:table-cell">Customer</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 text-right font-medium">Amount</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-steel-100">
+                {rows.length === 0 ? (
+                  <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-chrome-400">
+                    No events this {periodWord}. <button onClick={() => setScope("all")} className="font-medium text-red-600 hover:underline">Show all time</button>
+                  </td></tr>
+                ) : rows.map((e) => (
+                  <tr key={e.id} onClick={() => openEdit(e)} className="group cursor-pointer transition hover:bg-steel-50">
+                    <td className="px-4 py-3 whitespace-nowrap text-neutral-600">{fmtDate(when(e))}</td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-graphite-950">{e.label}</div>
+                      {(e.service || e.note) && <div className="truncate text-xs text-chrome-400">{[e.service, e.note].filter(Boolean).join(" · ")}</div>}
+                    </td>
+                    <td className="hidden px-4 py-3 text-neutral-600 sm:table-cell">{e.customer || "—"}</td>
+                    <td className="px-4 py-3"><Tag color={colorOf(REVENUE_STATUS, e.status)}>{labelOf(REVENUE_STATUS, e.status)}</Tag></td>
+                    <td className={`px-4 py-3 text-right font-semibold ${e.status === "paid" ? "text-graphite-950" : "text-chrome-400"}`}>{money(e.amount_cents)}</td>
+                    <td className="px-2 py-3">
+                      <div className="flex items-center justify-end opacity-60 transition group-hover:opacity-100" onClick={(ev) => ev.stopPropagation()}>
+                        <EditButton onClick={() => openEdit(e)} />
+                        <DuplicateButton onClick={() => openDuplicate(e)} />
+                        <DeleteButton onClick={() => removeWithUndo(e.id, toast, { label: `Deleted “${e.label}”.` })} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Add revenue event"
-        footer={<><Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} disabled={busy}>{busy ? "Saving…" : "Add event"}</Button></>}>
+      <Modal open={open} onClose={() => setOpen(false)} title={editingId ? "Edit revenue event" : "Add revenue event"}
+        footer={<><Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} disabled={busy}>{busy ? "Saving…" : editingId ? "Save changes" : "Add event"}</Button></>}>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <Field label="Amount ($)"><Input type="number" min="0" step="0.01" value={form.amount} autoFocus onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" /></Field>
@@ -178,7 +239,9 @@ export default function Revenue() {
           </div>
           <Field label="Label"><Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder="e.g. Full detail — Porsche 911" /></Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Customer"><Input value={form.customer} onChange={(e) => setForm({ ...form, customer: e.target.value })} placeholder="Name" /></Field>
+            <Field label="Customer" hint={form.contact_id ? "Linked to a contact — shows on their record." : "Pick a contact so this shows on their record."}>
+              <ContactPicker contactId={form.contact_id} name={form.customer} onChange={(v) => setForm({ ...form, contact_id: v.contactId, customer: v.name })} />
+            </Field>
             <Field label="Status"><Select options={REVENUE_STATUS} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} /></Field>
           </div>
           <Field label="Service / product">

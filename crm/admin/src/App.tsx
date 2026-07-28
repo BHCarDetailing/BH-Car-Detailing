@@ -12,6 +12,8 @@ import Sequences from "./pages/Sequences";
 import Book from "./pages/Book";
 import Quote from "./pages/Quote";
 import Layout from "./components/Layout";
+import { ToastProvider } from "./components/Toast";
+import { CommandPaletteProvider } from "./components/CommandPalette";
 // Operating-system pages
 import Home from "./pages/Home";
 import GTM from "./pages/GTM";
@@ -31,6 +33,8 @@ import DocsLegal from "./pages/DocsLegal";
 
 export default function App() {
   return (
+    <ToastProvider>
+      <CommandPaletteProvider>
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/book" element={<Book />} />
@@ -68,5 +72,7 @@ export default function App() {
         <Route path="/settings" element={<Settings />} />
       </Route>
     </Routes>
+      </CommandPaletteProvider>
+    </ToastProvider>
   );
 }

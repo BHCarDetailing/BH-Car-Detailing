@@ -101,7 +101,7 @@ export async function runSequences(env: Env, nowMs: number): Promise<{ sent: num
     const finalText = `${text}\n\n— BH Car Detailing\nUnsubscribe: ${unsubUrl}`;
 
     const r = await sendEmail(env, {
-      contactId: contact.id, kind: "sequence", toEmail: contact.email,
+      contactId: contact.id, sequenceId: e.sequence_id, kind: "sequence", toEmail: contact.email,
       subject: step.subject.replace(/\{first_name\}/g, name), html, text: finalText,
     });
     await logActivity(env.DB, { contactId: contact.id, type: "email_sent", title: `Sequence email (${r.status})`, payload: { sequence_id: e.sequence_id, step: e.current_step, message_id: r.id }, actor: "workflow:" + e.sequence_id });

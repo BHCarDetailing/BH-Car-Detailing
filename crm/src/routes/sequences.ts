@@ -91,6 +91,18 @@ sequenceRoutes.get("/:id/enrollments", async (c) => {
   return c.json({ items });
 });
 
+// Send-log: every email this sequence actually fired, newest first, with the
+// recipient, subject, status and time (bodies were stored at send time).
+sequenceRoutes.get("/:id/sends", async (c) => {
+  const items = await all(c.env.DB,
+    `SELECT m.id, m.contact_id, m.to_email, m.subject, m.body_text, m.status, m.created_at, m.sent_at,
+            ct.first_name, ct.last_name
+     FROM messages m LEFT JOIN contacts ct ON ct.id = m.contact_id
+     WHERE m.sequence_id = ? AND m.channel = 'email'
+     ORDER BY m.created_at DESC, m.id DESC LIMIT 200`, c.req.param("id"));
+  return c.json({ items });
+});
+
 // Remove someone from a sequence (deletes the enrollment so they can be re-added later).
 sequenceRoutes.delete("/:id/enrollments/:eid", async (c) => {
   await run(c.env.DB, "DELETE FROM enrollments WHERE id = ? AND sequence_id = ?", c.req.param("eid"), c.req.param("id"));
