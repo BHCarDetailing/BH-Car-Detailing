@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Contacts from "./pages/Contacts";
+import Reactivation from "./pages/Reactivation";
 import ContactDetail from "./pages/ContactDetail";
 import Pipeline from "./pages/Pipeline";
 import Calendar from "./pages/Calendar";
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="/inbox" element={<Inbox />} />
         <Route path="/contacts" element={<Contacts />} />
         <Route path="/contacts/:id" element={<ContactDetail />} />
+        <Route path="/reactivation" element={<Reactivation />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/products" element={<Products />} />
         {/* Performance */}

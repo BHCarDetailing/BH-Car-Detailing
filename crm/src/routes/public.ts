@@ -181,6 +181,13 @@ publicRoutes.post("/lead", async (c) => {
   const sourceDetail = typeof body.source_detail === "string" ? body.source_detail.slice(0, 200) : null;
   const now = nowIso();
 
+  // Referral attribution: /book?ref=<contact id> on a customer's share link.
+  // Verified against a real contact so a junk value can never poison the report.
+  const refRaw = typeof body.ref === "string" ? body.ref.slice(0, 64) : null;
+  const referrer = refRaw
+    ? await one<{ id: string }>(c.env.DB, "SELECT id FROM contacts WHERE id = ? AND deleted_at IS NULL", refRaw)
+    : null;
+
   let contact = email
     ? await one<{ id: string }>(c.env.DB, "SELECT id FROM contacts WHERE email = ?", email)
     : null;
@@ -208,10 +215,17 @@ publicRoutes.post("/lead", async (c) => {
       c.env.DB,
       `INSERT INTO contacts
          (id, first_name, last_name, email, phone, area_slug, stage, source, source_detail,
-          email_opt_in, email_opt_in_at, created_at, updated_at)
-       VALUES (?,?,?,?,?,?,'new',?,?,1,?,?,?)`,
-      contactId, first || null, last || null, email, phone, m?.[1] ?? null, source, sourceDetail, now, now, now
+          referred_by_contact_id, email_opt_in, email_opt_in_at, created_at, updated_at)
+       VALUES (?,?,?,?,?,?,'new',?,?,?,1,?,?,?)`,
+      contactId, first || null, last || null, email, phone, m?.[1] ?? null,
+      referrer ? "referral" : source, sourceDetail, referrer?.id ?? null, now, now, now
     );
+    if (referrer) {
+      await logActivity(c.env.DB, {
+        contactId: referrer.id, type: "note", title: "Referred a new lead",
+        payload: { referred_contact_id: contactId }, actor: "system",
+      });
+    }
   }
 
   const vehicleRaw = typeof body.vehicle === "string" ? body.vehicle.trim() : "";

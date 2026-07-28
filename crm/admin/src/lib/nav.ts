@@ -38,6 +38,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: "/calendar", label: "Calendar", short: "Calendar", icon: "M7 3v4M17 3v4M4 8h16M4 8v12h16V8", keywords: "schedule jobs" },
       { to: "/inbox", label: "Inbox", short: "Inbox", icon: "M4 5h16v11H8l-4 4V5z", keywords: "messages sms" },
       { to: "/contacts", label: "Contacts", short: "Contacts", icon: "M16 20a4 4 0 00-8 0M12 12a4 4 0 100-8 4 4 0 000 8", keywords: "leads people" },
+      { to: "/reactivation", label: "Reactivation", short: "Reactivate", icon: "M4 4v6h6M20 20v-6h-6M20 9A8 8 0 006 5.3M4 15a8 8 0 0014 3.7", keywords: "dead book old leads follow up win back" },
       { to: "/onboarding", label: "Onboarding", short: "Onboard", icon: "M9 12l2 2 4-4M12 21a9 9 0 110-18 9 9 0 010 18", keywords: "new hires steps" },
       { to: "/products", label: "Products", short: "Products", icon: "M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7", keywords: "services pricing packages" },
     ],
