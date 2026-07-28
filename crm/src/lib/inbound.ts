@@ -67,7 +67,7 @@ export async function handleInboundSms(env: Env, msg: InboundSms): Promise<Inbou
     );
     await run(
       env.DB,
-      "UPDATE enrollments SET status = 'unsubscribed', completed_at = ? WHERE contact_id = ? AND status = 'active'",
+      "UPDATE enrollments SET status = 'unsubscribed', exit_reason = 'opted_out', completed_at = ? WHERE contact_id = ? AND status = 'active'",
       now, contactId
     );
     await logActivity(env.DB, {
@@ -102,7 +102,7 @@ export async function handleInboundSms(env: Env, msg: InboundSms): Promise<Inbou
   // live conversation until Max answers and resumes it himself.
   const paused = await run(
     env.DB,
-    "UPDATE enrollments SET status = 'paused' WHERE contact_id = ? AND status = 'active'",
+    "UPDATE enrollments SET status = 'paused', exit_reason = 'replied' WHERE contact_id = ? AND status = 'active'",
     contactId
   );
   const sequencePaused = (paused.meta?.changes ?? 0) > 0;

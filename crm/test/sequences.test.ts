@@ -4,7 +4,14 @@ import { runSequences, unsubToken } from "../src/lib/sequences";
 import { one } from "../src/lib/db";
 
 const AUTH = { Authorization: "Bearer dev-agent-key", "Content-Type": "application/json" };
-const FUTURE = Date.now() + 10 * 86400_000; // guarantees step-0 (delay 0) is due regardless of quiet hours
+// 10 days out so step 0 (delay 0) is certainly due, pinned to 15:00 UTC so the
+// run lands inside sending hours — sends are now gated on quiet hours, not just
+// scheduled around them.
+const FUTURE = (() => {
+  const d = new Date(Date.now() + 10 * 86400_000);
+  d.setUTCHours(15, 0, 0, 0);
+  return d.getTime();
+})();
 
 async function makeContact(email: string) {
   const r = await SELF.fetch("http://x/api/contacts", { method: "POST", headers: AUTH, body: JSON.stringify({ first_name: "Seq", email }) });

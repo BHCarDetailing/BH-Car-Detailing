@@ -3,9 +3,20 @@ import { api, ApiError } from "../api";
 import { Modal, Button, Tag, DeleteButton, Tabs } from "../components/ui";
 import { fmtDateTime } from "../lib/datetime";
 
-interface Step { delay_hours: number; subject: string; body_text: string }
-interface Sequence { id: string; name: string; status: string; trigger: string; step_count: number; active_count: number }
-interface Enrollment { id: string; contact_id: string; status: string; current_step: number; next_run_at: string | null; first_name: string | null; last_name: string | null; email: string | null }
+interface Step { delay_hours: number; subject: string; body_text: string; channel?: string }
+interface Sequence {
+  id: string; name: string; status: string; trigger: string; priority?: number;
+  step_count: number; active_count: number;
+  enrolled_count?: number; sent_count?: number; replied_count?: number; booked_count?: number;
+}
+interface TriggerOption { value: string; label: string; kind: string }
+
+const CHANNEL_OPTIONS = [
+  { value: "auto", label: "Auto — text if they opted in, else email" },
+  { value: "sms", label: "Text only" },
+  { value: "email", label: "Email only" },
+];
+interface Enrollment { id: string; contact_id: string; status: string; current_step: number; next_run_at: string | null; exit_reason: string | null; first_name: string | null; last_name: string | null; email: string | null }
 interface ContactHit { id: string; first_name: string | null; last_name: string | null; email: string | null }
 interface Send { id: string; to_email: string | null; subject: string | null; body_text: string | null; status: string; created_at: string; first_name: string | null; last_name: string | null }
 
@@ -39,7 +50,7 @@ function SentLog({ seqId }: { seqId: string }) {
   );
 }
 
-const ENROLL_STATUS: Record<string, string> = { active: "green", completed: "blue", exited: "neutral", unsubscribed: "red" };
+const ENROLL_STATUS: Record<string, string> = { active: "green", paused: "amber", completed: "blue", exited: "neutral", unsubscribed: "red" };
 
 function ManagePeople({ seq, onClose }: { seq: Sequence; onClose: () => void }) {
   const [rows, setRows] = useState<Enrollment[]>([]);
@@ -73,6 +84,10 @@ function ManagePeople({ seq, onClose }: { seq: Sequence; onClose: () => void }) 
   }
   async function remove(eid: string) {
     await api(`/api/sequences/${seq.id}/enrollments/${eid}`, { method: "DELETE" });
+    load();
+  }
+  async function resume(eid: string) {
+    await api(`/api/sequences/${seq.id}/enrollments/${eid}/resume`, { method: "POST" });
     load();
   }
 
@@ -116,9 +131,16 @@ function ManagePeople({ seq, onClose }: { seq: Sequence; onClose: () => void }) 
                     <div className="truncate text-xs text-chrome-400">
                       {e.email}
                       {e.status === "active" && e.next_run_at ? ` · next ${fmtDateTime(e.next_run_at)}` : ""}
+                      {e.status === "paused" ? " · they replied — answer them, then resume" : ""}
+                      {e.status !== "active" && e.status !== "paused" && e.exit_reason ? ` · ${e.exit_reason}` : ""}
                     </div>
                   </div>
                   <Tag color={ENROLL_STATUS[e.status] ?? "neutral"}>{e.status}</Tag>
+                  {e.status === "paused" && (
+                    <button onClick={() => resume(e.id)} className="rounded-md bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-white">
+                      Resume
+                    </button>
+                  )}
                   <DeleteButton onClick={() => remove(e.id)} />
                 </li>
               ))}
@@ -131,12 +153,13 @@ function ManagePeople({ seq, onClose }: { seq: Sequence; onClose: () => void }) 
   );
 }
 
-const BLANK_STEP: Step = { delay_hours: 24, subject: "", body_text: "" };
+const BLANK_STEP: Step = { delay_hours: 24, subject: "", body_text: "", channel: "auto" };
 
 export default function Sequences() {
   const [items, setItems] = useState<Sequence[]>([]);
   const [editing, setEditing] = useState<{ id?: string; name: string; trigger: string; steps: Step[] } | null>(null);
   const [managing, setManaging] = useState<Sequence | null>(null);
+  const [triggers, setTriggers] = useState<TriggerOption[]>([{ value: "manual", label: "Manual only", kind: "manual" }]);
   const [testTo, setTestTo] = useState("info@bhcardetails.com");
   const [testMsg, setTestMsg] = useState("");
   const [testOk, setTestOk] = useState(false);
@@ -159,8 +182,14 @@ export default function Sequences() {
   }, []);
   useEffect(load, [load]);
 
+  useEffect(() => {
+    api<{ items: TriggerOption[] }>("/api/sequences/triggers")
+      .then((r) => { if (r.items.length) setTriggers(r.items); })
+      .catch(() => {});
+  }, []);
+
   function newSequence() {
-    setEditing({ name: "", trigger: "manual", steps: [{ delay_hours: 0, subject: "", body_text: "" }] });
+    setEditing({ name: "", trigger: "manual", steps: [{ delay_hours: 0, subject: "", body_text: "", channel: "auto" }] });
   }
 
   async function openEdit(id: string) {
@@ -216,7 +245,15 @@ export default function Sequences() {
             <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-4 shadow-sm">
               <div className="min-w-0">
                 <div className="font-medium">{s.name}</div>
-                <div className="text-xs text-neutral-500">{s.step_count} step{s.step_count === 1 ? "" : "s"} · {s.active_count} active · trigger: {s.trigger}</div>
+                <div className="text-xs text-neutral-500">
+                  {s.step_count} step{s.step_count === 1 ? "" : "s"} · {s.active_count} active ·{" "}
+                  {triggers.find((t) => t.value === s.trigger)?.label ?? s.trigger}
+                </div>
+                {/* Outcomes, not just activity — a sequence earns its place by booking jobs. */}
+                <div className="mt-1 text-xs text-neutral-400">
+                  {s.enrolled_count ?? 0} enrolled · {s.sent_count ?? 0} sent · {s.replied_count ?? 0} replied ·{" "}
+                  <span className={s.booked_count ? "font-medium text-emerald-600" : ""}>{s.booked_count ?? 0} booked</span>
+                </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button onClick={() => toggle(s)} className={`min-h-[44px] rounded-md px-3 text-sm ${s.status === "active" ? "bg-green-100 text-green-800" : "bg-neutral-200 text-neutral-700"}`}>{s.status === "active" ? "Active" : "Draft"}</button>
@@ -235,10 +272,12 @@ export default function Sequences() {
             <h2 className="mb-3 text-lg font-semibold">{editing.id ? "Edit sequence" : "New sequence"}</h2>
             <input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} placeholder="Sequence name" className="mb-2 min-h-[44px] w-full rounded-md border border-neutral-300 px-3 text-sm" />
             <label className="mb-1 block text-xs text-neutral-500">Trigger</label>
-            <select value={editing.trigger} onChange={(e) => setEditing({ ...editing, trigger: e.target.value })} className="mb-4 min-h-[44px] w-full rounded-md border border-neutral-300 px-2 text-sm">
-              <option value="manual">Manual (you enroll people)</option>
-              <option value="stage:new">Automatic — every new lead</option>
+            <select value={editing.trigger} onChange={(e) => setEditing({ ...editing, trigger: e.target.value })} className="mb-1 min-h-[44px] w-full rounded-md border border-neutral-300 px-2 text-sm">
+              {triggers.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
+            <p className="mb-4 text-xs text-neutral-400">
+              A contact is only ever in one sequence at a time — if two apply, the higher-priority one wins.
+            </p>
 
             <div className="space-y-3">
               {editing.steps.map((st, i) => (
@@ -249,8 +288,17 @@ export default function Sequences() {
                   </div>
                   <label className="text-xs text-neutral-500">Send after (hours{i === 0 ? " from enrollment" : " from previous step"})</label>
                   <input type="number" min={0} value={st.delay_hours} onChange={(e) => { const steps = [...editing.steps]; steps[i] = { ...st, delay_hours: Number(e.target.value) }; setEditing({ ...editing, steps }); }} className="mb-2 min-h-[44px] w-full rounded-md border border-neutral-300 px-3 text-sm" />
-                  <input value={st.subject} onChange={(e) => { const steps = [...editing.steps]; steps[i] = { ...st, subject: e.target.value }; setEditing({ ...editing, steps }); }} placeholder="Subject" className="mb-2 min-h-[44px] w-full rounded-md border border-neutral-300 px-3 text-sm" />
+                  <label className="text-xs text-neutral-500">Channel</label>
+                  <select value={st.channel ?? "auto"} onChange={(e) => { const steps = [...editing.steps]; steps[i] = { ...st, channel: e.target.value }; setEditing({ ...editing, steps }); }} className="mb-2 min-h-[44px] w-full rounded-md border border-neutral-300 px-2 text-sm">
+                    {CHANNEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                  <input value={st.subject} onChange={(e) => { const steps = [...editing.steps]; steps[i] = { ...st, subject: e.target.value }; setEditing({ ...editing, steps }); }} placeholder="Subject (email only — texts send the message body)" className="mb-2 min-h-[44px] w-full rounded-md border border-neutral-300 px-3 text-sm" />
                   <textarea value={st.body_text} onChange={(e) => { const steps = [...editing.steps]; steps[i] = { ...st, body_text: e.target.value }; setEditing({ ...editing, steps }); }} rows={3} placeholder="Message… use {first_name}" className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm" />
+                  {(st.channel ?? "auto") !== "email" && (
+                    <p className={`mt-1 text-xs ${st.body_text.length > 320 ? "text-amber-600" : "text-neutral-400"}`}>
+                      {st.body_text.length} characters as a text{st.body_text.length > 320 ? " — long for SMS, consider trimming" : ""}. "Reply STOP to opt out" is added automatically.
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

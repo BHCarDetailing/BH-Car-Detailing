@@ -8,7 +8,8 @@ import { verifyTwilioSignature } from "../lib/sms";
 import { handleInboundSms } from "../lib/inbound";
 import { timingSafeEqualStr } from "../lib/auth";
 import { buildIcs, type IcsJob } from "../lib/ics";
-import { enrollContact, unsubscribeContact, verifyUnsub } from "../lib/sequences";
+import { exitEnrollments, unsubscribeContact, verifyUnsub } from "../lib/sequences";
+import { fireTrigger } from "../lib/triggers";
 import { analyzeLead } from "../lib/ai";
 import { availableSlots, businessHours, slotEndIso, slotIsFree } from "../lib/booking";
 import { sendJobConfirmation } from "../lib/reminders";
@@ -255,10 +256,7 @@ publicRoutes.post("/lead", async (c) => {
   }
 
   // Auto-enroll brand-new leads into any active "stage:new" nurture sequence.
-  if (created) {
-    const seqs = await all<{ id: string }>(c.env.DB, "SELECT id FROM sequences WHERE status = 'active' AND trigger = 'stage:new'");
-    for (const s of seqs) await enrollContact(c.env, s.id, contactId);
-  }
+  if (created) await fireTrigger(c.env, "stage:new", contactId);
 
   // Lead intelligence (async, dormant without ANTHROPIC_API_KEY) — don't block the response.
   if (created && c.env.ANTHROPIC_API_KEY) {
@@ -336,6 +334,8 @@ publicRoutes.post("/book", async (c) => {
      VALUES (?,?,?, 'scheduled', ?, ?, ?, ?, ?)`,
     jobId, contactId, service, slot, slotEndIso(slot, cfg.slot_min), address, now, now);
   await logActivity(c.env.DB, { contactId, type: "job_scheduled", title: `Self-booked: ${service}`, payload: { job_id: jobId, scheduled_start: slot, source: "self-booking" } });
+  // They booked — that is what every sequence was trying to achieve. Stop them all.
+  await exitEnrollments(c.env, contactId, "booked");
   c.executionCtx.waitUntil(sendJobConfirmation(c.env, jobId).then(() => undefined));
   return c.json({ ok: true }, 200, h);
 });
@@ -457,6 +457,7 @@ publicRoutes.post("/quote/:token/accept", async (c) => {
   if (!job) return c.json({ error: "not_found" }, 404);
   if (!job.quote_accepted_at) {
     await run(c.env.DB, "UPDATE jobs SET quote_accepted_at = ?, updated_at = ? WHERE id = ?", nowIso(), nowIso(), job.id);
+    await exitEnrollments(c.env, job.contact_id as string, "booked");
     await logActivity(c.env.DB, {
       contactId: job.contact_id as string,
       type: "note",

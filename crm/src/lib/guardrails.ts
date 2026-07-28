@@ -21,6 +21,7 @@ export type BlockReason =
   | "do_not_contact"
   | "archived"
   | "no_phone"
+  | "no_email"
   | "recent_contact"
   | "awaiting_reply"
   | "quiet_hours"
@@ -49,9 +50,26 @@ export const inQuietHours = (env: Env, ms: number): boolean => {
 interface ContactGate {
   id: string;
   phone: string | null;
+  email: string | null;
+  email_opt_in: number;
   deleted_at: string | null;
   do_not_contact: number;
   sms_opted_out_at: string | null;
+}
+
+export interface SendOptions {
+  /**
+   * Suppress sends within this many days of our last outbound message.
+   * Pass null for sequences: their step delays *are* the intended cadence, so
+   * the anti-pile-on rule would block a sequence from ever reaching step 2.
+   */
+  recentContactDays?: number | null;
+  /**
+   * Which channel this send would use. Consent is per-channel: a customer who
+   * texted STOP has opted out of SMS, not of email, and an email-only contact
+   * with no phone is perfectly reachable.
+   */
+  channel?: "sms" | "email";
 }
 
 /**
@@ -60,27 +78,39 @@ interface ContactGate {
  * Checks run cheapest-and-most-absolute first: consent, then conversation
  * state, then timing, then volume.
  */
-export async function canSend(env: Env, contactId: string, nowMs: number): Promise<SendVerdict> {
+export async function canSend(
+  env: Env, contactId: string, nowMs: number, opts: SendOptions = {}
+): Promise<SendVerdict> {
+  const recentDays = opts.recentContactDays === undefined ? RECENT_CONTACT_DAYS : opts.recentContactDays;
+  const channel = opts.channel ?? "sms";
   const c = await one<ContactGate>(
     env.DB,
-    "SELECT id, phone, deleted_at, do_not_contact, sms_opted_out_at FROM contacts WHERE id = ?",
+    "SELECT id, phone, email, email_opt_in, deleted_at, do_not_contact, sms_opted_out_at FROM contacts WHERE id = ?",
     contactId
   );
   if (!c) return { ok: false, reason: "archived", detail: "Contact not found." };
   if (c.deleted_at) return { ok: false, reason: "archived", detail: "Contact is archived." };
-  if (c.sms_opted_out_at) return { ok: false, reason: "opted_out", detail: "Customer texted STOP." };
   if (Number(c.do_not_contact) === 1) return { ok: false, reason: "do_not_contact", detail: "Marked do-not-contact." };
-  if (!c.phone) return { ok: false, reason: "no_phone", detail: "No phone number on file." };
+
+  if (channel === "sms") {
+    if (c.sms_opted_out_at) return { ok: false, reason: "opted_out", detail: "Customer texted STOP." };
+    if (!c.phone) return { ok: false, reason: "no_phone", detail: "No phone number on file." };
+  } else {
+    if (Number(c.email_opt_in) === 0) return { ok: false, reason: "opted_out", detail: "Unsubscribed from email." };
+    if (!c.email) return { ok: false, reason: "no_email", detail: "No email address on file." };
+  }
 
   // Don't pile on: nothing automated within a week of our last message.
-  const since = new Date(nowMs - RECENT_CONTACT_DAYS * 86_400_000).toISOString();
-  const recent = await one<{ n: number }>(
-    env.DB,
-    "SELECT COUNT(*) AS n FROM messages WHERE contact_id = ? AND direction = 'outbound' AND created_at > ?",
-    contactId, since
-  );
-  if ((recent?.n ?? 0) > 0) {
-    return { ok: false, reason: "recent_contact", detail: `Already messaged in the last ${RECENT_CONTACT_DAYS} days.` };
+  if (recentDays != null) {
+    const since = new Date(nowMs - recentDays * 86_400_000).toISOString();
+    const recent = await one<{ n: number }>(
+      env.DB,
+      "SELECT COUNT(*) AS n FROM messages WHERE contact_id = ? AND direction = 'outbound' AND created_at > ?",
+      contactId, since
+    );
+    if ((recent?.n ?? 0) > 0) {
+      return { ok: false, reason: "recent_contact", detail: `Already messaged in the last ${recentDays} days.` };
+    }
   }
 
   // Never talk over a live conversation: if their last inbound is newer than

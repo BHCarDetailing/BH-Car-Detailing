@@ -116,6 +116,11 @@ jobRoutes.patch("/:id", async (c) => {
   if (typeof b.scheduled_start === "string" && b.scheduled_start && b.scheduled_start !== existing.scheduled_start) {
     await logActivity(c.env.DB, { contactId, type: "job_scheduled", title: `Job scheduled: ${existing.title}`, payload: { job_id: id, scheduled_start: b.scheduled_start }, actor });
   }
+  // Booked is what the sequences were chasing — stop nurturing a won customer.
+  if (b.status === "scheduled" && existing.status !== "scheduled") {
+    const { exitEnrollments } = await import("../lib/sequences");
+    await exitEnrollments(c.env, contactId, "booked");
+  }
   // Completion side-effects, all in one place: stamp completed_at, refresh the
   // contact's job count and lifetime value, and set when they're due back.
   // Idempotent — a second PATCH to 'completed' (or a flip to 'paid') is a no-op.

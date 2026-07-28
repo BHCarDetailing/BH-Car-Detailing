@@ -109,6 +109,15 @@ export async function onJobCompleted(
     payload: { job_id: jobId, next_due_at: nextDue, rebook_days: days },
     actor: "system",
   });
+
+  // A finished job is the moment to start post-job follow-up — and, on the
+  // third one, to ask for a referral from someone who clearly likes the work.
+  const { fireTrigger } = await import("./triggers");
+  const totals = await one<{ job_count: number }>(
+    env.DB, "SELECT job_count FROM contacts WHERE id = ?", job.contact_id);
+  if ((totals?.job_count ?? 0) >= 3) await fireTrigger(env, "job:completed:3", job.contact_id);
+  await fireTrigger(env, "job:completed", job.contact_id);
+
   return { status: "completed", next_due_at: nextDue };
 }
 
