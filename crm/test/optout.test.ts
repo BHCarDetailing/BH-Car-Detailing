@@ -50,16 +50,27 @@ describe("classifyInbound", () => {
 });
 
 describe("helpReply", () => {
-  it("names the business and never invents a support number", async () => {
+  it("carries no contact details of its own when none are configured", async () => {
+    // The number must always come from settings — a hard-coded one goes stale
+    // and gets texted to every customer who asks for help.
+    await run(env.DB, "DELETE FROM settings WHERE key = 'support_contact'");
     const reply = await helpReply(env);
     expect(reply).toContain("Reply STOP");
-    expect(reply).not.toMatch(/\(\d{3}\)/);   // no phone unless settings provide one
+    expect(reply).not.toMatch(/\(\d{3}\)/);
+    expect(reply).not.toMatch(/@/);
   });
 
-  it("includes the support contact once configured", async () => {
+  it("uses exactly what settings holds", async () => {
     await run(env.DB, "INSERT OR REPLACE INTO settings (key, value) VALUES ('support_contact', ?)", "help@example.com");
     expect(await helpReply(env)).toContain("help@example.com");
-    await run(env.DB, "DELETE FROM settings WHERE key = 'support_contact'");
+  });
+
+  it("ships with the published business details seeded", async () => {
+    // Migration 0015 seeds this so the carrier-required reply is correct on
+    // day one rather than waiting for someone to fill in a settings field.
+    const seeded = await one<{ value: string }>(env.DB, "SELECT value FROM settings WHERE key = 'support_contact'");
+    expect(seeded?.value).toBeTruthy();
+    expect(await helpReply(env)).toContain(seeded!.value);
   });
 });
 

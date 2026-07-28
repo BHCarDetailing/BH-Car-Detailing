@@ -105,6 +105,8 @@ export default function Settings() {
   const [hours, setHours] = useState(DEFAULT_HOURS);
   const [hoursNote, setHoursNote] = useState("");
   const [reviewUrl, setReviewUrl] = useState("");
+  const [supportContact, setSupportContact] = useState("");
+  const [supportNote, setSupportNote] = useState("");
   const [reviewAuto, setReviewAuto] = useState(false);
   const [reviewNote, setReviewNote] = useState("");
   const [mc, setMc] = useState({ enabled: true, forward: "", timeout: "20", body: "", cooldown: "4", notifyEnabled: true, notifyNumber: "" });
@@ -123,6 +125,7 @@ export default function Settings() {
         setFeedToken(r.settings.ics_feed_token ?? "");
         if (r.settings.business_hours) { try { setHours({ ...DEFAULT_HOURS, ...JSON.parse(r.settings.business_hours) }); } catch { /* keep default */ } }
         setReviewUrl(r.settings.review_url ?? "");
+        setSupportContact(r.settings.support_contact ?? "");
         setReviewAuto(r.settings.review_auto === "1");
         setMc({
           enabled: (r.settings.missed_call_enabled ?? "1") === "1",
@@ -164,6 +167,13 @@ export default function Settings() {
     setHoursNote("");
     try { await api("/api/settings", { method: "PUT", body: JSON.stringify({ key: "business_hours", value: JSON.stringify(hours) }) }); setHoursNote("Saved."); }
     catch { setHoursNote("Couldn't save — try again."); }
+  }
+  async function saveSupport() {
+    setSupportNote("");
+    try {
+      await api("/api/settings", { method: "PUT", body: JSON.stringify({ key: "support_contact", value: supportContact.trim() }) });
+      setSupportNote("Saved.");
+    } catch { setSupportNote("Couldn't save — try again."); }
   }
   async function saveReview() {
     setReviewNote("");
@@ -407,6 +417,25 @@ export default function Settings() {
           <p className="mb-2 text-xs text-neutral-500">Paste this HTML where you want the booking form to appear on bhcardetails.com.</p>
           <textarea readOnly value={embedCode} rows={4} onFocus={(e) => e.currentTarget.select()} className="w-full rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2 font-mono text-xs" />
           <button onClick={() => copyText("embed", embedCode)} className="mt-2 min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">{copiedKey === "embed" ? "Copied!" : "Copy embed code"}</button>
+        </section>
+
+        <section className="rounded-xl bg-white p-5 shadow-sm">
+          <h2 className="mb-2 font-medium">Support contact (required for texting)</h2>
+          <p className="mb-3 text-sm text-neutral-500">
+            When someone texts HELP, carriers require an automatic reply naming your business and how to
+            reach a human. This is what goes in that reply — keep it accurate, it is checked during A2P review.
+          </p>
+          <input value={supportContact} onChange={(e) => setSupportContact(e.target.value)}
+            placeholder="(917) 783-1038 or info@bhcardetails.com"
+            className="mb-2 min-h-[44px] w-full rounded-md border border-neutral-300 px-3 text-sm" />
+          <p className="mb-3 text-xs text-neutral-500">
+            Preview: “BH Car Detailing — mobile detailing. {supportContact.trim() ? `Support: ${supportContact.trim()}. ` : ""}
+            Msg &amp; data rates may apply. Reply STOP to unsubscribe.”
+          </p>
+          <div className="flex items-center gap-3">
+            <button onClick={saveSupport} className="min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">Save</button>
+            {supportNote && <span className="text-xs text-neutral-500">{supportNote}</span>}
+          </div>
         </section>
 
         <section className="rounded-xl bg-white p-5 shadow-sm">
