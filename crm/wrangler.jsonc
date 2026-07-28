@@ -8,7 +8,9 @@
     "run_worker_first": ["/api/*", "/u/*"]
   },
   "compatibility_date": "2026-07-01",
-  "triggers": { "crons": ["*/5 * * * *"] },
+  // */5 — appointment reminders + due sequence steps.
+  // 0 13 UTC = 9am ET — the daily rebook pass that builds the due-this-week worklist.
+  "triggers": { "crons": ["*/5 * * * *", "0 13 * * *"] },
   "d1_databases": [
     {
       "binding": "DB",

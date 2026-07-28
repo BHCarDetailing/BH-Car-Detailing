@@ -34,7 +34,7 @@ export async function sendReviewRequest(env: Env, jobId: string): Promise<{ stat
   const name = contact.first_name || "there";
   const text = `Hi ${name}, thanks for choosing BH Car Detailing! If we did a great job, a quick review means the world: ${url}`;
 
-  if (contact.phone) await sendSms(env, { contactId: contact.id, toPhone: contact.phone, body: text });
+  if (contact.phone) await sendSms(env, { contactId: contact.id, toPhone: contact.phone, body: text, kind: "review" });
   if (contact.email) {
     await sendEmail(env, {
       contactId: contact.id, jobId: job.id, kind: "oneoff", toEmail: contact.email,
@@ -42,6 +42,7 @@ export async function sendReviewRequest(env: Env, jobId: string): Promise<{ stat
       html: `<p>Hi ${name},</p><p>Thanks for choosing BH Car Detailing! If we did a great job, a quick review means the world: <a href="${url}">${url}</a></p>`,
     });
   }
+  await run(env.DB, "UPDATE jobs SET review_requested_at = COALESCE(review_requested_at, ?) WHERE id = ?", nowIso(), job.id);
   await logActivity(env.DB, { contactId: contact.id, type: "note", title: "Review requested", payload: { job_id: job.id }, actor: "system" });
   return { status: "sent" };
 }

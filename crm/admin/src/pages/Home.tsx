@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader, BrandLogo, Skeleton } from "../components/ui";
 import { UpdateComposer, UpdateFeed, type UpdateRow } from "../components/UpdatesFeed";
+import DueThisWeek from "../components/DueThisWeek";
 import { useCollection, type Row } from "../lib/collections";
 
 interface Task extends Row { bucket: string; status: string; progress: number }
@@ -54,6 +55,9 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* The worklist comes before everything else — this is the page's job. */}
+      <DueThisWeek />
 
       {/* Quick stats */}
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">

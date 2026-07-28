@@ -5,6 +5,7 @@ import { all, nowIso, one, run, uuid } from "../lib/db";
 import { cleanName, normalizeEmail, normalizePhone, vehicleSizeClass } from "../lib/normalize";
 import { logActivity } from "../lib/activity";
 import { verifyTwilioSignature } from "../lib/sms";
+import { handleInboundSms } from "../lib/inbound";
 import { timingSafeEqualStr } from "../lib/auth";
 import { buildIcs, type IcsJob } from "../lib/ics";
 import { enrollContact, unsubscribeContact, verifyUnsub } from "../lib/sequences";
@@ -484,30 +485,9 @@ publicRoutes.post("/twilio/inbound", async (c) => {
   const body = typeof params.Body === "string" ? params.Body : "";
   if (!from) return c.text("<Response></Response>", 200, { "Content-Type": "text/xml" });
 
-  let contact = await one<{ id: string }>(c.env.DB, "SELECT id FROM contacts WHERE phone = ?", from);
-  if (!contact) {
-    const id = uuid();
-    const now = nowIso();
-    await run(
-      c.env.DB,
-      `INSERT INTO contacts (id, phone, stage, source, created_at, updated_at)
-       VALUES (?,?, 'new', 'sms-inbound', ?, ?)`,
-      id, from, now, now
-    );
-    contact = { id };
-  }
-
-  const now = nowIso();
-  await run(
-    c.env.DB,
-    `INSERT INTO messages (id, contact_id, kind, body_text, provider_id, status, created_at, sent_at, channel, direction, from_addr, to_addr)
-     VALUES (?,?, 'sms', ?, ?, 'delivered', ?, ?, 'sms', 'inbound', ?, ?)`,
-    uuid(), contact.id, body, params.MessageSid ?? null, now, now, from, params.To ?? null
-  );
-  await run(c.env.DB, "UPDATE contacts SET replied_flag = 1 WHERE id = ?", contact.id);
-  await logActivity(c.env.DB, {
-    contactId: contact.id, type: "sms_logged", title: `Reply: ${body.slice(0, 80)}`,
-    payload: { direction: "inbound", message_sid: params.MessageSid ?? null }, actor: "system",
+  // Logging, STOP/HELP/START, and sequence-pausing all live in lib/inbound.ts.
+  await handleInboundSms(c.env, {
+    from, body, messageSid: params.MessageSid ?? null, to: params.To ?? null,
   });
 
   return c.text("<Response></Response>", 200, { "Content-Type": "text/xml" });

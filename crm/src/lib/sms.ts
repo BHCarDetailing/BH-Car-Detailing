@@ -38,6 +38,12 @@ export interface OutgoingSms {
   contactId?: string;
   toPhone: string;
   body: string;
+  /**
+   * What produced this message. Automated kinds ('rebook', 'reminder',
+   * 'review', ...) are what the daily send cap counts; plain 'sms' is a human
+   * typing in the inbox and is never capped.
+   */
+  kind?: string;
 }
 
 /**
@@ -52,7 +58,7 @@ export async function sendSms(env: Env, msg: OutgoingSms): Promise<{ id: string;
     run(env.DB,
       `INSERT INTO messages (id, contact_id, kind, body_text, provider_id, status, error, created_at, sent_at, channel, direction, from_addr, to_addr)
        VALUES (?,?,?,?,?,?,?,?,?, 'sms', 'outbound', ?, ?)`,
-      id, msg.contactId ?? null, "sms", msg.body, providerId, status, error, now, sentAt, from, msg.toPhone);
+      id, msg.contactId ?? null, msg.kind ?? "sms", msg.body, providerId, status, error, now, sentAt, from, msg.toPhone);
 
   const configured = env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && (env.TWILIO_MESSAGING_SERVICE_SID || env.TWILIO_FROM_NUMBER);
   if (!configured) {

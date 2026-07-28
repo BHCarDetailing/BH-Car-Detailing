@@ -2,10 +2,9 @@ import type { Env } from "../types";
 import { all, nowIso, one, run, uuid } from "./db";
 import { logActivity } from "./activity";
 import { sendEmail } from "./email";
+import { QUIET_END, QUIET_START, localHour } from "./guardrails";
 
 const enc = new TextEncoder();
-const QUIET_START = 9;  // local hour sends are allowed from
-const QUIET_END = 20;   // ...until (exclusive)
 
 async function hmacHex(secret: string, data: string): Promise<string> {
   const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
@@ -23,11 +22,6 @@ export async function verifyUnsub(secret: string, contactId: string, sig: string
   let diff = 0;
   for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ sig.charCodeAt(i);
   return diff === 0;
-}
-
-function localHour(env: Env, ms: number): number {
-  const s = new Intl.DateTimeFormat("en-US", { timeZone: env.HOME_TZ, hour: "2-digit", hour12: false }).format(new Date(ms));
-  return parseInt(s, 10) % 24;
 }
 
 /** Delay from `fromMs`, then shift into the quiet-hours window (local HOME_TZ). */

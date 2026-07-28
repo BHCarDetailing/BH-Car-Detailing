@@ -15,8 +15,10 @@ import { serviceRoutes } from "./routes/services";
 import { collectionRoutes } from "./routes/collections";
 import { mediaRoutes } from "./routes/media";
 import { emailRoutes } from "./routes/email";
+import { rebookRoutes } from "./routes/rebook";
 import { runReminders } from "./lib/reminders";
 import { runSequences } from "./lib/sequences";
+import { runRebook } from "./lib/rebook";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -39,13 +41,17 @@ app.route("/api/agent", agentRoutes);
 app.route("/api/c", collectionRoutes);           // generic operating-system collections
 app.route("/api/media", mediaRoutes);            // R2-backed content uploads
 app.route("/api/email", emailRoutes);            // one-click test email
+app.route("/api/rebook", rebookRoutes);          // due-this-week worklist + offers
 
 export default {
   fetch: app.fetch,
-  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(Promise.all([
-      runReminders(env, Date.now()),
-      runSequences(env, Date.now()),
-    ]).then(() => undefined));
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    const now = Date.now();
+    // The daily 9am-ET pass refreshes the rebook worklist; the 5-minute tick
+    // handles time-sensitive appointment reminders and due sequence steps.
+    const work = event.cron === "0 13 * * *"
+      ? [runRebook(env, now)]
+      : [runReminders(env, now), runSequences(env, now)];
+    ctx.waitUntil(Promise.all(work).then(() => undefined));
   },
 };

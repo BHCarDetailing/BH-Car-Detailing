@@ -116,6 +116,14 @@ jobRoutes.patch("/:id", async (c) => {
   if (typeof b.scheduled_start === "string" && b.scheduled_start && b.scheduled_start !== existing.scheduled_start) {
     await logActivity(c.env.DB, { contactId, type: "job_scheduled", title: `Job scheduled: ${existing.title}`, payload: { job_id: id, scheduled_start: b.scheduled_start }, actor });
   }
+  // Completion side-effects, all in one place: stamp completed_at, refresh the
+  // contact's job count and lifetime value, and set when they're due back.
+  // Idempotent — a second PATCH to 'completed' (or a flip to 'paid') is a no-op.
+  if ((b.status === "completed" || b.status === "paid") && existing.status !== "completed" && existing.status !== "paid") {
+    const { onJobCompleted } = await import("../lib/rebook");
+    await onJobCompleted(c.env, id);
+  }
+
   // Auto review request on completion (opt-in via settings.review_auto).
   if (b.status === "completed" && existing.status !== "completed") {
     const auto = await one<{ value: string }>(c.env.DB, "SELECT value FROM settings WHERE key = 'review_auto'");
