@@ -29,6 +29,7 @@ interface Service {
 }
 
 interface VehicleTypeOption { value: string; label: string; bucket: string; note?: string }
+interface TaxConfig { tax_enabled: boolean; tax_rate: number; tax_label: string }
 
 type Step = "vehicle" | "area" | "level" | "services" | "summary" | "customer" | "deposit" | "done";
 
@@ -118,6 +119,7 @@ function ChoiceCard({ label, hint, selected, onClick }: {
 export default function QuoteBuilder() {
   const [services, setServices] = useState<Service[]>([]);
   const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeOption[]>([]);
+  const [taxCfg, setTaxCfg] = useState<TaxConfig>({ tax_enabled: false, tax_rate: 0, tax_label: "Sales tax" });
   const [loading, setLoading] = useState(true);
   const [d, setD] = useState<Draft>(BLANK);
   const [busy, setBusy] = useState(false);
@@ -133,8 +135,12 @@ export default function QuoteBuilder() {
     Promise.all([
       api<{ items: Service[] }>("/api/services?active=1"),
       api<{ vehicle_types: VehicleTypeOption[] }>("/api/services/vocab"),
+      api<TaxConfig>("/api/quote-builder/config").catch(() => null),
     ])
-      .then(([s, v]) => { setServices(s.items); setVehicleTypes(v.vehicle_types); })
+      .then(([s, v, cfg]) => {
+        setServices(s.items); setVehicleTypes(v.vehicle_types);
+        if (cfg) setTaxCfg(cfg);
+      })
       .catch(() => toast({ message: "Could not load the service menu.", tone: "error" }))
       .finally(() => setLoading(false));
 
@@ -194,8 +200,12 @@ export default function QuoteBuilder() {
   }, [primary, chosenAddons, bucket]);
 
   const overrideCents = Math.round(Number(d.overrideDollars) * 100);
-  const finalTotal = d.overrideDollars.trim() && Number.isFinite(overrideCents) && overrideCents > 0
+  // An override replaces the pre-tax subtotal, matching what the server does.
+  const subtotal = d.overrideDollars.trim() && Number.isFinite(overrideCents) && overrideCents > 0
     ? overrideCents : computed.total;
+  const taxCents = taxCfg.tax_enabled && taxCfg.tax_rate > 0 && subtotal > 0
+    ? Math.round((subtotal * taxCfg.tax_rate) / 100) : 0;
+  const finalTotal = subtotal + taxCents;
 
   // --- submit: creates contact, vehicle, job, consent in one call ---
   async function submitQuote() {
@@ -475,7 +485,19 @@ export default function QuoteBuilder() {
                 <span className="text-neutral-600">{money(priceFor(a, bucket))}</span>
               </div>
             ))}
-            <div className="mt-3 flex items-baseline justify-between border-t border-neutral-100 pt-3">
+            {taxCents > 0 && (
+              <>
+                <div className="mt-3 flex justify-between border-t border-neutral-100 pt-3 text-sm">
+                  <span className="text-neutral-500">Subtotal</span>
+                  <span className="text-neutral-600">{money(subtotal)}</span>
+                </div>
+                <div className="flex justify-between py-1.5 text-sm">
+                  <span className="text-neutral-500">{taxCfg.tax_label} ({taxCfg.tax_rate}%)</span>
+                  <span className="text-neutral-600">{money(taxCents)}</span>
+                </div>
+              </>
+            )}
+            <div className={`mt-3 flex items-baseline justify-between pt-3 ${taxCents > 0 ? "" : "border-t border-neutral-100"}`}>
               <span className="font-semibold text-neutral-900">Total</span>
               <span className="text-2xl font-bold text-neutral-900">{money(finalTotal)}</span>
             </div>
@@ -483,7 +505,9 @@ export default function QuoteBuilder() {
           </div>
 
           <div className="mt-4">
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Override the price (optional)</label>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">
+              Override the price{taxCents > 0 ? " before tax" : ""} (optional)
+            </label>
             <Input inputMode="decimal" placeholder={`${(computed.total / 100).toFixed(0)}`}
               value={d.overrideDollars} onChange={(e) => set({ overrideDollars: e.target.value })} />
             <label className="mb-1 mt-3 block text-xs font-medium text-neutral-600">Vehicle note (optional)</label>

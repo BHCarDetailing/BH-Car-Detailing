@@ -10,6 +10,9 @@ interface QuoteData {
   accepted: boolean;
   items: QuoteItem[];
   total_cents: number;
+  tax_cents: number;
+  tax_label: string | null;
+  subtotal_cents: number;
   notes: string | null;
   created_at: string;
   payments_enabled: boolean;
@@ -89,7 +92,20 @@ export default function Quote() {
             ))}
           </ul>
 
-          <div className="mt-4 flex items-center justify-between border-t pt-4">
+          {data.tax_cents > 0 && (
+            <div className="mt-4 space-y-1.5 border-t pt-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-neutral-500">Subtotal</span>
+                <span className="text-neutral-600">{money(data.subtotal_cents)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-neutral-500">{data.tax_label ?? "Sales tax"}</span>
+                <span className="text-neutral-600">{money(data.tax_cents)}</span>
+              </div>
+            </div>
+          )}
+
+          <div className={`mt-4 flex items-center justify-between pt-4 ${data.tax_cents > 0 ? "" : "border-t"}`}>
             <span className="font-medium text-neutral-600">Total</span>
             <span className="text-2xl font-bold text-neutral-900">{money(data.total_cents)}</span>
           </div>

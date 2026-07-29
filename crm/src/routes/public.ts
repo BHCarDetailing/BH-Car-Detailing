@@ -15,6 +15,7 @@ import { availableSlots, businessHours, slotEndIso, slotIsFree } from "../lib/bo
 import { sendJobConfirmation } from "../lib/reminders";
 import { buildVoiceTwiml, handleMissedCall, loadMissedCallSettings } from "../lib/missedcall";
 import { createCheckoutSession, depositForTotal, loadPaymentSettings, stripeConfigured, verifyStripeWebhook } from "../lib/stripe";
+import { loadTaxSettings } from "../lib/tax";
 
 export const publicRoutes = new Hono<{ Bindings: Env }>();
 
@@ -367,6 +368,8 @@ publicRoutes.get("/quote/:token", async (c) => {
   let items: unknown[] = [];
   try { items = JSON.parse((job.services as string) || "[]"); } catch { items = []; }
   const total = (job.price_cents as number) ?? 0;
+  const taxCents = (job.tax_cents as number) ?? 0;
+  const taxLabel = taxCents > 0 ? (await loadTaxSettings(c.env)).label : null;
   const pay = await loadPaymentSettings(c.env);
   const paymentsLive = stripeConfigured(c.env) && pay.enabled;
   const amountPaid = (job.amount_paid_cents as number) ?? 0;
@@ -378,6 +381,10 @@ publicRoutes.get("/quote/:token", async (c) => {
     accepted: !!job.quote_accepted_at,
     items,
     total_cents: total,
+    // Tax is already inside total_cents; these let the page show the split.
+    tax_cents: taxCents,
+    tax_label: taxLabel,
+    subtotal_cents: total - taxCents,
     notes: job.notes ?? null,
     created_at: job.created_at,
     payments_enabled: paymentsLive,

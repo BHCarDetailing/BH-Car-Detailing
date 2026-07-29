@@ -56,6 +56,13 @@ describe("priceLines", () => {
     expect(r.items[1].is_addon).toBe(true);
   });
 
+  it("writes price_cents per unit, the key the shareable quote page reads", () => {
+    const r = priceLines(services, [{ service_id: "full", qty: 2 }], "sedan");
+    expect(r.items[0].price_cents).toBe(25000);   // per unit, not the line total
+    expect(r.items[0].qty).toBe(2);
+    expect(r.total_cents).toBe(50000);
+  });
+
   it("never sells an unpriced add-on as free", () => {
     const r = priceLines(services, [{ service_id: "full", qty: 1 }, { service_id: "unpriced", qty: 1 }], "sedan");
     expect(r.items).toHaveLength(1);

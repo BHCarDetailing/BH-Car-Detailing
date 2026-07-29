@@ -146,6 +146,8 @@ export default function Settings() {
   const [mcNote, setMcNote] = useState("");
   const [pay, setPay] = useState({ enabled: true, percent: "25", allowFull: true, ach: false });
   const [payNote, setPayNote] = useState("");
+  const [tax, setTax] = useState({ enabled: false, rate: "7", label: "Sales tax" });
+  const [taxNote, setTaxNote] = useState("");
   const [integrations, setIntegrations] = useState<{ stripe?: boolean; stripe_webhook?: boolean }>({});
 
   function loadLabels() { api<{ items: Label[] }>("/api/labels").then((r) => setLabels(r.items)).catch(() => {}); }
@@ -175,11 +177,34 @@ export default function Settings() {
           allowFull: (r.settings.deposit_allow_full ?? "1") === "1",
           ach: (r.settings.payments_ach ?? "0") === "1",
         });
+        setTax({
+          enabled: (r.settings.tax_enabled ?? "0") === "1",
+          rate: r.settings.tax_rate ?? "7",
+          label: r.settings.tax_label ?? "Sales tax",
+        });
       })
       .catch(() => setTemplate(DEFAULT_TEMPLATE));
     loadLabels();
     api<{ stripe: boolean; stripe_webhook: boolean }>("/api/settings/integrations").then(setIntegrations).catch(() => {});
   }, []);
+
+  async function saveTax() {
+    setTaxNote("");
+    const rate = Number(tax.rate);
+    if (tax.enabled && (!Number.isFinite(rate) || rate <= 0 || rate > 100)) {
+      setTaxNote("Enter a rate between 0 and 100.");
+      return;
+    }
+    const pairs: Array<[string, string]> = [
+      ["tax_enabled", tax.enabled ? "1" : "0"],
+      ["tax_rate", String(Number.isFinite(rate) ? rate : 0)],
+      ["tax_label", tax.label.trim() || "Sales tax"],
+    ];
+    try {
+      for (const [key, value] of pairs) await api("/api/settings", { method: "PUT", body: JSON.stringify({ key, value }) });
+      setTaxNote("Saved.");
+    } catch { setTaxNote("Couldn't save — try again."); }
+  }
 
   async function savePayments() {
     setPayNote("");
@@ -295,6 +320,37 @@ export default function Settings() {
         </Link>
 
         <ServicesManager />
+
+        {/* Off by default: Florida does not tax most detailing labour, so
+            charging it by mistake is worse than not offering it. */}
+        <section className="rounded-xl bg-white p-5 shadow-sm">
+          <h2 className="mb-2 font-medium">Sales tax</h2>
+          <p className="mb-3 text-sm text-neutral-500">
+            Adds a tax line to quotes built in the Quote Builder. Off unless you turn it on — check with your
+            accountant whether your services are taxable before you do.
+          </p>
+          <label className="mb-3 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={tax.enabled} onChange={(e) => setTax({ ...tax, enabled: e.target.checked })} />
+            Charge sales tax on new quotes
+          </label>
+          <div className="mb-3 grid grid-cols-2 gap-3">
+            <label className="text-xs text-neutral-500">Rate (%)
+              <input inputMode="decimal" value={tax.rate} onChange={(e) => setTax({ ...tax, rate: e.target.value })}
+                placeholder="7" className="mt-0.5 min-h-[44px] w-full rounded-md border border-neutral-300 px-2 text-sm" />
+            </label>
+            <label className="text-xs text-neutral-500">Label on the quote
+              <input value={tax.label} onChange={(e) => setTax({ ...tax, label: e.target.value })}
+                placeholder="Sales tax" className="mt-0.5 min-h-[44px] w-full rounded-md border border-neutral-300 px-2 text-sm" />
+            </label>
+          </div>
+          <p className="mb-3 text-xs text-neutral-400">
+            Applies to quotes created from now on. Existing quotes and jobs keep the price they were saved with.
+          </p>
+          <div className="flex items-center gap-3">
+            <button onClick={saveTax} className="min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">Save</button>
+            {taxNote && <span className="text-sm text-neutral-500">{taxNote}</span>}
+          </div>
+        </section>
 
         <section className="rounded-xl bg-white p-5 shadow-sm">
           <div className="mb-2 flex items-center justify-between">

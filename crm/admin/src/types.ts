@@ -150,8 +150,17 @@ export interface Stats {
   revenue?: Revenue;
 }
 
+/**
+ * Whole dollars when the amount is round, cents when it is not — a tax line of
+ * $19.95 must never be shown to a customer as $20.
+ */
 export function money(cents: number): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format((cents || 0) / 100);
+  const v = (cents || 0) / 100;
+  const fraction = Math.abs(cents || 0) % 100 === 0 ? 0 : 2;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency", currency: "USD",
+    minimumFractionDigits: fraction, maximumFractionDigits: fraction,
+  }).format(v);
 }
 
 export function fullName(c: Pick<Contact, "first_name" | "last_name">): string {

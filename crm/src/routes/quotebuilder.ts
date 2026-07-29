@@ -20,6 +20,7 @@ import { bucketFor, priceFor, vehicleType } from "../lib/vehicles";
 import { exitEnrollments } from "../lib/sequences";
 import { slotEndIso } from "../lib/booking";
 import { depositForTotal, loadPaymentSettings } from "../lib/stripe";
+import { loadTaxSettings, taxOn } from "../lib/tax";
 
 export const quoteBuilderRoutes = new Hono<{ Bindings: Env }>();
 quoteBuilderRoutes.use("*", requireAuth());
@@ -72,13 +73,24 @@ export function priceLines(
     if (unit <= 0) continue;
     total += unit * qty;
     duration += (svc.duration_min ?? 0) * qty;
+    // price_cents is the per-unit price — the same key the shareable quote page
+    // and the existing contact quote builder already read.
     items.push({
       service_id: svc.id, name: svc.name, qty,
-      unit_price_cents: unit, size_class: bucket, is_addon: Number(svc.is_addon) === 1,
+      price_cents: unit, size_class: bucket, is_addon: Number(svc.is_addon) === 1,
     });
   }
   return { items, total_cents: total, duration_min: duration, bucket };
 }
+
+/** Tax and deposit settings, so the wizard can show the real total before saving. */
+quoteBuilderRoutes.get("/config", async (c) => {
+  const [tax, pay] = await Promise.all([loadTaxSettings(c.env), loadPaymentSettings(c.env)]);
+  return c.json({
+    tax_enabled: tax.enabled, tax_rate: tax.rate, tax_label: tax.label,
+    deposit_percent: pay.percent,
+  });
+});
 
 quoteBuilderRoutes.post("/complete", async (c) => {
   const b = ((await c.req.json().catch(() => null)) ?? {}) as CompleteBody;
@@ -107,8 +119,13 @@ quoteBuilderRoutes.post("/complete", async (c) => {
   const priced = priceLines(services, rawLines, vt);
   if (!priced.items.length) return c.json({ error: "no_priced_services" }, 400);
 
+  // An override replaces the pre-tax subtotal — Max types the price he quoted
+  // out loud, and tax (if any) is added on top of it.
   const override = Number(b.price_override_cents);
-  const total = Number.isFinite(override) && override > 0 ? Math.round(override) : priced.total_cents;
+  const subtotal = Number.isFinite(override) && override > 0 ? Math.round(override) : priced.total_cents;
+  const tax = await loadTaxSettings(c.env);
+  const taxCents = taxOn(subtotal, tax);
+  const total = subtotal + taxCents;
 
   const now = nowIso();
   const first = cleanName(typeof b.first_name === "string" ? b.first_name : undefined);
@@ -173,10 +190,10 @@ quoteBuilderRoutes.post("/complete", async (c) => {
   const jobId = uuid();
   await run(
     c.env.DB,
-    `INSERT INTO jobs (id, contact_id, vehicle_id, title, services, price_cents, status,
+    `INSERT INTO jobs (id, contact_id, vehicle_id, title, services, price_cents, tax_cents, status,
                        scheduled_start, scheduled_end, address, notes, created_at, updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    jobId, contactId, vehicleId, title, JSON.stringify(priced.items), total,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    jobId, contactId, vehicleId, title, JSON.stringify(priced.items), total, taxCents,
     start ? "scheduled" : "quoted",
     start, start ? slotEndIso(start, Math.max(60, priced.duration_min || 120)) : null,
     [address, city, zip].filter(Boolean).join(", ") || null,
@@ -230,6 +247,10 @@ quoteBuilderRoutes.post("/complete", async (c) => {
     created_contact: createdContact,
     vehicle_id: vehicleId,
     job_id: jobId,
+    subtotal_cents: subtotal,
+    tax_cents: taxCents,
+    tax_label: tax.label,
+    tax_rate: tax.rate,
     total_cents: total,
     deposit_cents: depositCents,
     deposit_percent: pay.percent,
