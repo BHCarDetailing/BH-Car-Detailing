@@ -114,7 +114,10 @@ export default function Kpi() {
         </div>
       )}
 
-      <Modal open={open} onClose={() => setOpen(false)} title={editing ? "Edit KPI" : "Add KPI"} size="sm"
+      <Modal open={open} onClose={() => setOpen(false)}
+        // Tapping away keeps an edit; a half-filled new KPI is discarded.
+        onDismiss={editing ? () => { void save(); } : () => setOpen(false)}
+        title={editing ? "Edit KPI" : "Add KPI"} size="sm"
         footer={<><Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} disabled={busy}>{busy ? "Saving…" : editing ? "Save" : "Add"}</Button></>}>
         <div className="space-y-3">
           <Field label="Metric"><Input value={form.label} autoFocus onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder="e.g. Jobs completed" /></Field>

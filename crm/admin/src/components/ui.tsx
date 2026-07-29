@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import { fmtDate, fmtDateTime, relTime } from "../lib/datetime";
 
 /* Reusable, premium UI primitives shared by every operating-system page.
@@ -37,10 +38,41 @@ export function Tag({ color = "neutral", children }: { color?: string; children:
   );
 }
 
-export function PageHeader({ title, subtitle, action, eyebrow }: { title: string; subtitle?: string; action?: ReactNode; eyebrow?: string }) {
+/**
+ * Back out of a drill-down.
+ *
+ * Falls back to an explicit destination when there is no history to pop —
+ * opening a contact link directly, or launching the installed app onto a deep
+ * screen, must never leave someone stranded with no way back.
+ */
+export function BackLink({ to, label = "Back" }: { to: string; label?: string }) {
+  const navigate = useNavigate();
+  const goBack = () => {
+    if (window.history.length > 1) navigate(-1);
+    else navigate(to);
+  };
+  return (
+    <button
+      onClick={goBack}
+      className="-ml-2 mb-2 inline-flex min-h-[44px] items-center gap-1 rounded-lg px-2 text-sm font-medium text-chrome-400 transition hover:text-graphite-950"
+    >
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M15 18l-6-6 6-6" />
+      </svg>
+      {label}
+    </button>
+  );
+}
+
+export function PageHeader({ title, subtitle, action, eyebrow, back }: {
+  title: string; subtitle?: string; action?: ReactNode; eyebrow?: string;
+  /** Where "Back" goes when there is no history to pop. */
+  back?: { to: string; label?: string };
+}) {
   return (
     <div className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
+        {back && <BackLink to={back.to} label={back.label} />}
         {eyebrow && (
           <div className="mb-1.5 flex items-center gap-2">
             <span className="h-3 w-1 -skew-x-12 rounded-sm bg-red-600" />
@@ -75,30 +107,58 @@ export function Button({
   );
 }
 
-export function Modal({ open, onClose, title, children, footer, size = "md" }: {
-  open: boolean; onClose: () => void; title: string; children: ReactNode; footer?: ReactNode;
+/**
+ * A dialog that behaves like a sheet on a phone and a centred card on a desktop.
+ *
+ * Tapping the backdrop, pressing Escape or swiping the grabber all mean the same
+ * thing: "I'm done with this". When `onDismiss` is supplied that gesture SAVES
+ * rather than discards, because losing what you just typed because you tapped
+ * slightly off-target is the worse outcome.
+ */
+export function Modal({ open, onClose, onDismiss, title, children, footer, size = "md" }: {
+  open: boolean;
+  onClose: () => void;
+  /** Called instead of onClose when the sheet is dismissed by tapping away. */
+  onDismiss?: () => void;
+  title: string;
+  children: ReactNode;
+  footer?: ReactNode;
   size?: "sm" | "md" | "lg";
 }) {
+  const dismiss = onDismiss ?? onClose;
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") dismiss(); };
     window.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
     return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
-  }, [open, onClose]);
+  }, [open, dismiss]);
   if (!open) return null;
   const w = { sm: "max-w-sm", md: "max-w-lg", lg: "max-w-2xl" }[size];
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-neutral-900/50 p-4 backdrop-blur-sm sm:items-center" onMouseDown={onClose}>
-      <div className={`w-full ${w} rounded-2xl bg-white shadow-2xl`} onMouseDown={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4">
+    <div
+      className="safe-x fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-neutral-900/50 backdrop-blur-sm sm:items-center sm:p-4"
+      onMouseDown={dismiss}
+    >
+      <div
+        className={`w-full ${w} max-h-[90vh] overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:max-h-none sm:rounded-2xl`}
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        onMouseDown={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
+        {/* Grabber: the standard "this sheet closes downwards" affordance. */}
+        <div className="flex justify-center pt-2 sm:hidden">
+          <span className="h-1 w-10 rounded-full bg-neutral-200" />
+        </div>
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-neutral-100 bg-white px-5 py-3.5">
           <h2 className="text-base font-semibold text-neutral-900">{title}</h2>
-          <button onClick={onClose} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700">
+          <button onClick={dismiss} aria-label="Close" className="-mr-2 grid h-11 w-11 place-items-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>
         <div className="px-5 py-4">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-neutral-100 px-5 py-3">{footer}</div>}
+        {footer && <div className="sticky bottom-0 flex justify-end gap-2 border-t border-neutral-100 bg-white px-5 py-3">{footer}</div>}
       </div>
     </div>
   );

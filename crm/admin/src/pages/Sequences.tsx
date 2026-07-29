@@ -268,7 +268,7 @@ export default function Sequences() {
 
       {editing && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 md:items-center" onClick={() => setEditing(null)}>
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-5 md:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="safe-sheet max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-5 md:rounded-2xl" onClick={(e) => e.stopPropagation()}>
             <h2 className="mb-3 text-lg font-semibold">{editing.id ? "Edit sequence" : "New sequence"}</h2>
             <input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} placeholder="Sequence name" className="mb-2 min-h-[44px] w-full rounded-md border border-neutral-300 px-3 text-sm" />
             <label className="mb-1 block text-xs text-neutral-500">Trigger</label>

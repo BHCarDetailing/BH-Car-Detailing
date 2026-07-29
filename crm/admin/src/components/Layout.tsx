@@ -184,9 +184,8 @@ export default function Layout() {
         <div className="fixed inset-0 z-50 md:hidden" onClick={() => setMobileOpen(false)}>
           <div className="absolute inset-0 bg-graphite-950/70 backdrop-blur-sm" />
           <aside
-            className={`absolute inset-y-0 left-0 flex w-80 max-w-[88%] flex-col shadow-2xl ${sidebarSurface}`}
+            className={`safe-top safe-bottom absolute inset-y-0 left-0 flex w-80 max-w-[88%] flex-col shadow-2xl ${sidebarSurface}`}
             onClick={(e) => e.stopPropagation()}
-            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           >
             <div className="flex items-center justify-between p-3">
               <Brand collapsed={false} />
@@ -228,7 +227,8 @@ export default function Layout() {
       <main className={`min-w-0 flex-1 md:pb-0 ${hideTabBar ? "" : "pb-[calc(5.5rem+env(safe-area-inset-bottom))]"}`}>
         {/* Mobile header: says where you are, and puts search one tap away
             instead of hiding it inside the menu. */}
-        <header className={`sticky top-0 z-30 flex h-12 items-center gap-2 border-b border-white/5 px-2 md:hidden ${sidebarSurface}`}>
+        <header className={`safe-top safe-x sticky top-0 z-30 flex h-12 items-center gap-2 border-b border-white/5 px-2 md:hidden ${sidebarSurface}`}
+          style={{ height: "calc(3rem + env(safe-area-inset-top))" }}>
           {hideTabBar ? (
             // The tab bar is hidden here, and the installed app has no browser
             // back button — so this is the only way out. It must always exist.

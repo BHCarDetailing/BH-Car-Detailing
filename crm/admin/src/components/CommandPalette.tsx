@@ -121,7 +121,7 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
     <OpenCtx.Provider value={openPalette}>
       {children}
       {open && enabled && (
-        <div className="fixed inset-0 z-[90] flex items-start justify-center bg-graphite-950/50 p-4 pt-[12vh] backdrop-blur-sm" onMouseDown={close}>
+        <div className="safe-screen fixed inset-0 z-[90] flex items-start justify-center bg-graphite-950/50 p-4 pt-[max(12vh,calc(env(safe-area-inset-top)+1rem))] backdrop-blur-sm" onMouseDown={close}>
           <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5"
             style={{ animation: "bh-pop-in 0.16s ease-out both" }} onMouseDown={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 border-b border-steel-100 px-4">

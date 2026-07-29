@@ -230,7 +230,11 @@ export default function Revenue() {
         </>
       )}
 
-      <Modal open={open} onClose={() => setOpen(false)} title={editingId ? "Edit revenue event" : "Add revenue event"}
+      <Modal open={open} onClose={() => setOpen(false)}
+        // Tapping away from an edit keeps the change; tapping away from a new,
+        // half-typed entry throws it away rather than filing a junk record.
+        onDismiss={editingId ? () => { void save(); } : () => setOpen(false)}
+        title={editingId ? "Edit revenue event" : "Add revenue event"}
         footer={<><Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} disabled={busy}>{busy ? "Saving…" : editingId ? "Save changes" : "Add event"}</Button></>}>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">

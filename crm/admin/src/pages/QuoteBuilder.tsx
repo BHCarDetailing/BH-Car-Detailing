@@ -309,7 +309,7 @@ export default function QuoteBuilder() {
     const cust = d.customer;
     const setCust = (k: string, v: string) => set({ customer: { ...cust, [k]: v } });
     return (
-      <div className="fixed inset-0 z-[100] overflow-y-auto bg-white">
+      <div className="safe-top safe-x fixed inset-0 z-[100] overflow-y-auto bg-white">
         <div className="mx-auto max-w-lg px-5 py-8 pb-32">
           <h1 className="text-2xl font-bold text-neutral-900">Your details</h1>
           <p className="mt-1 text-sm text-neutral-500">

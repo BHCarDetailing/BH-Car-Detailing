@@ -99,7 +99,10 @@ export default function Clients() {
         </div>
       )}
 
-      <Modal open={open} onClose={() => setOpen(false)} title={editing ? "Edit client" : "Add client"}
+      <Modal open={open} onClose={() => setOpen(false)}
+        // Tapping away keeps an edit; a half-filled new client is discarded.
+        onDismiss={editing ? () => { void save(); } : () => setOpen(false)}
+        title={editing ? "Edit client" : "Add client"}
         footer={<>
           <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
           <Button onClick={save} disabled={busy}>{busy ? "Saving…" : editing ? "Save" : "Add client"}</Button>

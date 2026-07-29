@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { fullName, money, SIZE_CLASSES, STAGES, type Activity, type Contact, type EmailMessage, type Job, type Label, type QuoteItem, type Service, type SizeClass, type SmsMessage, type Stage } from "../types";
-import { Modal, Button, Tag } from "../components/ui";
+import { Modal, Button, Tag, BackLink } from "../components/ui";
 import { REVENUE_STATUS, colorOf, labelOf } from "../lib/collections";
 import { useToast } from "../components/Toast";
 import { fmtDate } from "../lib/datetime";
@@ -125,6 +125,7 @@ export default function ContactDetail() {
       <div className="space-y-6">
         <div className="flex items-start justify-between">
           <div>
+            <BackLink to="/contacts" label="Contacts" />
             <h1 className="text-2xl font-semibold">{fullName(contact)}</h1>
             <div className="mt-1 text-sm text-neutral-500">
               {contact.source} {contact.area_slug && `· ${contact.area_slug}`}

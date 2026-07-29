@@ -125,3 +125,27 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .bh-logo-in, .bh-float, .bh-shine::after, .bh-bg::before, .bh-bg::after { animation: none; }
 }
+
+/* ---------------------------------------------------------------------------
+   Safe areas.
+
+   The app runs installed, with viewport-fit=cover and a translucent status bar,
+   so the page really does extend under the Dynamic Island and the home
+   indicator. Anything pinned to an edge has to inset itself or it lands
+   somewhere a thumb cannot reach — on an iPhone 16 Pro the top ~59px is the
+   island, which is exactly where a 48px header used to sit.
+   --------------------------------------------------------------------------- */
+.safe-top    { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-x      { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+
+/* Overlays that cover the whole screen: keep their content clear of both edges. */
+.safe-screen {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Sheets that sit against the bottom edge. */
+.safe-sheet { padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }

@@ -196,7 +196,7 @@ export default function Calendar() {
       {/* Job drawer */}
       {selected && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 md:items-center" onClick={() => setSelected(null)}>
-          <div className="w-full max-w-md rounded-t-2xl bg-white p-5 md:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="safe-sheet w-full max-w-md rounded-t-2xl bg-white p-5 md:rounded-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-3 flex items-start justify-between">
               <div>
                 <h2 className="text-lg font-semibold">{selected.title}</h2>
