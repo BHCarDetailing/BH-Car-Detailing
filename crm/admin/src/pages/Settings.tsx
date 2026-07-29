@@ -25,7 +25,10 @@ function ServicesManager() {
   async function save(s: Service) {
     setNote("");
     try {
-      await api(`/api/services/${s.id}`, { method: "PATCH", body: JSON.stringify({ name: s.name, description: s.description, size_pricing: s.size_pricing, active: s.active, sort: s.sort }) });
+      await api(`/api/services/${s.id}`, { method: "PATCH", body: JSON.stringify({
+        name: s.name, description: s.description, size_pricing: s.size_pricing, active: s.active, sort: s.sort,
+        area: s.area, level: s.level, duration_min: s.duration_min, is_addon: s.is_addon,
+      }) });
       setEditing(null); setNote("Saved."); load();
     } catch { setNote("Couldn't save — try again."); }
   }
@@ -66,7 +69,33 @@ function ServicesManager() {
                     </label>
                   ))}
                 </div>
+                {/* Taxonomy drives which wizard step offers this service and how
+                    the Products filters group it. */}
+                <div className="grid grid-cols-3 gap-2">
+                  <label className="text-xs text-neutral-500">Area
+                    <select value={s.area ?? "both"} onChange={(e) => patchLocal(s.id, { area: e.target.value })}
+                      className="mt-0.5 min-h-[40px] w-full rounded-md border border-neutral-300 px-2 text-sm">
+                      {["interior", "exterior", "both", "specialty"].map((v) => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-xs text-neutral-500">Level
+                    <select value={s.level ?? "specialty"} onChange={(e) => patchLocal(s.id, { level: e.target.value })}
+                      className="mt-0.5 min-h-[40px] w-full rounded-md border border-neutral-300 px-2 text-sm">
+                      {["maintenance", "light", "full", "specialty"].map((v) => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-xs text-neutral-500">Minutes
+                    <input inputMode="numeric" value={s.duration_min ?? ""} onChange={(e) => patchLocal(s.id, { duration_min: Number(e.target.value) || 0 })}
+                      placeholder="120" className="mt-0.5 min-h-[40px] w-full rounded-md border border-neutral-300 px-2 text-sm" />
+                  </label>
+                </div>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.active} onChange={(e) => patchLocal(s.id, { active: e.target.checked })} /> Active (shown in quote builder)</label>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!s.is_addon} onChange={(e) => patchLocal(s.id, { is_addon: e.target.checked })} /> Add-on (offered alongside a main service)</label>
+                {s.is_addon && !Object.values(s.size_pricing).some((v) => (v ?? 0) > 0) && (
+                  <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
+                    Set at least one price above, or this add-on stays hidden in the quote builder.
+                  </p>
+                )}
                 <div className="flex gap-2">
                   <button onClick={() => save(s)} className="min-h-[40px] flex-1 rounded-md bg-red-600 px-3 text-sm text-white">Save</button>
                   <button onClick={() => { setEditing(null); load(); }} className="min-h-[40px] rounded-md bg-neutral-200 px-3 text-sm">Cancel</button>
@@ -76,7 +105,11 @@ function ServicesManager() {
             ) : (
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium">{s.name}{!s.active && <span className="ml-2 text-xs text-neutral-400">(inactive)</span>}</div>
+                  <div className="text-sm font-medium">
+                    {s.name}
+                    {s.is_addon && <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700">ADD-ON</span>}
+                    {!s.active && <span className="ml-2 text-xs text-neutral-400">(inactive)</span>}
+                  </div>
                   <div className="text-xs text-neutral-500">
                     {SIZE_CLASSES.filter((z) => s.size_pricing[z]).slice(0, 3).map((z) => `${z} ${money(s.size_pricing[z]!)}`).join(" · ") || `from ${money(s.base_price_cents)}`}
                   </div>

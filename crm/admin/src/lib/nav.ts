@@ -28,6 +28,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: "/gtm", label: "GTM", short: "GTM", icon: "M12 3a9 9 0 100 18 9 9 0 000-18zM12 8a4 4 0 100 8 4 4 0 000-8zM12 12h.01", keywords: "go to market mission vision values roles" },
       { to: "/discovery", label: "Discovery", short: "Discover", icon: "M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-4-4", keywords: "leads notes calls" },
       { to: "/clients", label: "Clients", short: "Clients", icon: "M4 8h16v11H4zM9 8V6a3 3 0 016 0v2", keywords: "accounts customers" },
+      { to: "/quote-builder", label: "Quote Builder", short: "Quote", icon: "M9 5h6a2 2 0 012 2v12l-5-3-5 3V7a2 2 0 012-2z", keywords: "estimate in person wizard sell on the spot deposit" },
       { to: "/pipeline", label: "Pipeline", short: "Pipeline", icon: "M4 6h16M4 12h10M4 18h7", keywords: "deals stages kanban" },
       { to: "/revenue", label: "Revenue", short: "Revenue", icon: "M12 3v18M8 7h6a3 3 0 010 6H8m0 0h8", keywords: "arr mrr money income" },
     ],

@@ -17,6 +17,7 @@ import { mediaRoutes } from "./routes/media";
 import { emailRoutes } from "./routes/email";
 import { rebookRoutes } from "./routes/rebook";
 import { growthRoutes } from "./routes/growth";
+import { quoteBuilderRoutes } from "./routes/quotebuilder";
 import { runReminders } from "./lib/reminders";
 import { runSequences } from "./lib/sequences";
 import { runRebook } from "./lib/rebook";
@@ -46,6 +47,7 @@ app.route("/api/media", mediaRoutes);            // R2-backed content uploads
 app.route("/api/email", emailRoutes);            // one-click test email
 app.route("/api/rebook", rebookRoutes);          // due-this-week worklist + offers
 app.route("/api/growth", growthRoutes);          // reactivation, reviews, referrals
+app.route("/api/quote-builder", quoteBuilderRoutes); // in-person wizard
 
 export default {
   fetch: app.fetch,

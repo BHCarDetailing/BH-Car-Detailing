@@ -105,6 +105,13 @@ export interface Service {
   base_price_cents: number;
   active: boolean;
   sort: number;
+  /** interior | exterior | both | specialty */
+  area?: string | null;
+  /** maintenance | light | full | specialty */
+  level?: string | null;
+  duration_min?: number | null;
+  /** Sold alongside a service, never on its own. */
+  is_addon?: boolean;
 }
 
 export interface QuoteItem {

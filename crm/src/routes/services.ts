@@ -2,8 +2,12 @@ import { Hono } from "hono";
 import type { Env } from "../types";
 import { all, nowIso, one, run, uuid } from "../lib/db";
 import { requireAuth } from "../lib/auth";
+import { SIZE_CLASSES, VEHICLE_TYPES } from "../lib/vehicles";
 
-export const SIZE_CLASSES = ["sedan", "suv", "truck", "van", "exotic", "other"] as const;
+export { SIZE_CLASSES };
+
+const AREAS = new Set(["interior", "exterior", "both", "specialty"]);
+const LEVELS = new Set(["maintenance", "light", "full", "specialty"]);
 
 function parsePricing(v: unknown): Record<string, number> {
   const out: Record<string, number> = {};
@@ -20,17 +24,39 @@ function parsePricing(v: unknown): Record<string, number> {
 function shapeRow(r: Record<string, unknown>) {
   let pricing: Record<string, number> = {};
   try { pricing = JSON.parse((r.size_pricing as string) || "{}"); } catch { pricing = {}; }
-  return { ...r, size_pricing: pricing, active: Number(r.active) === 1 };
+  return {
+    ...r,
+    size_pricing: pricing,
+    active: Number(r.active) === 1,
+    is_addon: Number(r.is_addon) === 1,
+    duration_min: r.duration_min == null ? null : Number(r.duration_min),
+  };
 }
 
 export const serviceRoutes = new Hono<{ Bindings: Env }>();
 serviceRoutes.use("*", requireAuth());
 
+/**
+ * Vocabulary for the quote builder and the Products filters — vehicle types with
+ * the bucket each bills as, so the UI never has to hardcode the mapping.
+ */
+serviceRoutes.get("/vocab", (c) => c.json({
+  vehicle_types: VEHICLE_TYPES,
+  areas: [...AREAS],
+  levels: [...LEVELS],
+  size_classes: [...SIZE_CLASSES],
+}));
+
 serviceRoutes.get("/", async (c) => {
   const onlyActive = c.req.query("active") === "1";
+  const addons = c.req.query("addons");           // "1" = only add-ons, "0" = exclude
+  const where: string[] = [];
+  if (onlyActive) where.push("active = 1");
+  if (addons === "1") where.push("is_addon = 1");
+  else if (addons === "0") where.push("is_addon = 0");
   const rows = await all<Record<string, unknown>>(
     c.env.DB,
-    `SELECT * FROM services ${onlyActive ? "WHERE active = 1" : ""} ORDER BY sort ASC, name ASC`
+    `SELECT * FROM services ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY sort ASC, name ASC`
   );
   return c.json({ items: rows.map(shapeRow) });
 });
@@ -47,13 +73,18 @@ serviceRoutes.post("/", async (c) => {
   const now = nowIso();
   await run(
     c.env.DB,
-    `INSERT INTO services (id, name, description, size_pricing, base_price_cents, active, sort, created_at, updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?)`,
+    `INSERT INTO services (id, name, description, size_pricing, base_price_cents, active, sort,
+                           area, level, duration_min, is_addon, created_at, updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     id, name,
     typeof b.description === "string" ? b.description : null,
     JSON.stringify(pricing), base,
     b.active === false ? 0 : 1,
     Number.isFinite(Number(b.sort)) ? Math.round(Number(b.sort)) : 100,
+    typeof b.area === "string" && AREAS.has(b.area) ? b.area : "both",
+    typeof b.level === "string" && LEVELS.has(b.level) ? b.level : "specialty",
+    Number.isFinite(Number(b.duration_min)) ? Math.max(0, Math.round(Number(b.duration_min))) : 120,
+    b.is_addon ? 1 : 0,
     now, now
   );
   return c.json({ id }, 201);
@@ -76,6 +107,10 @@ serviceRoutes.patch("/:id", async (c) => {
   if ("base_price_cents" in b) { sets.push("base_price_cents = ?"); binds.push(Math.max(0, Math.round(Number(b.base_price_cents) || 0))); }
   if ("active" in b) { sets.push("active = ?"); binds.push(b.active ? 1 : 0); }
   if ("sort" in b) { sets.push("sort = ?"); binds.push(Math.round(Number(b.sort) || 0)); }
+  if (typeof b.area === "string" && AREAS.has(b.area)) { sets.push("area = ?"); binds.push(b.area); }
+  if (typeof b.level === "string" && LEVELS.has(b.level)) { sets.push("level = ?"); binds.push(b.level); }
+  if ("duration_min" in b) { sets.push("duration_min = ?"); binds.push(Math.max(0, Math.round(Number(b.duration_min) || 0))); }
+  if ("is_addon" in b) { sets.push("is_addon = ?"); binds.push(b.is_addon ? 1 : 0); }
   if (!sets.length) return c.json({ error: "no_valid_fields" }, 400);
   sets.push("updated_at = ?"); binds.push(nowIso());
   await run(c.env.DB, `UPDATE services SET ${sets.join(", ")} WHERE id = ?`, ...binds, id);

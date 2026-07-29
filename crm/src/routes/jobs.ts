@@ -165,7 +165,12 @@ jobRoutes.post("/:id/send-quote", async (c) => {
 });
 
 // Record a manual (non-Stripe) payment — Zelle, cash, check, etc.
-const MANUAL_METHODS = new Set(["zelle", "cash", "check", "card_external", "deposit", "other"]);
+// "card_external" and "tap_to_pay" both mean a card taken outside Stripe, so the
+// CRM records that money arrived but cannot verify it — that is the trade for
+// getting paid on the spot in a driveway.
+const MANUAL_METHODS = new Set([
+  "zelle", "cash", "check", "card_external", "tap_to_pay", "venmo", "deposit", "other",
+]);
 jobRoutes.post("/:id/mark-paid", async (c) => {
   const id = c.req.param("id");
   const job = await one<Record<string, unknown>>(c.env.DB, "SELECT * FROM jobs WHERE id = ?", id);
