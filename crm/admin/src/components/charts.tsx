@@ -1,47 +1,186 @@
-/* Hand-rolled SVG charts — no charting library (keeps the bundle lean, same
-   approach as the Dashboard's MonthBars). Brand-red line + soft area fill. */
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+/**
+ * Hand-rolled SVG charts — no charting library, to keep the bundle lean.
+ *
+ * These render at the container's true pixel size rather than stretching a
+ * fixed viewBox. The old chart used preserveAspectRatio="none", which scaled
+ * the whole drawing horizontally — including the labels, which is why the type
+ * looked squashed and the line weight varied with window width.
+ */
 
 export interface Point { label: string; value: number }
 
-/** Responsive line chart with area fill, dots, and x-axis labels. */
-export function LineChart({ points, height = 180, fmt = (n) => String(n) }: {
-  points: Point[]; height?: number; fmt?: (n: number) => string;
+const BRAND = "#c8102e";
+const UP = "#0f9d68";
+const DOWN = "#e5484d";
+
+/** Container width, tracked so the chart can draw 1:1 with real pixels. */
+function useWidth<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setW(Math.round(entry.contentRect.width)));
+    ro.observe(el);
+    setW(Math.round(el.getBoundingClientRect().width));
+    return () => ro.disconnect();
+  }, []);
+  return [ref, w] as const;
+}
+
+/** "Nice" round gridline steps, so the axis reads 0 / 500 / 1,000 rather than 0 / 437 / 874. */
+function niceTicks(max: number, count = 4): number[] {
+  if (max <= 0) return [0];
+  const raw = max / count;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? mag * 10;
+  const out: number[] = [];
+  for (let v = 0; v <= max + step * 0.001; v += step) out.push(v);
+  return out;
+}
+
+/**
+ * Interactive trend chart in the shape of a trading view: gridlines, an area
+ * under the line, a crosshair, and a readout that follows your finger.
+ *
+ * Drag (or hold) anywhere to scrub. The line takes its colour from the
+ * direction of travel across the period, the way a price chart does.
+ */
+export function LineChart({ points, height = 240, fmt = (n) => String(n), label = "Revenue" }: {
+  points: Point[];
+  height?: number;
+  fmt?: (n: number) => string;
+  label?: string;
 }) {
-  if (points.length === 0) {
-    return <div className="grid h-[180px] place-items-center rounded-xl bg-steel-50 text-sm text-chrome-400">No data yet</div>;
-  }
-  const W = 640, H = height, padX = 8, padTop = 16, padBottom = 26;
-  const max = Math.max(1, ...points.map((p) => p.value));
-  const min = Math.min(0, ...points.map((p) => p.value));
-  const span = max - min || 1;
+  const [wrapRef, width] = useWidth<HTMLDivElement>();
+  const [active, setActive] = useState<number | null>(null);
+  const [pinned, setPinned] = useState(false);
+
+  const W = Math.max(width, 240);
+  const padL = 52, padR = 12, padTop = 14, padBottom = 28;
+  const plotW = Math.max(1, W - padL - padR);
+  const plotH = Math.max(1, height - padTop - padBottom);
+
   const n = points.length;
-  const x = (i: number) => padX + (n === 1 ? W / 2 - padX : (i * (W - padX * 2)) / (n - 1));
-  const y = (v: number) => padTop + (1 - (v - min) / span) * (H - padTop - padBottom);
+  const values = points.map((p) => p.value);
+  const rawMax = Math.max(1, ...values);
+  const ticks = useMemo(() => niceTicks(rawMax), [rawMax]);
+  const max = Math.max(rawMax, ticks[ticks.length - 1] ?? rawMax);
+
+  const x = useCallback(
+    (i: number) => padL + (n <= 1 ? plotW / 2 : (i * plotW) / (n - 1)),
+    [n, plotW, padL]
+  );
+  const y = useCallback((v: number) => padTop + (1 - v / max) * plotH, [max, plotH, padTop]);
+
+  const peakIndex = values.indexOf(Math.max(...values));
+  const trendUp = n > 1 ? values[n - 1] >= values[0] : true;
+  const stroke = n > 1 ? (trendUp ? UP : DOWN) : BRAND;
 
   const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(" ");
-  const area = `${line} L${x(n - 1).toFixed(1)},${(H - padBottom).toFixed(1)} L${x(0).toFixed(1)},${(H - padBottom).toFixed(1)} Z`;
-  const showEvery = Math.ceil(n / 8); // avoid label crowding
+  const area = n
+    ? `${line} L${x(n - 1).toFixed(1)},${(padTop + plotH).toFixed(1)} L${x(0).toFixed(1)},${(padTop + plotH).toFixed(1)} Z`
+    : "";
+
+  /** Nearest point to the pointer — scrubbing should never feel like it missed. */
+  const pick = useCallback((clientX: number) => {
+    const el = wrapRef.current;
+    if (!el || n === 0) return;
+    const rect = el.getBoundingClientRect();
+    const rel = clientX - rect.left;
+    const i = n === 1 ? 0 : Math.round(((rel - padL) / plotW) * (n - 1));
+    setActive(Math.max(0, Math.min(n - 1, i)));
+  }, [n, plotW, padL, wrapRef]);
+
+  if (n === 0) {
+    return (
+      <div className="grid place-items-center rounded-xl bg-steel-50 text-sm text-chrome-400" style={{ height }}>
+        No data yet
+      </div>
+    );
+  }
+
+  const shown = active != null ? points[active] : null;
+  const showLabelEvery = Math.max(1, Math.ceil(n / (W < 420 ? 4 : 8)));
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none" style={{ height }}>
-      <defs>
-        <linearGradient id="bhArea" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#c8102e" stopOpacity="0.22" />
-          <stop offset="100%" stopColor="#c8102e" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill="url(#bhArea)" />
-      <path d={line} fill="none" stroke="#c8102e" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      <text x={padX} y={12} fontSize="11" fill="#9aa3af">{fmt(max)}</text>
-      {points.map((p, i) => (
-        <g key={i}>
-          <circle cx={x(i)} cy={y(p.value)} r="3" fill="#c8102e" />
-          {i % showEvery === 0 && (
-            <text x={x(i)} y={H - 8} textAnchor="middle" fontSize="11" fill="#9aa3af">{p.label}</text>
+    <div ref={wrapRef} className="relative select-none" style={{ height }}>
+      {width > 0 && (
+        <svg
+          width={W}
+          height={height}
+          className="block"
+          style={{ touchAction: "pan-y" }}
+          onPointerDown={(e) => { setPinned(true); pick(e.clientX); }}
+          onPointerMove={(e) => { if (pinned || e.pointerType === "mouse") pick(e.clientX); }}
+          onPointerUp={() => setPinned(false)}
+          onPointerCancel={() => { setPinned(false); setActive(null); }}
+          onPointerLeave={() => { if (!pinned) setActive(null); }}
+        >
+          <defs>
+            <linearGradient id="bhArea" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={stroke} stopOpacity="0.20" />
+              <stop offset="100%" stopColor={stroke} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
+          {/* Gridlines + value axis */}
+          {ticks.map((t) => (
+            <g key={t}>
+              <line x1={padL} x2={W - padR} y1={y(t)} y2={y(t)} stroke="#eceef1" strokeWidth="1" />
+              <text x={padL - 8} y={y(t) + 4} textAnchor="end" fontSize="11" fontFamily="inherit" fill="#9aa3af">
+                {fmt(t)}
+              </text>
+            </g>
+          ))}
+
+          <path d={area} fill="url(#bhArea)" />
+          <path d={line} fill="none" stroke={stroke} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+
+          {/* The peak — the number worth knowing at a glance. */}
+          {n > 1 && (
+            <circle cx={x(peakIndex)} cy={y(values[peakIndex])} r="3.5" fill="none" stroke={stroke} strokeWidth="2" />
           )}
-        </g>
-      ))}
-    </svg>
+
+          {/* Time axis */}
+          {points.map((p, i) =>
+            i % showLabelEvery === 0 || i === n - 1 ? (
+              <text key={i} x={x(i)} y={height - 8} textAnchor={i === 0 ? "start" : i === n - 1 ? "end" : "middle"}
+                fontSize="11" fontFamily="inherit" fill="#9aa3af">
+                {p.label}
+              </text>
+            ) : null
+          )}
+
+          {/* Crosshair */}
+          {active != null && (
+            <g>
+              <line x1={x(active)} x2={x(active)} y1={padTop} y2={padTop + plotH} stroke="#c8ccd2" strokeWidth="1" strokeDasharray="3 3" />
+              <circle cx={x(active)} cy={y(points[active].value)} r="5" fill="#fff" stroke={stroke} strokeWidth="2.5" />
+            </g>
+          )}
+        </svg>
+      )}
+
+      {/* Readout. HTML rather than SVG text so it inherits the app's font cleanly. */}
+      {shown && (
+        <div
+          className="pointer-events-none absolute top-1 rounded-lg bg-graphite-950/95 px-2.5 py-1.5 text-white shadow-lg"
+          style={{
+            left: Math.min(Math.max(x(active!) - 52, 4), Math.max(4, W - 108)),
+            minWidth: 96,
+          }}
+        >
+          <div className="text-[10px] uppercase tracking-wide text-chrome-400">{shown.label}</div>
+          <div className="font-display text-base leading-tight">{fmt(shown.value)}</div>
+          {active === peakIndex && n > 1 && (
+            <div className="text-[10px] font-medium text-emerald-300">peak {label.toLowerCase()}</div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -53,7 +192,7 @@ export function Sparkline({ values, width = 90, height = 28 }: { values: number[
   const up = values[values.length - 1] >= values[0];
   return (
     <svg width={width} height={height} className="overflow-visible">
-      <polyline points={pts} fill="none" stroke={up ? "#10b981" : "#f43f5e"} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      <polyline points={pts} fill="none" stroke={up ? UP : DOWN} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
 }

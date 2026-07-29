@@ -57,6 +57,8 @@ const MANUAL_METHODS = [
 ];
 
 const DRAFT_KEY = "bh-quote-builder-draft";
+/** A recovered draft older than this belongs to a different conversation. */
+const DRAFT_MAX_AGE_MS = 60 * 60 * 1000;
 
 const money = (cents: number) => `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
 
@@ -144,19 +146,29 @@ export default function QuoteBuilder() {
       .catch(() => toast({ message: "Could not load the service menu.", tone: "error" }))
       .finally(() => setLoading(false));
 
+    // A draft only exists to survive the phone locking mid-quote. It is not a
+    // saved document: leaving the wizard clears it, and anything left behind by
+    // a crash goes stale quickly so the next customer never starts inside the
+    // last one's quote.
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
       if (raw) {
-        const saved = JSON.parse(raw) as Draft;
-        // Never resume onto a terminal screen — that quote is finished.
-        if (saved.step !== "done") setD({ ...BLANK, ...saved });
+        const saved = JSON.parse(raw) as Draft & { savedAt?: number };
+        const age = Date.now() - (saved.savedAt ?? 0);
+        if (saved.step !== "done" && age < DRAFT_MAX_AGE_MS) setD({ ...BLANK, ...saved });
+        else localStorage.removeItem(DRAFT_KEY);
       }
-    } catch { /* a corrupt draft is not worth blocking on */ }
+    } catch { localStorage.removeItem(DRAFT_KEY); }
   }, [toast]);
 
   useEffect(() => {
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* private mode */ }
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...d, savedAt: Date.now() })); } catch { /* private mode */ }
   }, [d]);
+
+  // Leaving the wizard — by the header close, a tab, or the browser — starts the
+  // next quote clean. Without this, walking up to a new customer resumed the
+  // previous one's vehicle and services.
+  useEffect(() => () => { try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } }, []);
 
   const set = useCallback((patch: Partial<Draft>) => setD((prev) => ({ ...prev, ...patch })), []);
   const go = useCallback((step: Step) => setD((prev) => ({ ...prev, step })), []);
@@ -170,18 +182,29 @@ export default function QuoteBuilder() {
     [services, bucket]
   );
 
+  /**
+   * Every level this vehicle can be sold, regardless of the area chosen.
+   *
+   * Deliberately not filtered by area: a Maintenance Wash is an exterior-only
+   * service, so filtering by "Interior + Exterior" used to hide it entirely and
+   * the step dead-ended with no way to reach it.
+   */
   const levelsAvailable = useMemo(() => {
-    const inArea = primaries.filter((s) => !d.area || s.area === d.area || s.area === "specialty");
-    const seen = new Set(inArea.map((s) => s.level ?? "specialty"));
+    const seen = new Set(primaries.map((s) => s.level ?? "specialty"));
     return ["maintenance", "light", "full", "specialty"].filter((l) => seen.has(l));
-  }, [primaries, d.area]);
+  }, [primaries]);
 
-  const matching = useMemo(
-    () => primaries.filter((s) =>
-      (!d.area || s.area === d.area || s.area === "specialty") &&
-      (!d.level || s.level === d.level)),
-    [primaries, d.area, d.level]
-  );
+  /**
+   * Services for the chosen level. Honours the chosen area when that level
+   * actually offers something there, and otherwise shows what the level does
+   * offer rather than an empty screen — with the mismatch called out in the UI.
+   */
+  const { matching, areaRelaxed } = useMemo(() => {
+    const atLevel = primaries.filter((s) => !d.level || s.level === d.level);
+    const inArea = atLevel.filter((s) => !d.area || s.area === d.area || s.area === "specialty");
+    if (inArea.length > 0) return { matching: inArea, areaRelaxed: false };
+    return { matching: atLevel, areaRelaxed: atLevel.length > 0 };
+  }, [primaries, d.area, d.level]);
 
   // An add-on with no price is a gap in the menu, not a freebie — hide it.
   const addons = useMemo(
@@ -423,7 +446,13 @@ export default function QuoteBuilder() {
       {d.step === "services" && (
         <>
           <h1 className="mb-1 text-2xl font-bold text-neutral-900">Pick the service</h1>
-          <p className="mb-5 text-sm text-neutral-500">Prices shown for {vt?.label}{vt?.note ? ` — ${vt.note}` : ""}.</p>
+          <p className="mb-3 text-sm text-neutral-500">Prices shown for {vt?.label}{vt?.note ? ` — ${vt.note}` : ""}.</p>
+          {areaRelaxed && (
+            <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {LEVEL_LABELS[d.level]?.label ?? "This service"} isn't offered as{" "}
+              {AREA_OPTIONS.find((a) => a.value === d.area)?.label.toLowerCase() ?? "that"} — here's how it comes.
+            </p>
+          )}
           {matching.length === 0 ? (
             <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">
               Nothing on the menu matches that combination. Go back and try another service level.

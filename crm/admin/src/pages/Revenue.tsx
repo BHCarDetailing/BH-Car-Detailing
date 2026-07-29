@@ -162,10 +162,11 @@ export default function Revenue() {
 
       {/* Trend chart */}
       <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-steel-200">
-        <div className="mb-2 flex items-center justify-between">
+        <div className="mb-1 flex items-center justify-between">
           <h2 className="eyebrow text-[10px] text-chrome-400">{gran === "yearly" ? "Year-over-year" : `${periodWord}ly trend`} · paid revenue</h2>
           {pending > 0 && <span className="text-xs text-amber-600">{money(pending)} pending</span>}
         </div>
+        <p className="mb-3 text-xs text-chrome-400">Touch and drag across the chart to read any point.</p>
         <LineChart points={chart} fmt={(n) => money(Math.round(n * 100))} />
       </div>
 

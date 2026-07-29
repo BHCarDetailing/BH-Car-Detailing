@@ -115,6 +115,16 @@ contactRoutes.post("/bulk-action", async (c) => {
       updated++;
     } else if (b.op === "enroll_sequence") {
       if (b.value) { await enrollContact(c.env, b.value, id); updated++; }
+    } else if (b.op === "archive") {
+      // Soft by default, matching single-contact delete: money history survives
+      // and the contact can be restored from the Archived view.
+      await run(c.env.DB, "UPDATE contacts SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", now, now, id);
+      await run(c.env.DB, "UPDATE enrollments SET status = 'exited', exit_reason = 'archived', completed_at = ? WHERE contact_id = ? AND status = 'active'", now, id);
+      await logActivity(c.env.DB, { contactId: id, type: "note", title: "Archived (bulk)", actor: actorOf(c) });
+      updated++;
+    } else if (b.op === "restore") {
+      await run(c.env.DB, "UPDATE contacts SET deleted_at = NULL, updated_at = ? WHERE id = ?", now, id);
+      updated++;
     } else {
       return c.json({ error: "unknown_op" }, 400);
     }
@@ -245,6 +255,76 @@ contactRoutes.get("/:id/activities", async (c) => {
 
 export const statsRoutes = new Hono<{ Bindings: Env }>();
 statsRoutes.use("*", requireAuth());
+
+/**
+ * KPI actuals that can be measured rather than typed in.
+ *
+ * Money KPIs are deliberately absent: revenue and average ticket already have a
+ * canonical definition in GET /api/stats (jobs + deposits + the manual ledger,
+ * netted so nothing double-counts), and the KPI page reads them from there. A
+ * second definition here would drift from the Dashboard within a week.
+ */
+statsRoutes.get("/kpi", async (c) => {
+  const monthStart = "date('now','start of month')";
+
+  const jobsMonth = await one<{ n: number }>(
+    c.env.DB,
+    `SELECT COUNT(*) AS n FROM jobs
+      WHERE status IN ('completed','paid')
+        AND date(COALESCE(completed_at, scheduled_start, updated_at)) >= ${monthStart}`
+  );
+
+  const leadsWeek = await one<{ n: number }>(
+    c.env.DB,
+    `SELECT COUNT(*) AS n FROM contacts
+      WHERE deleted_at IS NULL AND date(created_at) >= date('now','-7 days')`
+  );
+
+  // Lead → booked over a 30-day cohort: of the people who arrived, how many
+  // ended up with a job on the calendar. Measured on the cohort's own contacts
+  // so a busy month of old customers cannot flatter it.
+  const cohort = await one<{ total: number; booked: number }>(
+    c.env.DB,
+    `SELECT COUNT(*) AS total,
+            SUM(CASE WHEN EXISTS (
+                  SELECT 1 FROM jobs j
+                   WHERE j.contact_id = c.id
+                     AND j.status IN ('scheduled','in_progress','completed','paid')
+                ) THEN 1 ELSE 0 END) AS booked
+       FROM contacts c
+      WHERE c.deleted_at IS NULL AND date(c.created_at) >= date('now','-30 days')`
+  );
+
+  // Rebook rate: of everyone who has bought once, how many came back.
+  const rebook = await one<{ once: number; again: number }>(
+    c.env.DB,
+    `SELECT COUNT(*) AS once, SUM(CASE WHEN n >= 2 THEN 1 ELSE 0 END) AS again
+       FROM (
+         SELECT j.contact_id, COUNT(*) AS n
+           FROM jobs j JOIN contacts c ON c.id = j.contact_id
+          WHERE j.status IN ('completed','paid') AND c.deleted_at IS NULL
+          GROUP BY j.contact_id
+       )`
+  );
+
+  const reviewsMonth = await one<{ n: number }>(
+    c.env.DB,
+    `SELECT COUNT(*) AS n FROM jobs
+      WHERE review_left_at IS NOT NULL AND date(review_left_at) >= ${monthStart}`
+  );
+
+  const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : null);
+
+  return c.json({
+    jobs_completed_month: jobsMonth?.n ?? 0,
+    new_leads_week: leadsWeek?.n ?? 0,
+    // null, not zero: "no leads yet this month" is not "a 0% close rate".
+    lead_to_booked_pct: pct(cohort?.booked ?? 0, cohort?.total ?? 0),
+    rebook_rate_pct: pct(rebook?.again ?? 0, rebook?.once ?? 0),
+    reviews_month: reviewsMonth?.n ?? 0,
+  });
+});
+
 statsRoutes.get("/", async (c) => {
   const rows = await all<{ stage: string; n: number }>(
     c.env.DB, "SELECT stage, COUNT(*) AS n FROM contacts WHERE deleted_at IS NULL GROUP BY stage");

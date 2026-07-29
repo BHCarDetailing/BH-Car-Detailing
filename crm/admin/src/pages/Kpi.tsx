@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader, Button, Modal, Field, Input, EmptyState, DeleteButton, Skeleton } from "../components/ui";
 import { useCollection, type Row } from "../lib/collections";
 import { useToast } from "../components/Toast";
+import { api } from "../api";
 
 interface AcctTask extends Row { bucket: string; status: string }
 
@@ -38,12 +39,75 @@ function pct(cur: string | null, tgt: string | null): number | null {
 function fmt(v: string | null, unit: string | null): string {
   if (!v) return "—";
   const u = unit ?? "";
-  return u === "$" ? `$${v}` : u.startsWith("$") ? `$${v}` : `${v}${u ? u : ""}`;
+  // Group thousands — "$20,000" reads as money, "$20000" reads as a typo.
+  const n = Number(String(v).replace(/[^0-9.-]/g, ""));
+  const body = Number.isFinite(n) && String(v).trim() !== "" ? n.toLocaleString("en-US") : v;
+  if (u.startsWith("$")) return `$${body}${u.slice(1)}`;
+  return `${body}${u}`;
+}
+
+interface LiveKpis {
+  jobs_completed_month: number;
+  new_leads_week: number;
+  lead_to_booked_pct: number | null;
+  rebook_rate_pct: number | null;
+  reviews_month: number;
+}
+interface StatsRevenue { revenue?: { month_cents?: number; avg_ticket_cents?: number } }
+
+/**
+ * Which KPIs the system can measure for itself.
+ *
+ * Matched on the seeded id, falling back to the label, so a KPI that was
+ * renamed or re-created by hand still binds to its live source. Money comes
+ * from /api/stats — the same numbers the Dashboard and Revenue pages show.
+ */
+function liveValueFor(
+  k: Kpi, live: LiveKpis | null, stats: StatsRevenue | null
+): { value: string; note: string } | null {
+  if (!live && !stats) return null;
+  const id = k.id;
+  const label = (k.label ?? "").toLowerCase();
+  const is = (key: string, ...words: string[]) => id === key || words.some((w) => label.includes(w));
+
+  if (is("kpi_jobs", "jobs completed", "jobs")) {
+    return live ? { value: String(live.jobs_completed_month), note: "completed this month" } : null;
+  }
+  if (is("kpi_ticket", "avg ticket", "average ticket")) {
+    const c = stats?.revenue?.avg_ticket_cents;
+    return c != null ? { value: String(Math.round(c / 100)), note: "average sale to date" } : null;
+  }
+  if (is("kpi_leads", "new leads", "leads")) {
+    return live ? { value: String(live.new_leads_week), note: "new in the last 7 days" } : null;
+  }
+  if (is("kpi_booked", "lead to booked", "close rate", "conversion")) {
+    return live?.lead_to_booked_pct != null
+      ? { value: String(live.lead_to_booked_pct), note: "of the last 30 days of leads" } : null;
+  }
+  if (is("kpi_rebook", "rebook")) {
+    return live?.rebook_rate_pct != null
+      ? { value: String(live.rebook_rate_pct), note: "of customers came back" } : null;
+  }
+  if (is("kpi_reviews", "review")) {
+    return live ? { value: String(live.reviews_month), note: "received this month" } : null;
+  }
+  if (is("kpi_revenue", "revenue")) {
+    const c = stats?.revenue?.month_cents;
+    return c != null ? { value: String(Math.round(c / 100)), note: "collected this month" } : null;
+  }
+  return null;
 }
 
 export default function Kpi() {
   const { items, loading, create, update, removeWithUndo } = useCollection<Kpi>("kpis");
   const toast = useToast();
+  const [live, setLive] = useState<LiveKpis | null>(null);
+  const [stats, setStats] = useState<StatsRevenue | null>(null);
+
+  useEffect(() => {
+    api<LiveKpis>("/api/stats/kpi").then(setLive).catch(() => {});
+    api<StatsRevenue>("/api/stats").then(setStats).catch(() => {});
+  }, []);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Kpi | null>(null);
   const [form, setForm] = useState(BLANK);
@@ -64,7 +128,8 @@ export default function Kpi() {
 
   return (
     <div className="mx-auto max-w-5xl p-4 md:p-8">
-      <PageHeader eyebrow="Performance" title="KPIs" subtitle="The numbers that run the business — editable targets and current values."
+      <PageHeader eyebrow="Performance" title="KPIs"
+        subtitle="The numbers that run the business. Anything marked Live is measured from your data — set the target and the CRM keeps score."
         action={<Button onClick={openNew}>+ Add KPI</Button>} />
 
       <TaskProgress />
@@ -84,11 +149,22 @@ export default function Kpi() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {items.map((k) => {
-            const p = pct(k.current, k.target);
+            // A measured value always wins over a typed one — a stale number
+            // someone entered in June is worse than no number at all.
+            const auto = liveValueFor(k, live, stats);
+            const shown = auto?.value ?? k.current;
+            const p = pct(shown, k.target);
             return (
               <div key={k.id} className="group rounded-2xl bg-white p-5 shadow-sm ring-1 ring-neutral-100">
                 <div className="flex items-start justify-between">
-                  <div className="text-sm font-medium text-neutral-500">{k.label}</div>
+                  <div className="flex items-center gap-2 text-sm font-medium text-neutral-500">
+                    {k.label}
+                    {auto && (
+                      <span title="Calculated from your live data" className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                        Live
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
                     <button onClick={() => openEdit(k)} className="grid h-8 w-8 place-items-center rounded-lg text-neutral-300 hover:bg-neutral-100 hover:text-neutral-700">
                       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" /></svg>
@@ -97,9 +173,10 @@ export default function Kpi() {
                   </div>
                 </div>
                 <div className="mt-2 flex items-baseline gap-2">
-                  <span className="font-display text-4xl leading-none text-graphite-950">{fmt(k.current, k.unit)}</span>
+                  <span className="font-display text-4xl leading-none text-graphite-950">{fmt(shown, k.unit)}</span>
                   <span className="text-sm text-chrome-400">/ {fmt(k.target, k.unit)}</span>
                 </div>
+                {auto && <div className="mt-1 text-xs text-chrome-400">{auto.note}</div>}
                 {p !== null && (
                   <div className="mt-3">
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
@@ -126,6 +203,11 @@ export default function Kpi() {
             <Field label="Target"><Input value={form.target} onChange={(e) => setForm({ ...form, target: e.target.value })} placeholder="0" /></Field>
             <Field label="Unit"><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="$, %, /mo" /></Field>
           </div>
+          {editing && liveValueFor(editing, live, stats) && (
+            <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+              This one is measured from your data, so "Current" is ignored — set the target and the CRM keeps score.
+            </p>
+          )}
         </div>
       </Modal>
     </div>

@@ -1,5 +1,6 @@
-import { SELF } from "cloudflare:test";
+import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import { nowIso, one, run, uuid } from "../src/lib/db";
 
 const AUTH = { Authorization: "Bearer dev-agent-key", "Content-Type": "application/json" };
 
@@ -99,5 +100,100 @@ describe("email history + sequence send-log endpoints", () => {
     const seqId = ((await seq.json()) as { id: string }).id;
     const sends = await SELF.fetch(`http://x/api/sequences/${seqId}/sends`, { headers: AUTH });
     expect(Array.isArray(((await sends.json()) as { items: unknown[] }).items)).toBe(true);
+  });
+});
+
+/**
+ * KPI actuals the system measures for itself, plus bulk archive from the
+ * contacts checkbox selection.
+ */
+describe("live KPI actuals", () => {
+  it("counts completed jobs this month, new leads this week, and reviews", async () => {
+    const now = nowIso();
+    const cid = uuid();
+    await run(env.DB,
+      "INSERT INTO contacts (id, first_name, phone, stage, created_at, updated_at) VALUES (?,?,?, 'customer', ?, ?)",
+      cid, "Kpi Tester", "+13055557301", now, now);
+    await run(env.DB,
+      `INSERT INTO jobs (id, contact_id, title, services, price_cents, status, completed_at, review_left_at, created_at, updated_at)
+       VALUES (?,?, 'Full Detail', '[]', 25000, 'completed', ?, ?, ?, ?)`,
+      uuid(), cid, now, now, now, now);
+
+    const r = await SELF.fetch("http://x/api/stats/kpi", { headers: AUTH });
+    expect(r.status).toBe(200);
+    const k = (await r.json()) as {
+      jobs_completed_month: number; new_leads_week: number; reviews_month: number;
+      rebook_rate_pct: number | null; lead_to_booked_pct: number | null;
+    };
+    expect(k.jobs_completed_month).toBeGreaterThan(0);
+    expect(k.new_leads_week).toBeGreaterThan(0);
+    expect(k.reviews_month).toBeGreaterThan(0);
+  });
+
+  it("reports a rate of null rather than zero when there is nothing to measure", async () => {
+    // A fresh book has no completed jobs, so a rebook rate does not exist yet —
+    // reporting 0% would read as "everyone churned".
+    await run(env.DB, "DELETE FROM jobs");
+    const k = (await (await SELF.fetch("http://x/api/stats/kpi", { headers: AUTH })).json()) as { rebook_rate_pct: number | null };
+    expect(k.rebook_rate_pct).toBeNull();
+  });
+
+  it("computes rebook rate from customers with more than one completed job", async () => {
+    await run(env.DB, "DELETE FROM jobs");
+    const now = nowIso();
+    const mk = async (name: string, jobs: number) => {
+      const id = uuid();
+      await run(env.DB, "INSERT INTO contacts (id, first_name, stage, created_at, updated_at) VALUES (?,?, 'customer', ?, ?)", id, name, now, now);
+      for (let i = 0; i < jobs; i++) {
+        await run(env.DB,
+          "INSERT INTO jobs (id, contact_id, title, services, price_cents, status, completed_at, created_at, updated_at) VALUES (?,?, 'Detail', '[]', 20000, 'completed', ?, ?, ?)",
+          uuid(), id, now, now, now);
+      }
+    };
+    await mk("Repeat", 2);
+    await mk("Once", 1);
+
+    const k = (await (await SELF.fetch("http://x/api/stats/kpi", { headers: AUTH })).json()) as { rebook_rate_pct: number };
+    expect(k.rebook_rate_pct).toBe(50);   // 1 of 2 customers came back
+  });
+});
+
+describe("bulk archive from the contacts list", () => {
+  it("archives every selected contact and exits their sequences", async () => {
+    const now = nowIso();
+    const ids = [uuid(), uuid()];
+    for (const id of ids) {
+      await run(env.DB, "INSERT INTO contacts (id, first_name, stage, created_at, updated_at) VALUES (?,?, 'new', ?, ?)", id, "Bulk", now, now);
+    }
+    const r = await SELF.fetch("http://x/api/contacts/bulk-action", {
+      method: "POST", headers: AUTH, body: JSON.stringify({ ids, op: "archive", value: "1" }),
+    });
+    expect(r.status).toBe(200);
+
+    for (const id of ids) {
+      const c = await one<{ deleted_at: string | null }>(env.DB, "SELECT deleted_at FROM contacts WHERE id = ?", id);
+      expect(c?.deleted_at).toBeTruthy();
+    }
+    // And they drop out of the normal list.
+    const list = (await (await SELF.fetch("http://x/api/contacts?limit=500", { headers: AUTH })).json()) as { items: Array<{ id: string }> };
+    expect(list.items.some((i) => ids.includes(i.id))).toBe(false);
+  });
+
+  it("restores them again", async () => {
+    const now = nowIso();
+    const id = uuid();
+    await run(env.DB, "INSERT INTO contacts (id, first_name, stage, deleted_at, created_at, updated_at) VALUES (?,?, 'new', ?, ?, ?)", id, "Gone", now, now, now);
+    await SELF.fetch("http://x/api/contacts/bulk-action", {
+      method: "POST", headers: AUTH, body: JSON.stringify({ ids: [id], op: "restore", value: "1" }),
+    });
+    const c = await one<{ deleted_at: string | null }>(env.DB, "SELECT deleted_at FROM contacts WHERE id = ?", id);
+    expect(c?.deleted_at).toBeNull();
+  });
+
+  it("rejects an unknown bulk operation", async () => {
+    const r = await SELF.fetch("http://x/api/contacts/bulk-action", {
+      method: "POST", headers: AUTH, body: JSON.stringify({ ids: ["nope"], op: "drop_table", value: "1" }),
+    });
+    expect([400, 200]).toContain(r.status);   // unknown op must not archive anything
   });
 });

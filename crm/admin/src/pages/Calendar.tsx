@@ -111,6 +111,29 @@ export default function Calendar() {
     } catch { setMsg("Couldn't record — try again."); }
   }
 
+  /**
+   * Delete the job behind a calendar entry.
+   *
+   * Confirmed rather than undo-able: this removes money history with it, so a
+   * five-second grace window is the wrong safety net. The confirmation says what
+   * is being destroyed.
+   */
+  async function deleteEvent() {
+    if (!selected) return;
+    const paid = selected.amount_paid_cents ?? 0;
+    const warning = paid > 0
+      ? `\n\nThis job has ${money(paid)} recorded against it. Deleting removes that from your revenue.`
+      : "";
+    if (!window.confirm(`Delete "${selected.title}"?${warning}\n\nThis cannot be undone.`)) return;
+    try {
+      await api(`/api/jobs/${selected.id}`, { method: "DELETE" });
+      setSelected(null);
+      load();
+    } catch {
+      setMsg("Couldn't delete — try again.");
+    }
+  }
+
   async function reschedule() {
     if (!selected || !when) return;
     setMsg("");
@@ -232,6 +255,11 @@ export default function Calendar() {
             </div>
             {selected.phone && <a href={`sms:${selected.phone}`} className="mt-2 block min-h-[44px] rounded-md bg-neutral-200 px-4 py-3 text-center text-sm">Text {selected.phone}</a>}
             {msg && <p className="mt-3 text-sm text-neutral-600">{msg}</p>}
+
+            <button onClick={deleteEvent}
+              className="mt-3 min-h-[44px] w-full rounded-md border border-rose-200 px-4 text-sm font-medium text-rose-600 hover:bg-rose-50">
+              Delete this event
+            </button>
           </div>
         </div>
       )}

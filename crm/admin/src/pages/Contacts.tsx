@@ -123,6 +123,24 @@ export default function Contacts() {
     setReload((n) => n + 1);
   }
 
+  /**
+   * Archive everyone ticked. Archiving rather than deleting, so a mis-tap on a
+   * customer with job history is recoverable from the Archived view.
+   */
+  async function bulkArchive() {
+    const n = selected.size;
+    if (!n) return;
+    const verb = archived ? "Restore" : "Archive";
+    if (!window.confirm(`${verb} ${n} ${n === 1 ? "contact" : "contacts"}?${archived ? "" : "\n\nThey move to Archived and stop receiving anything automated. You can restore them."}`)) return;
+    await api("/api/contacts/bulk-action", {
+      method: "POST",
+      body: JSON.stringify({ ids: [...selected], op: archived ? "restore" : "archive", value: "1" }),
+    });
+    toast({ message: `${n} ${n === 1 ? "contact" : "contacts"} ${archived ? "restored" : "archived"}.`, tone: "success" });
+    setSelected(new Set());
+    setReload((x) => x + 1);
+  }
+
   return (
     <div className="space-y-4 p-4 md:p-8 pb-24">
       <PageHeader eyebrow="Operations" title="Contacts" subtitle={`${total} ${total === 1 ? "person" : "people"} in your book`}
@@ -290,6 +308,10 @@ export default function Contacts() {
               {seqs.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           )}
+          <button onClick={bulkArchive}
+            className="min-h-[40px] rounded-md bg-rose-600 px-3 font-medium text-white hover:bg-rose-500">
+            {archived ? "Restore" : "Archive"}
+          </button>
           <button onClick={() => setSelected(new Set())} className="ml-auto text-neutral-400">Clear</button>
         </div>
       )}
