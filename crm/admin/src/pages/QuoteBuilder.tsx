@@ -25,6 +25,10 @@ interface Service {
   level: string | null;
   duration_min: number | null;
   is_addon: boolean;
+  /** Sellable on its own, as opposed to only alongside another service. */
+  standalone?: boolean;
+  /** Needs product ordered and a day set aside — quoted, never booked on the spot. */
+  requires_planning?: boolean;
   active: boolean;
 }
 
@@ -177,8 +181,19 @@ export default function QuoteBuilder() {
   const bucket = vt?.bucket ?? "other";
 
   // --- what this vehicle + area + level can actually be sold ---
+  /**
+   * Services sellable on their own for this vehicle.
+   *
+   * Planned work (ceramic, PPF, wrap, correction) is deliberately included with
+   * no price: it is quoted after seeing the car, and hiding it would mean the
+   * customer standing there never hears it is on offer.
+   */
   const primaries = useMemo(
-    () => services.filter((s) => !s.is_addon && s.active && priceFor(s, bucket) > 0),
+    () => services.filter((s) =>
+      (s.standalone ?? !s.is_addon) && s.active &&
+      // Specialty work is quoted off the damage in front of you, so it shows
+      // without a menu price; anything else unpriced stays hidden.
+      (priceFor(s, bucket) > 0 || s.requires_planning === true || s.level === "specialty")),
     [services, bucket]
   );
 
@@ -214,6 +229,7 @@ export default function QuoteBuilder() {
 
   const primary = services.find((s) => s.id === d.primaryId) ?? null;
   const chosenAddons = addons.filter((a) => d.addonIds.includes(a.id));
+  const needsPlanning = primary?.requires_planning === true;
 
   const computed = useMemo(() => {
     let total = primary ? priceFor(primary, bucket) : 0;
@@ -352,8 +368,19 @@ export default function QuoteBuilder() {
               <Input placeholder="State" value={cust.state} onChange={(e) => setCust("state", e.target.value)} autoComplete="address-level1" />
               <Input placeholder="ZIP" inputMode="numeric" value={cust.zip} onChange={(e) => setCust("zip", e.target.value)} autoComplete="postal-code" />
             </div>
-            <label className="block text-sm font-medium text-neutral-700">When works for you?</label>
-            <Input type="datetime-local" value={cust.scheduled_at} onChange={(e) => setCust("scheduled_at", e.target.value)} />
+            {needsPlanning ? (
+              // Asking for a time we cannot honour would be a promise broken
+              // before they leave the driveway.
+              <div className="rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+                <strong>This one needs planning.</strong> We'll confirm your quote and call you to
+                book a date — nothing is scheduled today.
+              </div>
+            ) : (
+              <>
+                <label className="block text-sm font-medium text-neutral-700">When works for you?</label>
+                <Input type="datetime-local" value={cust.scheduled_at} onChange={(e) => setCust("scheduled_at", e.target.value)} />
+              </>
+            )}
             <Textarea placeholder="Anything we should know? (pet hair, problem spots, gate code…)" value={cust.notes} onChange={(e) => setCust("notes", e.target.value)} />
           </div>
 
@@ -465,10 +492,21 @@ export default function QuoteBuilder() {
                     d.primaryId === s.id ? "border-red-500 bg-red-50 ring-2 ring-red-100" : "border-neutral-200 bg-white"}`}>
                   <div className="flex items-baseline justify-between gap-3">
                     <span className="text-lg font-semibold text-neutral-900">{s.name}</span>
-                    <span className="shrink-0 text-lg font-bold text-neutral-900">{money(priceFor(s, bucket))}</span>
+                    <span className="shrink-0 text-lg font-bold text-neutral-900">
+                      {priceFor(s, bucket) > 0 ? money(priceFor(s, bucket)) : "Quote"}
+                    </span>
                   </div>
                   {s.description && <p className="mt-1 text-sm text-neutral-500">{s.description}</p>}
                   <p className="mt-1 text-xs text-neutral-400">about {duration(s.duration_min ?? 0)}</p>
+                  {s.requires_planning ? (
+                    <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
+                      Has to be planned — we'll book a date once it's quoted, not today.
+                    </p>
+                  ) : priceFor(s, bucket) <= 0 ? (
+                    <p className="mt-2 rounded-lg bg-steel-50 px-2.5 py-1.5 text-xs text-chrome-400">
+                      Priced on the day — look it over and set the price on the next screen.
+                    </p>
+                  ) : null}
                 </button>
               ))}
             </div>
@@ -536,7 +574,9 @@ export default function QuoteBuilder() {
 
           <div className="mt-4">
             <label className="mb-1 block text-xs font-medium text-neutral-600">
-              Override the price{taxCents > 0 ? " before tax" : ""} (optional)
+              {computed.total <= 0 && !needsPlanning
+                ? "Set the price for this job"
+                : `Override the price${taxCents > 0 ? " before tax" : ""} (optional)`}
             </label>
             <Input inputMode="decimal" placeholder={`${(computed.total / 100).toFixed(0)}`}
               value={d.overrideDollars} onChange={(e) => set({ overrideDollars: e.target.value })} />
@@ -551,8 +591,16 @@ export default function QuoteBuilder() {
         <>
           <h1 className="mb-1 text-2xl font-bold text-neutral-900">Deposit</h1>
           <p className="mb-4 text-sm text-neutral-500">
-            {result.status === "scheduled" ? "Booked" : "Quoted"} · {money(result.total_cents)} total
+            {result.status === "scheduled" ? "Booked" : "Quoted"}
+            {result.total_cents > 0 ? ` · ${money(result.total_cents)} total` : " · price to be confirmed"}
           </p>
+
+          {needsPlanning && (
+            <div className="mb-5 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <strong>Saved as a quote, not a booking.</strong> This work needs planning, so follow up
+              with a firm price and a date. Take a deposit only once they've agreed the price.
+            </div>
+          )}
 
           <label className="mb-1 block text-xs font-medium text-neutral-600">Deposit amount</label>
           <div className="mb-5 flex items-center gap-2">
@@ -593,8 +641,13 @@ export default function QuoteBuilder() {
           <h1 className="text-2xl font-bold text-neutral-900">
             {result.status === "scheduled" ? "Booked in" : "Quote saved"}
           </h1>
+          {needsPlanning && (
+            <p className="mx-auto mt-2 max-w-xs text-sm text-amber-700">
+              Call them back with a price and a date — this one wasn't scheduled.
+            </p>
+          )}
           <p className="mt-2 text-sm text-neutral-500">
-            {money(result.total_cents)} total
+            {result.total_cents > 0 ? `${money(result.total_cents)} total` : "Price to be confirmed"}
             {paidCents > 0
               ? ` · ${money(paidCents)} deposit paid · ${money(Math.max(0, result.total_cents - paidCents))} due on the day`
               : " · deposit still to collect"}

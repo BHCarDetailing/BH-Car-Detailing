@@ -110,8 +110,12 @@ export interface Service {
   /** maintenance | light | full | specialty */
   level?: string | null;
   duration_min?: number | null;
-  /** Sold alongside a service, never on its own. */
+  /** Offered in the add-on strip alongside a main service. */
   is_addon?: boolean;
+  /** Sellable on its own. A row can be both this and an add-on. */
+  standalone?: boolean;
+  /** Quoted after seeing the car; never booked on the spot. */
+  requires_planning?: boolean;
 }
 
 export interface QuoteItem {

@@ -45,7 +45,7 @@ interface CompleteBody {
 
 interface ServiceRow {
   id: string; name: string; base_price_cents: number; size_pricing: string;
-  duration_min: number | null; is_addon: number;
+  duration_min: number | null; is_addon: number; requires_planning?: number; level?: string | null;
 }
 
 /**
@@ -69,8 +69,13 @@ export function priceLines(
     try { pricing = JSON.parse(svc.size_pricing || "{}"); } catch { pricing = {}; }
     const unit = priceFor(pricing, bucket, svc.base_price_cents);
     const qty = Math.max(1, Math.round(line.qty || 1));
-    // An unpriced add-on is a pricing gap, not a freebie — skip rather than sell at $0.
-    if (unit <= 0) continue;
+    const planned = Number(svc.requires_planning) === 1;
+    // Specialty work is priced off the damage in front of you — a scratch or a
+    // kerbed rim has no menu price — so a zero there means "to be quoted", and
+    // Max types the figure before saving. Everywhere else an unpriced service is
+    // a gap in the menu, not a freebie, and gets skipped rather than sold at $0.
+    const quoteOnSight = planned || svc.level === "specialty";
+    if (unit <= 0 && !quoteOnSight) continue;
     total += unit * qty;
     duration += (svc.duration_min ?? 0) * qty;
     // price_cents is the per-unit price — the same key the shareable quote page
@@ -78,9 +83,11 @@ export function priceLines(
     items.push({
       service_id: svc.id, name: svc.name, qty,
       price_cents: unit, size_class: bucket, is_addon: Number(svc.is_addon) === 1,
+      requires_planning: planned,
     });
   }
-  return { items, total_cents: total, duration_min: duration, bucket };
+  const needsPlanning = items.some((i) => i.requires_planning === true);
+  return { items, total_cents: total, duration_min: duration, bucket, needsPlanning };
 }
 
 /** Tax and deposit settings, so the wizard can show the real total before saving. */
@@ -114,7 +121,8 @@ quoteBuilderRoutes.post("/complete", async (c) => {
 
   const services = await all<ServiceRow>(
     c.env.DB,
-    `SELECT id, name, base_price_cents, size_pricing, duration_min, is_addon FROM services WHERE active = 1`
+    `SELECT id, name, base_price_cents, size_pricing, duration_min, is_addon, requires_planning, level
+       FROM services WHERE active = 1`
   );
   const priced = priceLines(services, rawLines, vt);
   if (!priced.items.length) return c.json({ error: "no_priced_services" }, 400);
@@ -183,7 +191,11 @@ quoteBuilderRoutes.post("/complete", async (c) => {
 
   // The job is the opportunity AND the appointment — scheduled when they picked
   // a time, quoted when they did not.
-  const start = typeof b.scheduled_start === "string" && Number.isFinite(Date.parse(b.scheduled_start))
+  // Planned work is never dropped onto the calendar from the driveway, whatever
+  // the client sent — it gets quoted, and a date is agreed afterwards.
+  const start = !priced.needsPlanning
+    && typeof b.scheduled_start === "string"
+    && Number.isFinite(Date.parse(b.scheduled_start))
     ? b.scheduled_start : null;
   const primary = priced.items.find((i) => !i.is_addon) ?? priced.items[0];
   const title = String(primary?.name ?? "Detailing");
@@ -256,6 +268,7 @@ quoteBuilderRoutes.post("/complete", async (c) => {
     deposit_percent: pay.percent,
     duration_min: priced.duration_min,
     items: priced.items,
+    requires_planning: priced.needsPlanning,
     status: start ? "scheduled" : "quoted",
   }, 201);
 });

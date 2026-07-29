@@ -29,6 +29,8 @@ function shapeRow(r: Record<string, unknown>) {
     size_pricing: pricing,
     active: Number(r.active) === 1,
     is_addon: Number(r.is_addon) === 1,
+    standalone: Number(r.standalone ?? 1) === 1,
+    requires_planning: Number(r.requires_planning ?? 0) === 1,
     duration_min: r.duration_min == null ? null : Number(r.duration_min),
   };
 }
@@ -111,6 +113,8 @@ serviceRoutes.patch("/:id", async (c) => {
   if (typeof b.level === "string" && LEVELS.has(b.level)) { sets.push("level = ?"); binds.push(b.level); }
   if ("duration_min" in b) { sets.push("duration_min = ?"); binds.push(Math.max(0, Math.round(Number(b.duration_min) || 0))); }
   if ("is_addon" in b) { sets.push("is_addon = ?"); binds.push(b.is_addon ? 1 : 0); }
+  if ("standalone" in b) { sets.push("standalone = ?"); binds.push(b.standalone ? 1 : 0); }
+  if ("requires_planning" in b) { sets.push("requires_planning = ?"); binds.push(b.requires_planning ? 1 : 0); }
   if (!sets.length) return c.json({ error: "no_valid_fields" }, 400);
   sets.push("updated_at = ?"); binds.push(nowIso());
   await run(c.env.DB, `UPDATE services SET ${sets.join(", ")} WHERE id = ?`, ...binds, id);

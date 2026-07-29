@@ -25,6 +25,8 @@ interface Service {
   level: string | null;
   duration_min: number | null;
   is_addon: boolean;
+  standalone?: boolean;
+  requires_planning?: boolean;
   active: boolean;
   created_at?: string;
 }
@@ -248,7 +250,7 @@ export default function Products() {
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="font-semibold text-neutral-900">{s.name}</span>
                   <span className="shrink-0 font-bold text-neutral-900">
-                    {unpriced ? "—" : min === max ? money(min) : `${money(min)}–${money(max)}`}
+                    {unpriced ? (s.requires_planning ? "Quote" : "—") : min === max ? money(min) : `${money(min)}–${money(max)}`}
                   </span>
                 </div>
                 {s.description && <p className="mt-1 text-sm text-neutral-500">{s.description}</p>}
@@ -257,11 +259,14 @@ export default function Products() {
                   {s.area && s.area !== "specialty" && <Tag color="blue">{s.area.toUpperCase()}</Tag>}
                   {s.level && <Tag color="neutral">{(LEVEL_FILTERS.find((l) => l.value === s.level)?.label ?? s.level).toUpperCase()}</Tag>}
                   {!s.active && <Tag color="amber">HIDDEN</Tag>}
+                  {s.requires_planning && <Tag color="amber">NEEDS PLANNING</Tag>}
                   <span className="ml-auto text-xs text-neutral-400">{dur(s.duration_min)}</span>
                 </div>
                 {unpriced && (
                   <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
-                    No price set — hidden from the quote builder until you price it in Settings → Services.
+                    {s.requires_planning
+                      ? "Quoted after seeing the car — shown in the quote builder, but never booked on the spot."
+                      : "No price set — hidden from the quote builder until you price it in Settings → Services."}
                   </p>
                 )}
               </li>

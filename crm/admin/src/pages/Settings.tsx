@@ -28,6 +28,7 @@ function ServicesManager() {
       await api(`/api/services/${s.id}`, { method: "PATCH", body: JSON.stringify({
         name: s.name, description: s.description, size_pricing: s.size_pricing, active: s.active, sort: s.sort,
         area: s.area, level: s.level, duration_min: s.duration_min, is_addon: s.is_addon,
+        standalone: s.standalone, requires_planning: s.requires_planning,
       }) });
       setEditing(null); setNote("Saved."); load();
     } catch { setNote("Couldn't save — try again."); }
@@ -91,6 +92,8 @@ function ServicesManager() {
                 </div>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.active} onChange={(e) => patchLocal(s.id, { active: e.target.checked })} /> Active (shown in quote builder)</label>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!s.is_addon} onChange={(e) => patchLocal(s.id, { is_addon: e.target.checked })} /> Add-on (offered alongside a main service)</label>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.standalone !== false} onChange={(e) => patchLocal(s.id, { standalone: e.target.checked })} /> Can be sold on its own</label>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!s.requires_planning} onChange={(e) => patchLocal(s.id, { requires_planning: e.target.checked })} /> Needs planning — quote only, never booked on the spot</label>
                 {s.is_addon && !Object.values(s.size_pricing).some((v) => (v ?? 0) > 0) && (
                   <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
                     Set at least one price above, or this add-on stays hidden in the quote builder.

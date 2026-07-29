@@ -271,3 +271,103 @@ describe("POST /api/quote-builder/complete", () => {
     expect(job?.amount_paid_cents).toBe(5000);
   });
 });
+
+describe("solo maintenance pricing", () => {
+  it("prices the solos at 60% exterior / 65% interior of the maintenance wash, to the nearest $5", async () => {
+    const wash = await one<{ size_pricing: string }>(
+      env.DB, "SELECT size_pricing FROM services WHERE level = 'maintenance' AND area = 'exterior' AND id NOT LIKE 'svc_maint_%' LIMIT 1");
+    const ext = await one<{ size_pricing: string }>(env.DB, "SELECT size_pricing FROM services WHERE id = 'svc_maint_ext'");
+    const int = await one<{ size_pricing: string }>(env.DB, "SELECT size_pricing FROM services WHERE id = 'svc_maint_int'");
+    expect(ext).toBeTruthy();
+    expect(int).toBeTruthy();
+
+    const e = JSON.parse(ext!.size_pricing) as Record<string, number>;
+    const i = JSON.parse(int!.size_pricing) as Record<string, number>;
+
+    // Approved figures: sedan $70/$75, everything larger $85/$90.
+    expect(e.sedan).toBe(7000);
+    expect(i.sedan).toBe(7500);
+    for (const size of ["suv", "truck", "van", "exotic"]) {
+      expect(e[size]).toBe(8500);
+      expect(i[size]).toBe(9000);
+    }
+
+    // Every price lands on a round $5, and the pair costs more than the bundle.
+    for (const v of [...Object.values(e), ...Object.values(i)]) expect(v % 500).toBe(0);
+    if (wash) {
+      const w = JSON.parse(wash.size_pricing) as Record<string, number>;
+      expect(e.sedan + i.sedan).toBeGreaterThan(w.sedan);
+    }
+  });
+
+  it("sells each solo on its own for every vehicle size", () => {
+    const rows = [
+      { id: "svc_maint_ext", name: "Solo Exterior Maintenance", base_price_cents: 7000, size_pricing: '{"sedan":7000,"suv":8500,"truck":8500,"van":8500,"exotic":8500}', duration_min: 40, is_addon: 0 },
+    ];
+    for (const [type, expected] of [["sedan", 7000], ["coupe", 7000], ["large_suv", 8500], ["pickup", 8500], ["exotic", 8500]] as const) {
+      const r = priceLines(rows, [{ service_id: "svc_maint_ext", qty: 1 }], type);
+      expect(r.total_cents).toBe(expected);
+    }
+  });
+});
+
+describe("specialty work that has to be planned", () => {
+  const base = { vehicle_type: "sedan", first_name: "Planner", phone: "+13055559101" };
+
+  it("quotes planned work at zero rather than skipping it", () => {
+    const rows = [
+      { id: "svc_ppf", name: "PPF", base_price_cents: 0, size_pricing: "{}", duration_min: 480, is_addon: 0, requires_planning: 1 },
+      { id: "svc_unpriced_addon", name: "Odor", base_price_cents: 0, size_pricing: "{}", duration_min: 45, is_addon: 1 },
+    ];
+    const r = priceLines(rows, [{ service_id: "svc_ppf", qty: 1 }, { service_id: "svc_unpriced_addon", qty: 1 }], "sedan");
+    expect(r.items).toHaveLength(1);          // the unpriced add-on is still skipped
+    expect(r.items[0].service_id).toBe("svc_ppf");
+    expect(r.needsPlanning).toBe(true);
+    expect(r.total_cents).toBe(0);
+  });
+
+  it("refuses to put planned work on the calendar, even if a time is sent", async () => {
+    const res = await SELF.fetch("http://x/api/quote-builder/complete", {
+      method: "POST", headers: AUTH,
+      body: JSON.stringify({
+        ...base, service_ids: ["svc_ppf"],
+        scheduled_start: new Date(Date.now() + 86_400_000).toISOString(),
+      }),
+    });
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { status: string; requires_planning: boolean; job_id: string };
+    expect(body.requires_planning).toBe(true);
+    expect(body.status).toBe("quoted");
+
+    const job = await one<{ status: string; scheduled_start: string | null }>(
+      env.DB, "SELECT status, scheduled_start FROM jobs WHERE id = ?", body.job_id);
+    expect(job?.status).toBe("quoted");
+    expect(job?.scheduled_start).toBeNull();
+  });
+
+  it("still books same-day specialty work like curb rash", async () => {
+    const curb = await one<{ id: string }>(env.DB, "SELECT id FROM services WHERE lower(name) LIKE '%curb%' LIMIT 1");
+    if (!curb) return;
+    const start = new Date(Date.now() + 86_400_000).toISOString();
+    const res = await SELF.fetch("http://x/api/quote-builder/complete", {
+      method: "POST", headers: AUTH,
+      body: JSON.stringify({ ...base, phone: "+13055559102", service_ids: [curb.id], scheduled_start: start }),
+    });
+    const body = (await res.json()) as { status: string; requires_planning: boolean };
+    expect(body.requires_planning).toBe(false);
+    expect(body.status).toBe("scheduled");
+  });
+
+  it("marks ceramic, PPF, wrap and correction as planned, and the quick jobs as not", async () => {
+    const rows = await all<{ name: string; requires_planning: number }>(
+      env.DB, "SELECT name, requires_planning FROM services");
+    const find = (needle: string) => rows.find((r) => r.name.toLowerCase().includes(needle));
+    for (const needle of ["ceramic", "ppf", "wrap", "correction"]) {
+      expect(find(needle)?.requires_planning).toBe(1);
+    }
+    for (const needle of ["curb", "headlight", "scratch"]) {
+      const row = find(needle);
+      if (row) expect(row.requires_planning).toBe(0);
+    }
+  });
+});
