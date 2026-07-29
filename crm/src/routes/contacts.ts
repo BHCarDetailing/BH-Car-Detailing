@@ -274,10 +274,16 @@ statsRoutes.get("/kpi", async (c) => {
         AND date(COALESCE(completed_at, scheduled_start, updated_at)) >= ${monthStart}`
   );
 
+  // Bulk imports are stamped with the day they were imported, so 113 phone
+  // contacts loaded in one afternoon would otherwise read as 113 new leads that
+  // week — and drag the conversion rate through the floor. A lead is someone who
+  // arrived, not someone who was uploaded.
+  const NOT_IMPORTED = "COALESCE(source,'') NOT LIKE '%import%'";
+
   const leadsWeek = await one<{ n: number }>(
     c.env.DB,
     `SELECT COUNT(*) AS n FROM contacts
-      WHERE deleted_at IS NULL AND date(created_at) >= date('now','-7 days')`
+      WHERE deleted_at IS NULL AND ${NOT_IMPORTED} AND date(created_at) >= date('now','-7 days')`
   );
 
   // Lead → booked over a 30-day cohort: of the people who arrived, how many
@@ -292,7 +298,8 @@ statsRoutes.get("/kpi", async (c) => {
                      AND j.status IN ('scheduled','in_progress','completed','paid')
                 ) THEN 1 ELSE 0 END) AS booked
        FROM contacts c
-      WHERE c.deleted_at IS NULL AND date(c.created_at) >= date('now','-30 days')`
+      WHERE c.deleted_at IS NULL AND ${NOT_IMPORTED.replace(/source/, "c.source")}
+        AND date(c.created_at) >= date('now','-30 days')`
   );
 
   // Rebook rate: of everyone who has bought once, how many came back.

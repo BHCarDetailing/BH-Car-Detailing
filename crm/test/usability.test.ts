@@ -197,3 +197,21 @@ describe("bulk archive from the contacts list", () => {
     expect([400, 200]).toContain(r.status);   // unknown op must not archive anything
   });
 });
+
+describe("imported contacts are not counted as new leads", () => {
+  it("excludes bulk imports from new leads and the conversion cohort", async () => {
+    const now = nowIso();
+    // One real enquiry, and a batch loaded from a phone on the same day.
+    await run(env.DB,
+      "INSERT INTO contacts (id, first_name, source, stage, created_at, updated_at) VALUES (?,?, 'google_lsa', 'new', ?, ?)",
+      uuid(), "Real Lead", now, now);
+    for (let i = 0; i < 5; i++) {
+      await run(env.DB,
+        "INSERT INTO contacts (id, first_name, source, stage, created_at, updated_at) VALUES (?,?, 'iphone-import', 'new', ?, ?)",
+        uuid(), `Imported ${i}`, now, now);
+    }
+
+    const k = (await (await SELF.fetch("http://x/api/stats/kpi", { headers: AUTH })).json()) as { new_leads_week: number };
+    expect(k.new_leads_week).toBe(1);
+  });
+});
