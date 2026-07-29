@@ -81,3 +81,35 @@ describe("unified inbox", () => {
     expect(wc.body_text).toBe("do you do ceramic?");
   });
 });
+
+/**
+ * The Inbox badge. "Unread" means the customer spoke last, or called and nobody
+ * has acknowledged it — a thread Max already answered must not nag him.
+ */
+describe("unread count", () => {
+  it("counts a thread whose last message is inbound, and stops once answered", async () => {
+    const phone = "+13055559501";
+    await SELF.fetch("http://x/api/lead", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Badge Tester", phone, message: "how much for an SUV?", source: "webchat", website: "", ts: Date.now() - 5000 }),
+    });
+    const found = (await (await SELF.fetch(`http://x/api/contacts?search=${encodeURIComponent(phone)}`, { headers: AUTH })).json()) as { items: Array<{ id: string }> };
+    const contactId = found.items[0].id;
+
+    const before = (await (await SELF.fetch("http://x/api/messages/unread-count", { headers: AUTH })).json()) as { count: number };
+    expect(before.count).toBeGreaterThan(0);
+
+    // Reply, and the thread stops counting.
+    await SELF.fetch("http://x/api/messages", {
+      method: "POST", headers: AUTH,
+      body: JSON.stringify({ contact_id: contactId, body: "About $325 for a full detail." }),
+    });
+    const after = (await (await SELF.fetch("http://x/api/messages/unread-count", { headers: AUTH })).json()) as { count: number };
+    expect(after.count).toBe(before.count - 1);
+  });
+
+  it("requires auth", async () => {
+    const res = await SELF.fetch("http://x/api/messages/unread-count");
+    expect(res.status).toBe(401);
+  });
+});

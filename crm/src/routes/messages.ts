@@ -45,6 +45,38 @@ messageRoutes.get("/inbox", async (c) => {
   return c.json({ items });
 });
 
+/**
+ * How many conversations are waiting on a human — the badge on the Inbox tab.
+ *
+ * "Unread" here means the last word was theirs, or they called and nobody has
+ * acknowledged it. That is the thing worth interrupting someone for; a thread
+ * where Max replied last needs nothing.
+ */
+messageRoutes.get("/unread-count", async (c) => {
+  const row = await one<{ n: number }>(
+    c.env.DB,
+    `SELECT COUNT(*) AS n FROM (
+       SELECT ids.contact_id
+         FROM (
+           SELECT contact_id FROM messages WHERE channel IN ('sms','webchat') AND contact_id IS NOT NULL
+           UNION
+           SELECT contact_id FROM missed_calls WHERE contact_id IS NOT NULL
+         ) ids
+         JOIN contacts ct ON ct.id = ids.contact_id AND ct.deleted_at IS NULL
+        WHERE (
+                SELECT direction FROM messages
+                 WHERE contact_id = ids.contact_id AND channel IN ('sms','webchat')
+                 ORDER BY created_at DESC, id DESC LIMIT 1
+              ) = 'inbound'
+           OR EXISTS (
+                SELECT 1 FROM missed_calls mc
+                 WHERE mc.contact_id = ids.contact_id AND mc.acknowledged_at IS NULL
+              )
+     )`
+  );
+  return c.json({ count: row?.n ?? 0 });
+});
+
 // Thread for one contact (ascending). Defaults to the texting channels; pass
 // ?channel=email to read the contact's email history (subject + body are stored
 // on every send, so this is the full record of what actually went out).

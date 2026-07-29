@@ -353,7 +353,8 @@ export default function QuoteBuilder() {
           </div>
         </div>
 
-        <div className="fixed inset-x-0 bottom-0 border-t border-neutral-200 bg-white/95 p-4 backdrop-blur">
+        <div className="fixed inset-x-0 bottom-0 border-t border-neutral-200 bg-white/95 p-4 backdrop-blur"
+          style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}>
           <div className="mx-auto flex max-w-lg gap-3">
             <Button variant="ghost" onClick={back}>Back</Button>
             <button
@@ -585,7 +586,8 @@ export default function QuoteBuilder() {
 
       {/* sticky footer: live total + advance */}
       {["area", "level", "services", "summary"].includes(d.step) && (
-        <div className="fixed inset-x-0 bottom-0 border-t border-neutral-200 bg-white/95 p-4 backdrop-blur md:left-64">
+        <div className="fixed inset-x-0 bottom-0 border-t border-neutral-200 bg-white/95 p-4 backdrop-blur md:left-64"
+          style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}>
           <div className="mx-auto flex max-w-lg items-center gap-3">
             <Button variant="ghost" onClick={back}>Back</Button>
             <div className="flex-1 text-right">

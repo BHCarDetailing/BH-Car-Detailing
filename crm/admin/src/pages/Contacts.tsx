@@ -134,25 +134,85 @@ export default function Contacts() {
       <div className="flex flex-wrap gap-2">
         <div className="relative w-full sm:w-72">
           <svg className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-chrome-400" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
-          <input value={search} onChange={(e) => update("search", e.target.value)} placeholder="Search name, email, phone…" className="w-full rounded-lg border border-steel-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100" />
+          <input value={search} onChange={(e) => update("search", e.target.value)} placeholder="Search name, email, phone…" className="min-h-[44px] w-full rounded-lg border border-steel-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100" />
         </div>
-        <select value={stage} onChange={(e) => update("stage", e.target.value)} className="rounded-lg border border-steel-200 bg-white px-3 py-2 text-sm capitalize outline-none focus:border-red-400">
+        <select value={stage} onChange={(e) => update("stage", e.target.value)} className="min-h-[44px] rounded-lg border border-steel-200 bg-white px-3 py-2 text-sm capitalize outline-none focus:border-red-400">
           <option value="">All stages</option>
           {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         {labels.length > 0 && (
-          <select value={tag} onChange={(e) => update("tag", e.target.value)} className="rounded-lg border border-steel-200 bg-white px-3 py-2 text-sm outline-none focus:border-red-400">
+          <select value={tag} onChange={(e) => update("tag", e.target.value)} className="min-h-[44px] rounded-lg border border-steel-200 bg-white px-3 py-2 text-sm outline-none focus:border-red-400">
             <option value="">All labels</option>
             {labels.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}
           </select>
         )}
         <button onClick={() => update("archived", archived ? "" : "1")}
-          className={`rounded-lg border px-3 py-2 text-sm transition ${archived ? "border-graphite-800 bg-graphite-900 text-white" : "border-steel-200 bg-white text-chrome-400 hover:text-graphite-800"}`}>
+          className={`min-h-[44px] rounded-lg border px-3 py-2 text-sm transition ${archived ? "border-graphite-800 bg-graphite-900 text-white" : "border-steel-200 bg-white text-chrome-400 hover:text-graphite-800"}`}>
           {archived ? "← Back to active" : "Archived"}
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-steel-200">
+      {/* Phone: cards. An eight-column table squeezed into 375px turns every
+          name into a 17px tap target, which is the main reason this page was
+          unusable standing up. The table below returns at md. */}
+      <ul className="space-y-2 md:hidden">
+        {items.map((c) => (
+          <li key={c.id} className={`rounded-2xl bg-white shadow-sm ring-1 ring-steel-200 ${selected.has(c.id) ? "ring-2 ring-red-300" : ""}`}>
+            <div className="flex items-stretch">
+              <button
+                onClick={() => toggle(c.id)}
+                aria-label={selected.has(c.id) ? `Deselect ${fullName(c)}` : `Select ${fullName(c)}`}
+                className="grid w-12 shrink-0 place-items-center rounded-l-2xl"
+              >
+                <span className={`grid h-6 w-6 place-items-center rounded-md border-2 text-xs ${
+                  selected.has(c.id) ? "border-red-500 bg-red-500 text-white" : "border-steel-200"
+                }`}>{selected.has(c.id) ? "✓" : ""}</span>
+              </button>
+
+              <Link to={`/contacts/${c.id}`} className="min-w-0 flex-1 py-3 pr-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-steel-100 text-[11px] font-bold text-chrome-400">{initials(c)}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium text-graphite-950">{fullName(c)}</div>
+                    <div className="mt-0.5 flex items-center gap-1.5">
+                      <Tag color={STAGE_TAG[c.stage] ?? "neutral"}>{c.stage}</Tag>
+                      <span className="truncate text-xs text-chrome-400">
+                        {c.last_activity_at ? new Date(c.last_activity_at).toLocaleDateString() : "no activity"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+
+              {/* Calling and texting are why you open a contact on a phone. */}
+              {c.phone && !archived && (
+                <div className="flex shrink-0 items-center gap-1 pr-2">
+                  <a href={`tel:${c.phone}`} aria-label={`Call ${fullName(c)}`}
+                    className="grid h-11 w-11 place-items-center rounded-xl bg-steel-100 text-graphite-800">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6A19.8 19.8 0 012.1 4.2 2 2 0 014.1 2h3a2 2 0 012 1.7c.1.9.4 1.8.7 2.7a2 2 0 01-.5 2.1L8.1 9.9a16 16 0 006 6l1.4-1.2a2 2 0 012.1-.5c.9.3 1.8.6 2.7.7a2 2 0 011.7 2z" /></svg>
+                  </a>
+                  <a href={`sms:${c.phone}`} aria-label={`Text ${fullName(c)}`}
+                    className="grid h-11 w-11 place-items-center rounded-xl bg-steel-100 text-graphite-800">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M4 5h16v11H8l-4 4V5z" /></svg>
+                  </a>
+                </div>
+              )}
+              {archived && (
+                <div className="flex shrink-0 items-center pr-2">
+                  <button onClick={() => restoreRow(c)} className="min-h-[44px] rounded-xl bg-steel-100 px-3 text-sm font-medium text-graphite-800">Restore</button>
+                </div>
+              )}
+            </div>
+          </li>
+        ))}
+        {items.length === 0 && (
+          <li className="rounded-2xl bg-white px-4 py-10 text-center text-sm text-chrome-400 ring-1 ring-steel-200">
+            No contacts match those filters.
+          </li>
+        )}
+      </ul>
+
+      <div className="hidden overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-steel-200 md:block">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
