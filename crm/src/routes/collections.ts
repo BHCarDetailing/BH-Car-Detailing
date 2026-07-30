@@ -70,6 +70,34 @@ export const COLLECTIONS: Record<string, Collection> = {
       // kind retained in DB for back-compat but no longer set from the UI
     },
   },
+  expenses: {
+    table: "expenses",
+    orderBy: "occurred_at DESC, created_at DESC",
+    timestamps: "created",
+    fields: {
+      label: { type: "text", required: true, max: 160 },
+      amount_cents: { type: "int", min: 0, max: 100_000_000_00 },
+      category: { type: "text", enum: ["supplies", "equipment", "fuel", "marketing", "software", "insurance", "fees", "other"], max: 20 },
+      occurred_at: { type: "text", max: 40 },
+      vendor: { type: "text", max: 160 },
+      note: { type: "text", max: 2000 },
+    },
+  },
+  equipment: {
+    table: "equipment_items",
+    orderBy: "purchased ASC, sort ASC, created_at ASC",
+    timestamps: "created",
+    fields: {
+      name: { type: "text", required: true, max: 160 },
+      category: { type: "text", enum: ["washing", "polishing", "interior", "power", "storage", "safety", "other"], max: 20 },
+      est_cost_cents: { type: "int", min: 0, max: 100_000_000_00 },
+      priority: { type: "text", enum: ["must_have", "should_have", "nice_to_have"], max: 20 },
+      purchased: { type: "bool" },
+      purchased_at: { type: "text", max: 40 },
+      notes: { type: "text", max: 2000 },
+      sort: { type: "int", min: 0, max: 1_000_000 },
+    },
+  },
   team: {
     table: "team_members",
     orderBy: "created_at ASC",

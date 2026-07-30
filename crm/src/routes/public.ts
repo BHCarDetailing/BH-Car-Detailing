@@ -15,7 +15,9 @@ import { availableSlots, businessHours, slotEndIso, slotIsFree } from "../lib/bo
 import { sendJobConfirmation } from "../lib/reminders";
 import { buildVoiceTwiml, handleMissedCall, loadMissedCallSettings } from "../lib/missedcall";
 import { createCheckoutSession, depositForTotal, loadPaymentSettings, stripeConfigured, verifyStripeWebhook } from "../lib/stripe";
-import { loadTaxSettings } from "../lib/tax";
+import { loadTaxSettings, taxOn } from "../lib/tax";
+import { completeQuote, priceLines } from "./quotebuilder";
+import { vehicleType } from "../lib/vehicles";
 
 export const publicRoutes = new Hono<{ Bindings: Env }>();
 
@@ -557,4 +559,117 @@ publicRoutes.post("/twilio/voice/complete", async (c) => {
     }).then(() => undefined).catch(() => undefined)
   );
   return c.text("<Response></Response>", 200, { "Content-Type": "text/xml" });
+});
+
+// --- Customer intake: the QR/link version of the in-person quote builder.
+// Max picks the vehicle and service on his device (POST /api/quote-builder/intent);
+// the customer opens this token on their OWN phone and fills in their details.
+// The intent record is the source of truth for vehicle/service/price, so the
+// customer's device cannot alter what was quoted. ---
+
+publicRoutes.get("/intent/:token", async (c) => {
+  const token = c.req.param("token");
+  const intent = await one<{
+    id: string; vehicle_type: string; vehicle_notes: string | null; lines: string;
+    price_override_cents: number | null; completed_job_id: string | null; created_at: string;
+  }>(c.env.DB, "SELECT * FROM quote_intents WHERE token = ?", token);
+  if (!intent) return c.json({ error: "not_found" }, 404);
+
+  const vt = vehicleType(intent.vehicle_type);
+  let lines: Array<{ service_id: string; qty: number }> = [];
+  try { lines = JSON.parse(intent.lines || "[]"); } catch { lines = []; }
+
+  const services = await all<{
+    id: string; name: string; base_price_cents: number; size_pricing: string;
+    duration_min: number | null; is_addon: number; requires_planning: number; level: string | null;
+  }>(c.env.DB, `SELECT id, name, base_price_cents, size_pricing, duration_min, is_addon, requires_planning, level FROM services WHERE active = 1`);
+  const priced = priceLines(services, lines, intent.vehicle_type);
+
+  const subtotal = intent.price_override_cents && intent.price_override_cents > 0 ? intent.price_override_cents : priced.total_cents;
+  const tax = await loadTaxSettings(c.env);
+  const taxCents = taxOn(subtotal, tax);
+
+  // If this link already produced a booking, report the REAL outcome rather
+  // than a guess — reloading a completed link must show "booked" as booked,
+  // not fall back to a generic "quoted" because the client lost its state.
+  let completedStatus: string | null = null;
+  if (intent.completed_job_id) {
+    const job = await one<{ status: string }>(c.env.DB, "SELECT status FROM jobs WHERE id = ?", intent.completed_job_id);
+    completedStatus = job?.status ?? "quoted";
+  }
+
+  return c.json({
+    business: c.env.FROM_NAME || "BH Car Detailing",
+    vehicle_label: vt?.label ?? intent.vehicle_type,
+    vehicle_note: intent.vehicle_notes,
+    items: priced.items,
+    subtotal_cents: subtotal,
+    tax_cents: taxCents,
+    tax_label: taxCents > 0 ? tax.label : null,
+    total_cents: subtotal + taxCents,
+    duration_min: priced.duration_min,
+    requires_planning: priced.needsPlanning,
+    completed: !!intent.completed_job_id,
+    completed_status: completedStatus,
+    created_at: intent.created_at,
+  });
+});
+
+publicRoutes.options("/intent/:token/complete", (c) =>
+  new Response(null, { status: 204, headers: { ...corsHeaders(c), "Access-Control-Allow-Methods": "POST, OPTIONS" } }));
+
+publicRoutes.post("/intent/:token/complete", async (c) => {
+  const h = corsHeaders(c);
+  const token = c.req.param("token");
+  const intent = await one<{
+    id: string; vehicle_type: string; vehicle_notes: string | null; lines: string;
+    price_override_cents: number | null; completed_job_id: string | null;
+  }>(c.env.DB, "SELECT * FROM quote_intents WHERE token = ?", token);
+  if (!intent) return c.json({ ok: false, error: "not_found" }, 404, h);
+  // Single-use: a link that already produced a job cannot be replayed into a second booking.
+  if (intent.completed_job_id) return c.json({ ok: false, error: "already_used" }, 409, h);
+
+  const body = await c.req.json<Record<string, unknown>>().catch(() => null);
+  if (!body) return c.json({ ok: false, error: "bad_json" }, 400, h);
+  // Honeypot + minimum-fill-time, same spam guard as the self-booking form.
+  if (typeof body.website === "string" && body.website !== "") return c.json({ ok: true }, 200, h);
+  const ts = typeof body.ts === "number" ? body.ts : NaN;
+  if (!Number.isFinite(ts) || Date.now() - ts < 2000) return c.json({ ok: false, error: "too_fast" }, 400, h);
+
+  const ip = c.req.header("CF-Connecting-IP") ?? "local";
+  const rl = await one<{ n: number }>(c.env.DB, "SELECT COUNT(*) AS n FROM rl_events WHERE bucket = ? AND ts > ?", "intent:" + ip, Date.now() - 3600_000);
+  if ((rl?.n ?? 0) >= 10) return c.json({ ok: false, error: "rate_limited" }, 429, h);
+  await run(c.env.DB, "INSERT INTO rl_events (bucket, ts) VALUES (?, ?)", "intent:" + ip, Date.now());
+
+  let lines: Array<{ service_id: string; qty: number }> = [];
+  try { lines = JSON.parse(intent.lines || "[]"); } catch { lines = []; }
+
+  const result = await completeQuote(c.env, {
+    vehicleType: intent.vehicle_type,
+    vehicleNotes: intent.vehicle_notes,
+    rawLines: lines,
+    priceOverrideCents: intent.price_override_cents,
+    firstName: typeof body.first_name === "string" ? body.first_name : null,
+    lastName: typeof body.last_name === "string" ? body.last_name : null,
+    phone: normalizePhone(typeof body.phone === "string" ? body.phone : undefined) ?? null,
+    email: normalizeEmail(typeof body.email === "string" ? body.email : undefined) ?? null,
+    address: typeof body.address === "string" ? body.address.slice(0, 200) : null,
+    city: typeof body.city === "string" ? body.city.slice(0, 80) : null,
+    state: typeof body.state === "string" ? body.state.slice(0, 40) : null,
+    zip: typeof body.zip === "string" ? body.zip.slice(0, 20) : null,
+    notes: typeof body.notes === "string" ? body.notes.slice(0, 2000) : null,
+    scheduledStart: typeof body.scheduled_start === "string" ? body.scheduled_start : null,
+    smsOptIn: body.sms_opt_in === true,
+    marketingOptIn: body.marketing_opt_in === true,
+    ip,
+    actor: "system",
+    source: "customer-intake",
+  });
+  if (!result.ok) {
+    const code = ["no_priced_services", "service_required", "vehicle_type_required", "contact_info_required"].includes(result.error) ? 400 : 500;
+    return c.json(result, code, h);
+  }
+
+  await run(c.env.DB, "UPDATE quote_intents SET completed_job_id = ?, completed_at = ? WHERE id = ?", result.job_id, nowIso(), intent.id);
+  return c.json(result, 201, h);
 });

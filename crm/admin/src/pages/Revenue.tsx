@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { PageHeader, Button, Modal, Field, Input, Select, EmptyState, Tag, DeleteButton, EditButton, DuplicateButton, StatTile, Tabs } from "../components/ui";
 import { LineChart, Delta, type Point } from "../components/charts";
-import { useCollection, REVENUE_STATUS, labelOf, colorOf, type Row } from "../lib/collections";
+import { useCollection, REVENUE_STATUS, EXPENSE_CATEGORY, labelOf, colorOf, type Row } from "../lib/collections";
 import { useToast } from "../components/Toast";
 import { ContactPicker } from "../components/ContactPicker";
 import { money } from "../types";
@@ -10,6 +10,10 @@ import { ymd, startOfWeek, fmtDate } from "../lib/datetime";
 interface Entry extends Row {
   label: string; amount_cents: number; occurred_at: string | null; customer: string | null;
   service: string | null; status: string; note: string | null; created_at: string; contact_id: string | null;
+}
+interface Expense extends Row {
+  label: string; amount_cents: number; occurred_at: string | null; category: string;
+  vendor: string | null; note: string | null; created_at: string;
 }
 
 interface Product extends Row { name: string }
@@ -55,22 +59,43 @@ function trailingPeriods(g: Gran): { key: string; label: string; date: Date }[] 
   return out;
 }
 
+/** Net profit as a % of revenue, or null when there's no revenue to divide by
+ *  (0% would read as "broke even", which "no sales yet" is not). */
+function marginPct(profitCents: number, revenueCents: number): number | null {
+  if (revenueCents <= 0) return null;
+  return Math.round((profitCents / revenueCents) * 100);
+}
+
 const BLANK = { label: "", amount: "", occurred_at: ymd(new Date()), customer: "", contact_id: "", service: "", status: "paid", note: "" };
 type FormState = typeof BLANK;
+
+const EXP_BLANK = { label: "", amount: "", occurred_at: ymd(new Date()), category: "supplies", vendor: "", note: "" };
+type ExpForm = typeof EXP_BLANK;
 
 export default function Revenue() {
   const { items, loading, create, update, removeWithUndo } = useCollection<Entry>("revenue");
   const { items: products } = useCollection<Product>("products");
+  const {
+    items: expenses, loading: expLoading, create: createExp, update: updateExp, removeWithUndo: removeExpWithUndo,
+  } = useCollection<Expense>("expenses");
   const toast = useToast();
+  const [view, setView] = useState<"revenue" | "expenses">("revenue");
   const [gran, setGran] = useState<Gran>("monthly");
   const [scope, setScope] = useState<"period" | "all">("period");
+  const [expScope, setExpScope] = useState<"period" | "all">("period");
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(BLANK);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
-  const when = (e: Entry) => new Date(e.occurred_at ?? e.created_at);
+  const [expOpen, setExpOpen] = useState(false);
+  const [editingExpId, setEditingExpId] = useState<string | null>(null);
+  const [expForm, setExpForm] = useState<ExpForm>(EXP_BLANK);
+  const [expBusy, setExpBusy] = useState(false);
+  const [expErr, setExpErr] = useState("");
+
+  const when = (e: Entry | Expense) => new Date(e.occurred_at ?? e.created_at);
   const realized = useMemo(() => items.filter((e) => e.status === "paid"), [items]);
 
   // Bucket realized revenue into the selected granularity's trailing periods.
@@ -85,6 +110,16 @@ export default function Revenue() {
     return m;
   }, [realized, gran]);
 
+  // Same bucketing for expenses, so "this period" profit compares like for like.
+  const expTotalsByKey = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const e of expenses) {
+      const k = bucketKey(when(e), gran);
+      m[k] = (m[k] ?? 0) + e.amount_cents;
+    }
+    return m;
+  }, [expenses, gran]);
+
   const chart: Point[] = periods.map((p) => ({ label: p.label, value: (totalsByKey[p.key]?.cents ?? 0) / 100 }));
   const curKey = periods[periods.length - 1]?.key;
   const prevKey = periods[periods.length - 2]?.key;
@@ -97,6 +132,17 @@ export default function Revenue() {
 
   const pending = useMemo(() => items.filter((e) => e.status === "pending").reduce((a, e) => a + e.amount_cents, 0), [items]);
 
+  // --- Profit & margin: this period, and all time. Revenue = paid events only;
+  // expenses count every logged expense regardless of date filter elsewhere. ---
+  const expenseThisPeriod = expTotalsByKey[curKey] ?? 0;
+  const profitThisPeriod = cur.cents - expenseThisPeriod;
+  const marginThisPeriod = marginPct(profitThisPeriod, cur.cents);
+
+  const allRevenueCents = useMemo(() => realized.reduce((s, e) => s + e.amount_cents, 0), [realized]);
+  const allExpenseCents = useMemo(() => expenses.reduce((s, e) => s + e.amount_cents, 0), [expenses]);
+  const allProfitCents = allRevenueCents - allExpenseCents;
+  const allMargin = marginPct(allProfitCents, allRevenueCents);
+
   // Table rows: filtered by the selected period tab (or all-time) then sorted by
   // date desc with a stable created_at secondary sort so same-day rows hold order.
   const rows = useMemo(() => {
@@ -106,6 +152,14 @@ export default function Revenue() {
       return dw !== 0 ? dw : (b.created_at || "").localeCompare(a.created_at || "");
     });
   }, [items, scope, gran, curKey]);
+
+  const expRows = useMemo(() => {
+    const list = expScope === "all" ? expenses : expenses.filter((e) => bucketKey(when(e), gran) === curKey);
+    return list.slice().sort((a, b) => {
+      const dw = when(b).getTime() - when(a).getTime();
+      return dw !== 0 ? dw : (b.created_at || "").localeCompare(a.created_at || "");
+    });
+  }, [expenses, expScope, gran, curKey]);
 
   function openNew() { setEditingId(null); setForm({ ...BLANK, occurred_at: ymd(new Date()) }); setErr(""); setOpen(true); }
   function openEdit(e: Entry) {
@@ -144,90 +198,213 @@ export default function Revenue() {
     finally { setBusy(false); }
   }
 
+  function openExpNew() { setEditingExpId(null); setExpForm({ ...EXP_BLANK, occurred_at: ymd(new Date()) }); setExpErr(""); setExpOpen(true); }
+  function openExpEdit(e: Expense) {
+    setEditingExpId(e.id);
+    setExpForm({
+      label: e.label ?? "", amount: e.amount_cents != null ? (e.amount_cents / 100).toString() : "",
+      occurred_at: e.occurred_at ?? ymd(new Date()), category: e.category ?? "supplies", vendor: e.vendor ?? "", note: e.note ?? "",
+    });
+    setExpErr(""); setExpOpen(true);
+  }
+
+  async function saveExpense() {
+    const cents = Math.round(parseFloat(expForm.amount) * 100);
+    if (!expForm.label.trim()) { setExpErr("Add a label."); return; }
+    if (!Number.isFinite(cents) || cents < 0) { setExpErr("Enter a valid amount."); return; }
+    setExpBusy(true); setExpErr("");
+    const payload = {
+      label: expForm.label, amount_cents: cents, occurred_at: expForm.occurred_at,
+      category: expForm.category, vendor: expForm.vendor, note: expForm.note,
+    };
+    try {
+      if (editingExpId) { await updateExp(editingExpId, payload); toast({ message: "Expense updated.", tone: "success" }); }
+      else { await createExp(payload); }
+      setExpForm({ ...EXP_BLANK, occurred_at: expForm.occurred_at }); setEditingExpId(null); setExpOpen(false);
+    } catch { setExpErr("Could not save."); }
+    finally { setExpBusy(false); }
+  }
+
   return (
     <div className="mx-auto max-w-5xl p-4 md:p-8">
-      <PageHeader eyebrow="Growth" title="Revenue Events" subtitle="Every sale, dated and tracked — with weekly, monthly, quarterly, and yearly reporting."
-        action={<Button onClick={openNew}>+ Add revenue event</Button>} />
+      <PageHeader eyebrow="Growth" title="Revenue & Expenses"
+        subtitle="Every sale and every cost, dated and tracked — so the profit number is real, not a guess."
+        action={<Button onClick={view === "revenue" ? openNew : openExpNew}>{view === "revenue" ? "+ Add revenue event" : "+ Add expense"}</Button>} />
 
-      <Tabs tabs={GRAN_TABS} value={gran} onChange={(v) => setGran(v as Gran)} />
-
-      {/* Current-period metrics */}
-      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <StatTile tone="dark" label={`This ${periodWord}`} value={money(cur.cents)} sub={prevCents ? <Delta current={cur.cents} prior={prevCents} fmt={money} /> : <span className="text-chrome-400">vs last {periodWord}</span>} />
-        <StatTile label="Jobs" value={cur.n} sub={`paid this ${periodWord}`} />
-        <StatTile label="Avg ticket" value={money(avg)} />
-        <StatTile label="Highest sale" value={money(high)} tone="brand" />
-        <StatTile label="Lowest sale" value={money(low)} />
-      </div>
-
-      {/* Trend chart */}
+      {/* Profit & margin — this is the number the sales ledger alone can't show. */}
       <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-steel-200">
-        <div className="mb-1 flex items-center justify-between">
-          <h2 className="eyebrow text-[10px] text-chrome-400">{gran === "yearly" ? "Year-over-year" : `${periodWord}ly trend`} · paid revenue</h2>
-          {pending > 0 && <span className="text-xs text-amber-600">{money(pending)} pending</span>}
+        <h2 className="eyebrow mb-3 text-[10px] text-chrome-400">Profit &amp; margin</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <StatTile label={`This ${periodWord} revenue`} value={money(cur.cents)} />
+          <StatTile label={`This ${periodWord} expenses`} value={money(expenseThisPeriod)} />
+          <StatTile tone="dark" label={`This ${periodWord} profit`} value={money(profitThisPeriod)}
+            sub={marginThisPeriod !== null ? `${marginThisPeriod}% margin` : "no revenue yet"} />
         </div>
-        <p className="mb-3 text-xs text-chrome-400">Touch and drag across the chart to read any point.</p>
-        <LineChart points={chart} fmt={(n) => money(Math.round(n * 100))} />
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <StatTile label="All-time revenue" value={money(allRevenueCents)} />
+          <StatTile label="All-time expenses" value={money(allExpenseCents)} />
+          <StatTile tone="brand" label="All-time profit" value={money(allProfitCents)}
+            sub={allMargin !== null ? `${allMargin}% margin` : "no revenue yet"} />
+        </div>
+        <p className="mt-3 text-xs text-chrome-400">
+          Margin = profit ÷ revenue. Revenue counts paid events only; expenses count everything logged
+          below, whichever period you're viewing.
+        </p>
       </div>
 
-      {/* Event ledger */}
-      {loading ? (
-        <p className="text-sm text-chrome-400">Loading…</p>
-      ) : items.length === 0 ? (
-        <EmptyState title="No revenue events yet" hint="Log your first sale to start tracking monthly and yearly revenue."
-          action={<Button onClick={openNew}>+ Add revenue event</Button>} />
+      <Tabs tabs={[{ value: "revenue", label: "Revenue Events" }, { value: "expenses", label: "Expenses" }]}
+        value={view} onChange={(v) => setView(v as "revenue" | "expenses")} />
+
+      {view === "revenue" ? (
+        <>
+          <Tabs tabs={GRAN_TABS} value={gran} onChange={(v) => setGran(v as Gran)} />
+
+          {/* Current-period metrics */}
+          <div className="mb-4 mt-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+            <StatTile tone="dark" label={`This ${periodWord}`} value={money(cur.cents)} sub={prevCents ? <Delta current={cur.cents} prior={prevCents} fmt={money} /> : <span className="text-chrome-400">vs last {periodWord}</span>} />
+            <StatTile label="Jobs" value={cur.n} sub={`paid this ${periodWord}`} />
+            <StatTile label="Avg ticket" value={money(avg)} />
+            <StatTile label="Highest sale" value={money(high)} tone="brand" />
+            <StatTile label="Lowest sale" value={money(low)} />
+          </div>
+
+          {/* Trend chart */}
+          <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-steel-200">
+            <div className="mb-1 flex items-center justify-between">
+              <h2 className="eyebrow text-[10px] text-chrome-400">{gran === "yearly" ? "Year-over-year" : `${periodWord}ly trend`} · paid revenue</h2>
+              {pending > 0 && <span className="text-xs text-amber-600">{money(pending)} pending</span>}
+            </div>
+            <p className="mb-3 text-xs text-chrome-400">Touch and drag across the chart to read any point.</p>
+            <LineChart points={chart} fmt={(n) => money(Math.round(n * 100))} />
+          </div>
+
+          {/* Event ledger */}
+          {loading ? (
+            <p className="text-sm text-chrome-400">Loading…</p>
+          ) : items.length === 0 ? (
+            <EmptyState title="No revenue events yet" hint="Log your first sale to start tracking monthly and yearly revenue."
+              action={<Button onClick={openNew}>+ Add revenue event</Button>} />
+          ) : (
+            <>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div className="text-xs text-chrome-400">{rows.length} event{rows.length === 1 ? "" : "s"} · {scope === "period" ? `this ${periodWord}` : "all time"}</div>
+                <div className="inline-flex rounded-lg bg-steel-100 p-0.5 text-xs ring-1 ring-inset ring-steel-200">
+                  {(["period", "all"] as const).map((s) => (
+                    <button key={s} onClick={() => setScope(s)}
+                      className={`rounded-md px-2.5 py-1 font-medium transition ${scope === s ? "bg-white text-graphite-950 shadow-sm ring-1 ring-steel-200" : "text-chrome-400 hover:text-graphite-800"}`}>
+                      {s === "period" ? `This ${periodWord}` : "All time"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-steel-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-steel-50 text-left text-xs uppercase tracking-wide text-chrome-400">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Date</th>
+                      <th className="px-4 py-3 font-medium">Event</th>
+                      <th className="hidden px-4 py-3 font-medium sm:table-cell">Customer</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 text-right font-medium">Amount</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-steel-100">
+                    {rows.length === 0 ? (
+                      <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-chrome-400">
+                        No events this {periodWord}. <button onClick={() => setScope("all")} className="font-medium text-red-600 hover:underline">Show all time</button>
+                      </td></tr>
+                    ) : rows.map((e) => (
+                      <tr key={e.id} onClick={() => openEdit(e)} className="group cursor-pointer transition hover:bg-steel-50">
+                        <td className="px-4 py-3 whitespace-nowrap text-neutral-600">{fmtDate(when(e))}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-graphite-950">{e.label}</div>
+                          {(e.service || e.note) && <div className="truncate text-xs text-chrome-400">{[e.service, e.note].filter(Boolean).join(" · ")}</div>}
+                        </td>
+                        <td className="hidden px-4 py-3 text-neutral-600 sm:table-cell">{e.customer || "—"}</td>
+                        <td className="px-4 py-3"><Tag color={colorOf(REVENUE_STATUS, e.status)}>{labelOf(REVENUE_STATUS, e.status)}</Tag></td>
+                        <td className={`px-4 py-3 text-right font-semibold ${e.status === "paid" ? "text-graphite-950" : "text-chrome-400"}`}>{money(e.amount_cents)}</td>
+                        <td className="px-2 py-3">
+                          <div className="flex items-center justify-end opacity-60 transition group-hover:opacity-100" onClick={(ev) => ev.stopPropagation()}>
+                            <EditButton onClick={() => openEdit(e)} />
+                            <DuplicateButton onClick={() => openDuplicate(e)} />
+                            <DeleteButton onClick={() => removeWithUndo(e.id, toast, { label: `Deleted "${e.label}".` })} />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </>
       ) : (
         <>
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div className="text-xs text-chrome-400">{rows.length} event{rows.length === 1 ? "" : "s"} · {scope === "period" ? `this ${periodWord}` : "all time"}</div>
-            <div className="inline-flex rounded-lg bg-steel-100 p-0.5 text-xs ring-1 ring-inset ring-steel-200">
-              {(["period", "all"] as const).map((s) => (
-                <button key={s} onClick={() => setScope(s)}
-                  className={`rounded-md px-2.5 py-1 font-medium transition ${scope === s ? "bg-white text-graphite-950 shadow-sm ring-1 ring-steel-200" : "text-chrome-400 hover:text-graphite-800"}`}>
-                  {s === "period" ? `This ${periodWord}` : "All time"}
-                </button>
-              ))}
-            </div>
+          <div className="mb-4 mt-4 grid grid-cols-3 gap-3">
+            <StatTile label={`This ${periodWord}`} value={money(expenseThisPeriod)} />
+            <StatTile label="All time" value={money(allExpenseCents)} />
+            <StatTile label="Logged" value={expenses.length} />
           </div>
-          <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-steel-200">
-            <table className="w-full text-sm">
-              <thead className="bg-steel-50 text-left text-xs uppercase tracking-wide text-chrome-400">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Date</th>
-                  <th className="px-4 py-3 font-medium">Event</th>
-                  <th className="hidden px-4 py-3 font-medium sm:table-cell">Customer</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 text-right font-medium">Amount</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-steel-100">
-                {rows.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-chrome-400">
-                    No events this {periodWord}. <button onClick={() => setScope("all")} className="font-medium text-red-600 hover:underline">Show all time</button>
-                  </td></tr>
-                ) : rows.map((e) => (
-                  <tr key={e.id} onClick={() => openEdit(e)} className="group cursor-pointer transition hover:bg-steel-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-neutral-600">{fmtDate(when(e))}</td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-graphite-950">{e.label}</div>
-                      {(e.service || e.note) && <div className="truncate text-xs text-chrome-400">{[e.service, e.note].filter(Boolean).join(" · ")}</div>}
-                    </td>
-                    <td className="hidden px-4 py-3 text-neutral-600 sm:table-cell">{e.customer || "—"}</td>
-                    <td className="px-4 py-3"><Tag color={colorOf(REVENUE_STATUS, e.status)}>{labelOf(REVENUE_STATUS, e.status)}</Tag></td>
-                    <td className={`px-4 py-3 text-right font-semibold ${e.status === "paid" ? "text-graphite-950" : "text-chrome-400"}`}>{money(e.amount_cents)}</td>
-                    <td className="px-2 py-3">
-                      <div className="flex items-center justify-end opacity-60 transition group-hover:opacity-100" onClick={(ev) => ev.stopPropagation()}>
-                        <EditButton onClick={() => openEdit(e)} />
-                        <DuplicateButton onClick={() => openDuplicate(e)} />
-                        <DeleteButton onClick={() => removeWithUndo(e.id, toast, { label: `Deleted “${e.label}”.` })} />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+
+          {expLoading ? (
+            <p className="text-sm text-chrome-400">Loading…</p>
+          ) : expenses.length === 0 ? (
+            <EmptyState title="No expenses logged yet" hint="Log what you spend to see real profit and margin, not just sales."
+              action={<Button onClick={openExpNew}>+ Add expense</Button>} />
+          ) : (
+            <>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div className="text-xs text-chrome-400">{expRows.length} expense{expRows.length === 1 ? "" : "s"} · {expScope === "period" ? `this ${periodWord}` : "all time"}</div>
+                <div className="inline-flex rounded-lg bg-steel-100 p-0.5 text-xs ring-1 ring-inset ring-steel-200">
+                  {(["period", "all"] as const).map((s) => (
+                    <button key={s} onClick={() => setExpScope(s)}
+                      className={`rounded-md px-2.5 py-1 font-medium transition ${expScope === s ? "bg-white text-graphite-950 shadow-sm ring-1 ring-steel-200" : "text-chrome-400 hover:text-graphite-800"}`}>
+                      {s === "period" ? `This ${periodWord}` : "All time"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-steel-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-steel-50 text-left text-xs uppercase tracking-wide text-chrome-400">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Date</th>
+                      <th className="px-4 py-3 font-medium">Expense</th>
+                      <th className="hidden px-4 py-3 font-medium sm:table-cell">Vendor</th>
+                      <th className="px-4 py-3 font-medium">Category</th>
+                      <th className="px-4 py-3 text-right font-medium">Amount</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-steel-100">
+                    {expRows.length === 0 ? (
+                      <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-chrome-400">
+                        No expenses this {periodWord}. <button onClick={() => setExpScope("all")} className="font-medium text-red-600 hover:underline">Show all time</button>
+                      </td></tr>
+                    ) : expRows.map((e) => (
+                      <tr key={e.id} onClick={() => openExpEdit(e)} className="group cursor-pointer transition hover:bg-steel-50">
+                        <td className="px-4 py-3 whitespace-nowrap text-neutral-600">{fmtDate(when(e))}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-graphite-950">{e.label}</div>
+                          {e.note && <div className="truncate text-xs text-chrome-400">{e.note}</div>}
+                        </td>
+                        <td className="hidden px-4 py-3 text-neutral-600 sm:table-cell">{e.vendor || "—"}</td>
+                        <td className="px-4 py-3"><Tag color={colorOf(EXPENSE_CATEGORY, e.category)}>{labelOf(EXPENSE_CATEGORY, e.category)}</Tag></td>
+                        <td className="px-4 py-3 text-right font-semibold text-graphite-950">{money(e.amount_cents)}</td>
+                        <td className="px-2 py-3">
+                          <div className="flex items-center justify-end opacity-60 transition group-hover:opacity-100" onClick={(ev) => ev.stopPropagation()}>
+                            <EditButton onClick={() => openExpEdit(e)} />
+                            <DeleteButton onClick={() => removeExpWithUndo(e.id, toast, { label: `Deleted "${e.label}".` })} />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </>
       )}
 
@@ -255,6 +432,25 @@ export default function Revenue() {
           </Field>
           <Field label="Notes (optional)"><Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Context…" /></Field>
           {err && <p className="text-sm text-rose-600">{err}</p>}
+        </div>
+      </Modal>
+
+      <Modal open={expOpen} onClose={() => setExpOpen(false)}
+        onDismiss={editingExpId ? () => { void saveExpense(); } : () => setExpOpen(false)}
+        title={editingExpId ? "Edit expense" : "Add expense"}
+        footer={<><Button variant="ghost" onClick={() => setExpOpen(false)}>Cancel</Button><Button onClick={saveExpense} disabled={expBusy}>{expBusy ? "Saving…" : editingExpId ? "Save changes" : "Add expense"}</Button></>}>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Amount ($)"><Input type="number" min="0" step="0.01" value={expForm.amount} autoFocus onChange={(e) => setExpForm({ ...expForm, amount: e.target.value })} placeholder="0.00" /></Field>
+            <Field label="Date"><Input type="date" value={expForm.occurred_at} onChange={(e) => setExpForm({ ...expForm, occurred_at: e.target.value })} /></Field>
+          </div>
+          <Field label="Label"><Input value={expForm.label} onChange={(e) => setExpForm({ ...expForm, label: e.target.value })} placeholder="e.g. Ceramic sealant restock" /></Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Category"><Select options={EXPENSE_CATEGORY} value={expForm.category} onChange={(e) => setExpForm({ ...expForm, category: e.target.value })} /></Field>
+            <Field label="Vendor (optional)"><Input value={expForm.vendor} onChange={(e) => setExpForm({ ...expForm, vendor: e.target.value })} placeholder="e.g. Chemical Guys" /></Field>
+          </div>
+          <Field label="Notes (optional)"><Input value={expForm.note} onChange={(e) => setExpForm({ ...expForm, note: e.target.value })} placeholder="Context…" /></Field>
+          {expErr && <p className="text-sm text-rose-600">{expErr}</p>}
         </div>
       </Modal>
     </div>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import QRCode from "qrcode";
 import { api } from "../api";
 import { Button, Input, Textarea } from "../components/ui";
 import { useToast } from "../components/Toast";
@@ -130,6 +131,12 @@ export default function QuoteBuilder() {
   const [d, setD] = useState<Draft>(BLANK);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ job_id: string; contact_id: string; total_cents: number; deposit_cents: number; duration_min: number; status: string } | null>(null);
+  // Share-with-customer: a QR code and a link that opens the same quote on the
+  // customer's OWN phone, so nobody has to hand a device across the driveway.
+  const [shareToken, setShareToken] = useState<string | null>(null);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [quote, setQuote] = useState<{ token: string; payments_enabled: boolean; amount_paid_cents: number } | null>(null);
   const [depositDollars, setDepositDollars] = useState("");
   const [paidCents, setPaidCents] = useState(0);
@@ -230,6 +237,47 @@ export default function QuoteBuilder() {
   const primary = services.find((s) => s.id === d.primaryId) ?? null;
   const chosenAddons = addons.filter((a) => d.addonIds.includes(a.id));
   const needsPlanning = primary?.requires_planning === true;
+
+  // A share link is only valid for the exact vehicle/service/price it was
+  // created from, so any of those changing invalidates the old one rather than
+  // silently handing the customer a mismatched quote.
+  useEffect(() => {
+    setShareToken(null); setQrDataUrl(null);
+  }, [d.vehicleType, d.primaryId, d.addonIds.join(","), d.overrideDollars]);
+
+  const shareUrl = shareToken ? `${location.origin}/intake/${shareToken}` : null;
+
+  async function createShareLink() {
+    if (!primary) return;
+    setShareBusy(true);
+    try {
+      const res = await api<{ token: string }>("/api/quote-builder/intent", {
+        method: "POST",
+        body: JSON.stringify({
+          vehicle_type: d.vehicleType,
+          vehicle_notes: d.vehicleNotes,
+          lines: [{ service_id: primary.id, qty: 1 }, ...chosenAddons.map((a) => ({ service_id: a.id, qty: 1 }))],
+          price_override_cents: d.overrideDollars.trim() ? overrideCents : undefined,
+        }),
+      });
+      setShareToken(res.token);
+      const url = `${location.origin}/intake/${res.token}`;
+      setQrDataUrl(await QRCode.toDataURL(url, { margin: 1, width: 240 }));
+    } catch {
+      toast({ message: "Could not create the link.", tone: "error" });
+    } finally { setShareBusy(false); }
+  }
+
+  async function copyShareLink() {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 1800);
+    } catch {
+      toast({ message: "Couldn't copy — long-press the link to copy it.", tone: "error" });
+    }
+  }
 
   const computed = useMemo(() => {
     let total = primary ? priceFor(primary, bucket) : 0;
@@ -583,6 +631,34 @@ export default function QuoteBuilder() {
             <label className="mb-1 mt-3 block text-xs font-medium text-neutral-600">Vehicle note (optional)</label>
             <Input placeholder="e.g. Black Range Rover, curb rash 2 rims"
               value={d.vehicleNotes} onChange={(e) => set({ vehicleNotes: e.target.value })} />
+          </div>
+
+          {/* Let the customer fill in their own details on their own phone,
+              instead of handing this one across the driveway. */}
+          <div className="mt-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-neutral-100">
+            <h2 className="text-sm font-semibold text-neutral-900">Share with the customer</h2>
+            <p className="mt-1 text-xs text-neutral-500">
+              They scan the code or open the link on their own phone, fill in their details, and book.
+            </p>
+            {!shareToken ? (
+              <button onClick={createShareLink} disabled={shareBusy}
+                className="mt-3 min-h-[48px] w-full rounded-xl bg-neutral-900 text-sm font-semibold text-white disabled:opacity-50">
+                {shareBusy ? "Creating…" : "Create QR code & link"}
+              </button>
+            ) : (
+              <div className="mt-3 flex flex-col items-center gap-3 sm:flex-row sm:items-start">
+                {qrDataUrl && (
+                  <img src={qrDataUrl} alt="QR code that opens this quote" className="h-36 w-36 shrink-0 rounded-lg ring-1 ring-neutral-200" />
+                )}
+                <div className="w-full min-w-0 flex-1 space-y-2">
+                  <div className="truncate rounded-lg bg-neutral-50 px-3 py-2 text-xs text-neutral-500">{shareUrl}</div>
+                  <button onClick={copyShareLink}
+                    className="min-h-[44px] w-full rounded-lg bg-neutral-100 text-sm font-medium text-neutral-800">
+                    {linkCopied ? "Copied!" : "Copy link"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}

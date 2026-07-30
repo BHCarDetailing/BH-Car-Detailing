@@ -123,6 +123,17 @@ export const REVENUE_STATUS = [
   { value: "cancelled", label: "Cancelled", color: "red" },
 ] as const;
 
+export const EXPENSE_CATEGORY = [
+  { value: "supplies", label: "Supplies", color: "blue" },
+  { value: "equipment", label: "Equipment", color: "violet" },
+  { value: "fuel", label: "Fuel", color: "amber" },
+  { value: "marketing", label: "Marketing", color: "green" },
+  { value: "software", label: "Software", color: "neutral" },
+  { value: "insurance", label: "Insurance", color: "red" },
+  { value: "fees", label: "Fees", color: "neutral" },
+  { value: "other", label: "Other", color: "neutral" },
+] as const;
+
 export const PROSPECT_STATUS = [
   { value: "new", label: "New", color: "neutral" },
   { value: "contacted", label: "Contacted", color: "blue" },

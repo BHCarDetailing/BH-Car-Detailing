@@ -13,6 +13,7 @@ import Settings from "./pages/Settings";
 import Sequences from "./pages/Sequences";
 import Book from "./pages/Book";
 import Quote from "./pages/Quote";
+import Intake from "./pages/Intake";
 import Layout from "./components/Layout";
 import { ToastProvider } from "./components/Toast";
 import { CommandPaletteProvider } from "./components/CommandPalette";
@@ -29,6 +30,7 @@ import Team from "./pages/Team";
 import Updates from "./pages/Updates";
 import AskClaude from "./pages/AskClaude";
 import Products from "./pages/Products";
+import Equipment from "./pages/Equipment";
 import Partners from "./pages/Partners";
 import Advisors from "./pages/Advisors";
 import DocsLegal from "./pages/DocsLegal";
@@ -41,6 +43,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/book" element={<Book />} />
       <Route path="/quote/:token" element={<Quote />} />
+      <Route path="/intake/:token" element={<Intake />} />
       <Route element={<Layout />}>
         <Route path="/" element={<Navigate to="/home" replace />} />
         <Route path="/home" element={<Home />} />
@@ -60,6 +63,7 @@ export default function App() {
         <Route path="/quote-builder" element={<QuoteBuilder />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/products" element={<Products />} />
+        <Route path="/equipment" element={<Equipment />} />
         {/* Performance */}
         <Route path="/kpi" element={<Kpi />} />
         <Route path="/accountability" element={<Accountability />} />

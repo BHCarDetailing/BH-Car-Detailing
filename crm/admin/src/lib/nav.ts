@@ -42,6 +42,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: "/reactivation", label: "Reactivation", short: "Reactivate", icon: "M4 4v6h6M20 20v-6h-6M20 9A8 8 0 006 5.3M4 15a8 8 0 0014 3.7", keywords: "dead book old leads follow up win back reactivate cold" },
       { to: "/onboarding", label: "Onboarding", short: "Onboard", icon: "M9 12l2 2 4-4M12 21a9 9 0 110-18 9 9 0 010 18", keywords: "new hires steps" },
       { to: "/products", label: "Products", short: "Products", icon: "M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7", keywords: "services pricing packages menu products price list detail wash" },
+      { to: "/equipment", label: "Equipment", short: "Gear", icon: "M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.4-3.4a4 4 0 01-5.4 5.4L6 21H3v-3l9.7-9.7a4 4 0 015.4-5.4l-3.4 3.4z", keywords: "gear setup shopping list to buy supplies pressure washer vacuum" },
     ],
   },
   {
