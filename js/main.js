@@ -400,7 +400,7 @@
   });
 
   /* ---------- CRM bridge: mirror every lead into the BH CRM backend ---------- */
-  var CRM_ENDPOINT = "https://bh-crm.bhcardetails.workers.dev/api/lead";
+  var CRM_ENDPOINT = "https://bh-crm.bhdev.workers.dev/api/lead";
   var PAGE_LOADED_AT = Date.now();
 
   function crmSource(form) {
