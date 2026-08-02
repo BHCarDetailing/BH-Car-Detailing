@@ -174,48 +174,14 @@
     document.addEventListener("keydown", (e) => e.key === "Escape" && close());
   }
 
-  /* ---------- Promo modal: 10% off first detail ---------- */
-  const modal = document.getElementById("promo-modal");
-  if (modal) {
-    const KEY = "bh-promo-dismissed";
-    const openModal = () => {
-      modal.classList.add("open");
-      document.body.style.overflow = "hidden";
-    };
-    const closeModal = () => {
-      modal.classList.remove("open");
-      document.body.style.overflow = "";
-      try { localStorage.setItem(KEY, String(Date.now())); } catch (e) {}
-    };
-    let dismissed = null;
-    try { dismissed = localStorage.getItem(KEY); } catch (e) {}
-    /* show again after 7 days */
-    if (!dismissed || Date.now() - Number(dismissed) > 7 * 864e5) {
-      setTimeout(openModal, 1800);
-    }
-    modal.querySelector(".modal-close").addEventListener("click", closeModal);
-    modal.querySelector(".modal-backdrop").addEventListener("click", closeModal);
-    document.addEventListener("keydown", (e) => e.key === "Escape" && modal.classList.contains("open") && closeModal());
-    /* any "claim offer" trigger elsewhere on the page */
-    document.querySelectorAll("[data-open-promo]").forEach((el) =>
-      el.addEventListener("click", (e) => {
-        e.preventDefault();
-        openModal();
-      })
-    );
-    modal.querySelector("form").addEventListener("submit", () => {
-      try { localStorage.setItem(KEY, String(Date.now())); } catch (e) {}
-    });
-  }
-
   /* ---------- "The Best Option For You" recommender ---------- */
   const quiz = document.getElementById("quiz");
   if (quiz) {
     const PACKAGES = {
       washExt: { name: "Exterior Car Wash", desc: "A meticulous hand wash & dry to keep your paint clean between details." },
-      washFull: { name: "Full Car Wash", desc: "Hand wash & dry outside, light vacuum and clean windows inside. The perfect reset." },
-      light: { name: "Light Detail", desc: "Full interior scrub — jambs, sills, crevices, fabric & carpet — plus hand wash, wheels and a 3-month spray sealant." },
-      full: { name: "Full Detail", desc: "Our complete restoration detail: deep carpet & fabric extraction, scuff removal, wheel wells, 3-month wax + 6-month paint sealant." },
+      washFull: { name: "Maintenance Detail", desc: "Hand wash & dry outside, light vacuum and clean windows inside. The perfect reset." },
+      light: { name: "Signature Detail", desc: "Full interior scrub — jambs, sills, crevices, fabric & carpet — plus hand wash, wheels and a 3-month spray sealant." },
+      full: { name: "Complete Detail", desc: "Our complete restoration detail: deep carpet & fabric extraction, scuff removal, wheel wells, 3-month wax + 6-month paint sealant." },
       correction: { name: "Paint Correction", desc: "Single-stage machine polish that removes swirl marks, light scratches and defects — restoring true clarity and gloss." },
       ceramic: { name: "Ceramic Coating", desc: "Clay bar decontamination + professional-grade ceramic. Hydrophobic, UV-resistant protection that lasts 1–2 years." },
       maintenance: { name: "Maintenance Plan", desc: "A recurring plan tailored to your vehicle and schedule, so it never falls out of showroom condition." },
@@ -437,9 +403,9 @@
     } catch (e) { /* never break the user-facing submit */ }
   }
 
-  /* SMS opt-in consent — injected at the point of phone collection. Marketing
-     consent is a SEPARATE, optional checkbox from transactional/service consent
-     (A2P 10DLC requires this for Marketing campaigns — error 30913). */
+  /* SMS opt-in consent — injected at the point of phone collection.
+     Quote/service consent only, no marketing checkbox, until the A2P
+     campaign is verified for marketing use (error 30896 / 30913). */
   function injectSmsConsent(form) {
     if (form.querySelector(".sms-consent")) return;
     var btn = form.querySelector("button[type=submit]");
@@ -452,15 +418,10 @@
     box.innerHTML =
       '<label style="' + rowStyle + '">' +
         '<input type="checkbox" name="sms_opt_in" value="yes" style="' + cbStyle + '">' +
-        "<span>Yes, text me about my quote, booking, and appointment reminders (service messages).</span>" +
+        "<span>Yes, text me about the free quote I requested, my booking, and appointment reminders.</span>" +
       "</label>" +
-      '<label style="' + rowStyle + '">' +
-        '<input type="checkbox" name="marketing_opt_in" value="yes" style="' + cbStyle + '">' +
-        "<span>Yes, also send me occasional offers &amp; promotions from BH Car Detailing. " +
-        "(Optional — not required to book.)</span>" +
-      "</label>" +
-      '<span style="display:block;color:#a0a0a4">By checking the box(es) above, you agree to receive the ' +
-      "selected text messages from BH Car Detailing at the number provided. Checking a box is optional and not " +
+      '<span style="display:block;color:#a0a0a4">By checking the box above, you agree to receive text messages ' +
+      "from BH Car Detailing about your quote request at the number provided. Checking the box is optional and not " +
       "a condition of purchase &mdash; we'll still follow up about the quote you requested. " +
       "Msg &amp; data rates may apply. Message frequency varies. Reply STOP to opt out, HELP for help. See our " +
       '<a href="/terms.html" style="color:var(--accent,#c8102e);text-decoration:underline">Terms</a> &amp; ' +
