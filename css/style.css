@@ -923,6 +923,11 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
 }
 .field textarea { resize: vertical; min-height: 110px; }
 
+.consent-checkbox { display: flex; gap: 10px; align-items: flex-start; font-size: 12px; line-height: 1.5; color: rgba(255,255,255,0.55); }
+.consent-checkbox input { margin-top: 3px; flex: 0 0 auto; accent-color: var(--accent); width: 16px; height: 16px; }
+.consent-checkbox a { color: var(--silver); text-decoration: underline; text-underline-offset: 2px; }
+.consent-checkbox a:hover { color: var(--white); }
+
 .form-msg {
   margin-top: 14px;
   padding: 14px 18px;
