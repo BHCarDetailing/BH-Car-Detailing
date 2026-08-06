@@ -174,39 +174,7 @@
     document.addEventListener("keydown", (e) => e.key === "Escape" && close());
   }
 
-  /* ---------- Promo modal: 10% off first detail ---------- */
-  const modal = document.getElementById("promo-modal");
-  if (modal) {
-    const KEY = "bh-promo-dismissed";
-    const openModal = () => {
-      modal.classList.add("open");
-      document.body.style.overflow = "hidden";
-    };
-    const closeModal = () => {
-      modal.classList.remove("open");
-      document.body.style.overflow = "";
-      try { localStorage.setItem(KEY, String(Date.now())); } catch (e) {}
-    };
-    let dismissed = null;
-    try { dismissed = localStorage.getItem(KEY); } catch (e) {}
-    /* show again after 7 days */
-    if (!dismissed || Date.now() - Number(dismissed) > 7 * 864e5) {
-      setTimeout(openModal, 1800);
-    }
-    modal.querySelector(".modal-close").addEventListener("click", closeModal);
-    modal.querySelector(".modal-backdrop").addEventListener("click", closeModal);
-    document.addEventListener("keydown", (e) => e.key === "Escape" && modal.classList.contains("open") && closeModal());
-    /* any "claim offer" trigger elsewhere on the page */
-    document.querySelectorAll("[data-open-promo]").forEach((el) =>
-      el.addEventListener("click", (e) => {
-        e.preventDefault();
-        openModal();
-      })
-    );
-    modal.querySelector("form").addEventListener("submit", () => {
-      try { localStorage.setItem(KEY, String(Date.now())); } catch (e) {}
-    });
-  }
+  /* Promo modal removed for A2P compliance */
 
   /* ---------- "The Best Option For You" recommender ---------- */
   const quiz = document.getElementById("quiz");
