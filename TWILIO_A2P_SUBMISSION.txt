@@ -1,0 +1,91 @@
+===== TWILIO A2P 10DLC CAMPAIGN RESUBMISSION =====
+Date: 2026-08-05
+Account SID: [YOUR_ACCOUNT_SID_HERE]
+Campaign SID: CMf6c08a0fc6837a0507e58c9c85872f8c
+Use Case: MARKETING
+
+REASON FOR RESUBMISSION:
+Fixed Error 30896 by removing transactional messaging and providing messaging that is 100% marketing/promotional only. Campaign now contains only promotional offers and discounts, matching use case declaration.
+
+=====
+
+CAMPAIGN DESCRIPTION
+Copy paste into "Campaign description" field:
+
+BH Car Detailing (bhcardetails.com) sends promotional offers and discounts to customers who opt in on our website. Messages include seasonal specials, exclusive discounts, and loyalty offers. Message frequency varies, typically 1-2 messages per month. Message and data rates may apply. Reply HELP for help, STOP to opt out.
+
+=====
+
+SAMPLE MESSAGES (Paste each into Sample #1-5 fields)
+
+Sample #1:
+BH Car Detailing: Spring special — 20% off ceramic coating this month. Book mobile detail at bhcardetails.com. Reply STOP to opt out, HELP for help. Msg & data rates may apply.
+
+Sample #2:
+BH Car Detailing: Limited time — ceramic coating + paint correction package, $150 off. Schedule your detail at bhcardetails.com. Reply STOP to unsubscribe, HELP for info.
+
+Sample #3:
+BH Car Detailing: Loyalty offer — regular customers, claim 15% off your next complete detail. Book now at bhcardetails.com. Reply STOP to opt out.
+
+Sample #4:
+BH Car Detailing: Weekend flash sale — Signature Detail, $75 off through Sunday. Book at bhcardetails.com. Reply HELP for help, STOP to unsubscribe. Msg & data rates may apply.
+
+Sample #5:
+BH Car Detailing: Exclusive offer — free interior deep-clean upgrade on Complete Detail bookings this month. Reserve at bhcardetails.com. Msg frequency varies. Reply STOP to opt out.
+
+=====
+
+OPT-IN MESSAGE
+Copy paste into "What is the opt-in message?" field:
+
+BH Car Detailing: You're now subscribed to receive promotional offers and discounts. Message frequency varies. Message and data rates may apply. Reply HELP for help, STOP to unsubscribe.
+
+=====
+
+MESSAGE FLOW (How end-users consent to receive messages)
+Copy paste into "How do end-users consent to receive messages?" field:
+
+Customers opt in by checking a checkbox on our website at bhcardetails.com. The checkbox is labeled: "Yes, send me promotional offers and discounts from BH Car Detailing." Below the form, all customers see: "By checking this box you agree to receive promotional text messages from BH Car Detailing at the number provided. Consent is not a condition of purchase. Msg & data rates may apply. Message frequency varies. Reply STOP to opt out, HELP for help." The form includes links to Privacy Policy (https://bhcardetails.com/privacy-policy.html) and Terms of Service (https://bhcardetails.com/terms.html). Customers can opt out anytime by replying STOP. Opt-in data is not shared with third parties. Privacy Policy: https://bhcardetails.com/privacy-policy.html. Terms: https://bhcardetails.com/terms.html.
+
+=====
+
+LINKS (Paste into respective fields)
+Privacy Policy: https://bhcardetails.com/privacy-policy.html
+Terms of Service: https://bhcardetails.com/terms.html
+
+=====
+
+OPT-IN KEYWORDS
+Copy paste: START,YES
+
+=====
+
+OPT-OUT KEYWORDS
+Copy paste: CANCEL,QUIT,STOP,OPTOUT,UNSUBSCRIBE,STOPALL,REVOKE,END
+
+=====
+
+HELP KEYWORDS
+Copy paste: HELP,INFO
+
+=====
+
+HELP MESSAGE
+Copy paste into "What is the help message?" field:
+
+Reply STOP to unsubscribe. Msg & Data Rates May Apply.
+
+=====
+
+CHECKBOXES TO SELECT:
+✓ Embedded links (checked — all messages have bhcardetails.com links)
+Leave unchecked: Age-gated content, lending/loan
+
+=====
+
+SUBMIT NOW:
+1. Go to Twilio Console > Messaging > Regulatory Compliance > Campaigns
+2. Click campaign CMf6c08a0fc6837a0507e58c9c85872f8c
+3. Edit & paste fields above (copy exactly — no extra spaces)
+4. Click "Submit"
+5. Monitor status — usually approved within hours for Sole Proprietor
