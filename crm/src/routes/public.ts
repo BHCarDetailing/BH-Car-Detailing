@@ -10,6 +10,7 @@ import { timingSafeEqualStr } from "../lib/auth";
 import { buildIcs, type IcsJob } from "../lib/ics";
 import { exitEnrollments, unsubscribeContact, verifyUnsub } from "../lib/sequences";
 import { fireTrigger } from "../lib/triggers";
+import { notifyOwner } from "../lib/email";
 import { analyzeLead } from "../lib/ai";
 import { availableSlots, businessHours, slotIsFree } from "../lib/booking";
 import { sendJobConfirmation } from "../lib/reminders";
@@ -373,6 +374,19 @@ publicRoutes.post("/book/lead", async (c) => {
       contactId, type: "note", title: "Started the online quote/booking wizard, hasn't finished",
       payload: { source: "quote-wizard-incomplete", ip }, actor: "system",
     });
+    // Only alerts on a genuinely new contact. This endpoint fires on a debounce
+    // as the customer types, so alerting on updates too would mail Max several
+    // times for one person.
+    c.executionCtx.waitUntil(notifyOwner(c.env, {
+      subject: `Someone started booking — ${[first, last].filter(Boolean).join(" ") || phone}`,
+      heading: "Someone started a booking and hasn't finished it.",
+      rows: [
+        ["Name", [first, last].filter(Boolean).join(" ") || "(not given)"],
+        ["Phone", phone],
+        ["Email", email ?? ""],
+      ],
+      note: "They have not consented to texts — call them, don't message them.",
+    }).then(() => undefined));
   }
   return c.json({ ok: true }, 200, h);
 });
@@ -444,6 +458,39 @@ publicRoutes.post("/book/quote", async (c) => {
   if (result.status === "scheduled") {
     c.executionCtx.waitUntil(sendJobConfirmation(c.env, result.job_id).then(() => undefined));
   }
+
+  // Tell Max a booking landed. Fired after the job is safely written, and
+  // notifyOwner swallows its own failures, so an email problem can never cost
+  // a booking.
+  const who = [body.first_name, body.last_name].filter((x) => typeof x === "string" && x).join(" ").trim();
+  const vt = vehicleType(vehicleTypeValue);
+  c.executionCtx.waitUntil(notifyOwner(c.env, {
+    subject: result.status === "scheduled"
+      ? `New booking — ${priced.items.length ? (priced.items[0] as { name?: string }).name ?? "detail" : "detail"}${who ? ` for ${who}` : ""}`
+      : `New quote request${who ? ` from ${who}` : ""}`,
+    heading: result.status === "scheduled" ? "Someone just booked online." : "Someone requested a quote online.",
+    rows: [
+      ["Name", who || "(not given)"],
+      ["Phone", (normalizePhone(typeof body.phone === "string" ? body.phone : undefined) ?? "") || "(not given)"],
+      ["Email", typeof body.email === "string" ? body.email : ""],
+      ["Address", typeof body.address === "string" ? body.address : ""],
+      ["Vehicle", vt ? vt.label : vehicleTypeValue],
+      ["Service", priced.items.map((i) => {
+        const it = i as { name?: string; qty?: number };
+        return it.qty && it.qty > 1 ? `${it.name} x${it.qty}` : String(it.name ?? "");
+      }).join(", ")],
+      ["Total", `$${(result.total_cents / 100).toFixed(2)}`],
+      ["When", scheduledStart
+        ? new Intl.DateTimeFormat("en-US", { timeZone: c.env.HOME_TZ ?? "America/New_York",
+            weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })
+            .format(new Date(scheduledStart))
+        : "To be confirmed — needs a call"],
+      ["Notes", typeof body.notes === "string" ? body.notes : ""],
+    ],
+    note: `Reference ${result.job_id.slice(0, 8).toUpperCase()}.`,
+    jobId: result.job_id,
+  }).then(() => undefined));
+
   return c.json(result, 201, h);
 });
 

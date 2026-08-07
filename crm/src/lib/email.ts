@@ -1,5 +1,5 @@
 import type { Env } from "../types";
-import { nowIso, run, uuid } from "./db";
+import { nowIso, one, run, uuid } from "./db";
 
 export interface OutgoingEmail {
   contactId?: string;
@@ -90,5 +90,64 @@ export async function sendEmail(env: Env, msg: OutgoingEmail): Promise<{ id: str
   } catch (e) {
     await insert("failed", null, String(e).slice(0, 200), null);
     return { id, status: "failed" };
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Owner alerts — the "someone booked" / "someone started" emails.      */
+/* ------------------------------------------------------------------ */
+
+/** Where owner alerts go. Editable in settings so it can change without a deploy. */
+export async function ownerAlertAddress(env: Env): Promise<string> {
+  const row = await one<{ value: string }>(env.DB, "SELECT value FROM settings WHERE key = 'owner_email'");
+  const v = (row?.value ?? "").trim();
+  return v || "info@bhcardetails.com";
+}
+
+const esc = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/**
+ * Send an internal alert to the owner. Never throws: an alert failing must not
+ * cost a booking that has already been written to the database.
+ *
+ * Not linked to a contact_id on purpose — these are internal notes to Max, and
+ * threading them onto the customer's record would make it look like the
+ * customer was emailed.
+ */
+export async function notifyOwner(
+  env: Env,
+  alert: { subject: string; heading: string; rows: Array<[string, string]>; note?: string; jobId?: string }
+): Promise<void> {
+  try {
+    const to = await ownerAlertAddress(env);
+    const rowsHtml = alert.rows
+      .filter(([, v]) => v && v.trim() !== "")
+      .map(([k, v]) =>
+        `<tr><td style="padding:6px 14px 6px 0;color:#6b7280;white-space:nowrap;vertical-align:top">${esc(k)}</td>` +
+        `<td style="padding:6px 0;color:#111827"><strong>${esc(v)}</strong></td></tr>`)
+      .join("");
+    const rowsText = alert.rows
+      .filter(([, v]) => v && v.trim() !== "")
+      .map(([k, v]) => `${k}: ${v}`).join("\n");
+
+    const html =
+      `<div style="font-family:-apple-system,Segoe UI,sans-serif;max-width:520px">` +
+      `<h2 style="margin:0 0 14px;font-size:18px;color:#111827">${esc(alert.heading)}</h2>` +
+      `<table style="border-collapse:collapse;font-size:14px">${rowsHtml}</table>` +
+      (alert.note ? `<p style="margin:16px 0 0;font-size:13px;color:#6b7280">${esc(alert.note)}</p>` : "") +
+      `</div>`;
+    const text = alert.heading + "\n\n" + rowsText + (alert.note ? `\n\n${alert.note}` : "");
+
+    await sendEmail(env, {
+      jobId: alert.jobId,
+      kind: "owner-alert",
+      toEmail: to,
+      subject: alert.subject,
+      html,
+      text,
+    });
+  } catch {
+    /* an alert is never worth failing a booking over */
   }
 }

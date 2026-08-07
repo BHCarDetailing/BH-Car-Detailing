@@ -1,15 +1,23 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
-import { api } from "../api";
-import { Button, Field, Input } from "../components/ui";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+// The marketing site's faces, loaded here rather than in main.tsx because this
+// is the only page wearing them. Playfair is only ever used italic.
+import "@fontsource-variable/manrope";
+import "@fontsource-variable/playfair-display/wght-italic.css";
+import "./book.css";
 
 /**
- * Public self-serve pricing + booking wizard.
+ * Public self-serve booking page (no auth, embedded on bhcardetails.com).
  *
- * Embedded in an iframe on bhcardetails.com (replaces what used to be a
- * Calendly widget with no pricing). Prices shown here are for the customer's
- * benefit only — the actual charge/booking is always recomputed server-side
- * in POST /api/book/quote from the same services table, never trusted from
- * this page's state.
+ * The spine: the price is a destination, not a listing. The customer answers
+ * three questions with no money on screen, then opens their price deliberately.
+ * Once open they see what they picked beside the step up, and exactly which
+ * work the upgrade adds.
+ *
+ * Everything priced here comes from GET /api/book/catalog, which reads the
+ * services table -- the same rows the Settings > Services & pricing screen
+ * edits. Nothing is hardcoded, and the figures shown are only ever a preview:
+ * POST /api/book/quote re-prices server-side from that same table and never
+ * trusts a number sent from this page.
  */
 
 interface Service {
@@ -28,54 +36,75 @@ interface Service {
 interface VehicleTypeOption { value: string; label: string; bucket: string; note?: string }
 interface Catalog { vehicle_types: VehicleTypeOption[]; services: Service[] }
 
-type Step = "vehicle" | "area" | "level" | "service" | "addons" | "schedule" | "contact" | "done";
-const STEP_ORDER: Step[] = ["vehicle", "area", "level", "service", "addons", "schedule", "contact", "done"];
-
-const AREA_OPTIONS = [
-  { value: "interior", label: "Interior", icon: "🪑", hint: "Inside only" },
-  { value: "exterior", label: "Exterior", icon: "🚿", hint: "Outside only" },
-  { value: "both", label: "Interior + Exterior", icon: "✨", hint: "The full car" },
-  { value: "specialty", label: "Specialty Service", icon: "💎", hint: "Ceramic, correction, PPF & more" },
+/**
+ * The three vehicle choices the customer sees, mapped onto the server's
+ * vocabulary. The server carries ten types; showing all ten to somebody
+ * booking a wash is noise, so these three cover the real spread.
+ */
+const VEHICLE_CHOICES = [
+  { type: "sedan",    t: "Car",               d: "Sedan, coupe, convertible" },
+  { type: "mid_suv",  t: "SUV or Truck",      d: "Also vans and three-row" },
+  { type: "exotic",   t: "Luxury or Exotic",  d: "Porsche, Ferrari, Range Rover" },
 ];
 
-const LEVEL_ORDER = ["maintenance", "light", "full"];
-const LEVEL_LABELS: Record<string, string> = {
-  maintenance: "Maintenance Detail",
-  light: "Light Detail",
-  full: "Full Detail",
-  specialty: "Specialty Services",
-};
-const LEVEL_ICONS: Record<string, string> = {
-  maintenance: "🧽", light: "✨", full: "💎", specialty: "🌟",
-};
-
-/** Same checklist shown on the marketing site's package-comparison table. */
-const COMPARE_ROWS: Array<{ group: "Exterior" | "Interior"; feature: string; maintenance: boolean; light: boolean; full: boolean }> = [
-  { group: "Exterior", feature: "Foam bath & hand wash", maintenance: true, light: true, full: true },
-  { group: "Exterior", feature: "Spray sealant / drying aid", maintenance: true, light: true, full: true },
-  { group: "Exterior", feature: "Tires & rims cleaned + dressed", maintenance: false, light: true, full: true },
-  { group: "Exterior", feature: "Door jambs & gas cap cleaned", maintenance: false, light: true, full: true },
-  { group: "Exterior", feature: "Exterior glass streak-free finish", maintenance: false, light: true, full: true },
-  { group: "Exterior", feature: "Wheel wells cleaned", maintenance: false, light: false, full: true },
-  { group: "Exterior", feature: "Wax & ceramic seal (3 months)", maintenance: false, light: false, full: true },
-  { group: "Exterior", feature: "Clay bar decontamination", maintenance: false, light: false, full: true },
-  { group: "Interior", feature: "Two-stage vacuum", maintenance: true, light: true, full: true },
-  { group: "Interior", feature: "Floor mats cleaned", maintenance: true, light: true, full: true },
-  { group: "Interior", feature: "Full air purge blow-out", maintenance: false, light: true, full: true },
-  { group: "Interior", feature: "Plastic, vinyl & leather wiped down", maintenance: false, light: true, full: true },
-  { group: "Interior", feature: "Interior glass streak-free finish", maintenance: false, light: true, full: true },
-  { group: "Interior", feature: "Cloth seats shampooed & extracted", maintenance: false, light: false, full: true },
-  { group: "Interior", feature: "Leather scrubbed & conditioned", maintenance: false, light: false, full: true },
+/** Coverage maps straight onto services.area. */
+const COVERAGE = [
+  { id: "interior",  t: "Interior",         d: "Inside only" },
+  { id: "exterior",  t: "Exterior",         d: "Outside only" },
+  { id: "both",      t: "The whole car",    d: "Inside and out, priced together" },
+  { id: "specialty", t: "Specialty work",   d: "Correction, ceramic, curb rash and more" },
 ];
 
-const money = (cents: number) => `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
+/** Depth maps straight onto services.level. Order matters: it is the ladder. */
+const DEPTH_ORDER = ["maintenance", "light", "full"];
+const DEPTH_COPY: Record<string, { t: string; d: string }> = {
+  maintenance: { t: "Maintenance", d: "Upkeep between details" },
+  light:       { t: "Light",       d: "A proper refresh" },
+  full:        { t: "Full",        d: "The deep one, nothing skipped" },
+};
 
-function duration(mins: number): string {
-  if (!mins) return "";
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return h ? `~${h}h${m ? ` ${m}m` : ""}` : `~${m}m`;
-}
+/**
+ * What each tier includes, lifted verbatim from the package table published on
+ * bhcardetails.com. This is marketing copy, not catalog data -- the services
+ * table stores names and prices but no per-tier checklist -- so editing a
+ * service in Settings changes the name and price here, not these lines.
+ * Columns are [maintenance, light, full].
+ */
+const FEATURES: Record<"exterior" | "interior", Array<[string, number, number, number]>> = {
+  exterior: [
+    ["Foam bath & hand wash", 1, 1, 1],
+    ["Spray sealant / drying aid", 1, 1, 1],
+    ["Tires & rims cleaned + dressed", 0, 1, 1],
+    ["Door jambs & gas cap cleaned", 0, 1, 1],
+    ["Exterior glass streak-free finish", 0, 1, 1],
+    ["Wheel wells cleaned", 0, 0, 1],
+    ["Wax & ceramic seal (3 months)", 0, 0, 1],
+    ["Clay bar decontamination", 0, 0, 1],
+  ],
+  interior: [
+    ["Two-stage vacuum", 1, 1, 1],
+    ["Floor mats cleaned", 1, 1, 1],
+    ["Full air purge blow-out", 0, 1, 1],
+    ["Plastic, vinyl & leather wiped down", 0, 1, 1],
+    ["Interior glass streak-free finish", 0, 1, 1],
+    ["Cloth seats shampooed & extracted", 0, 0, 1],
+    ["Leather scrubbed & conditioned", 0, 0, 1],
+  ],
+};
+const TIER_IX: Record<string, number> = { maintenance: 1, light: 2, full: 3 };
+
+/**
+ * Headlight restoration is priced per headlight, and it is the only line on the
+ * menu with a quantity. The catalog has no per-unit flag, so it is recognised by
+ * name -- renaming that service in Settings drops the counter back to one.
+ */
+const PER_UNIT = /headlight/i;
+const PER_UNIT_MAX = 2;
+
+const STEPS = ["vehicle", "coverage", "depth", "price", "addons", "when", "who", "done"] as const;
+type Step = (typeof STEPS)[number];
+
+const money = (cents: number) => `$${Math.round(cents / 100)}`;
 
 /** Mirrors the server's pricing: explicit size price, else the base price. */
 function priceFor(svc: Service, bucket: string): number {
@@ -88,420 +117,682 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** Every step's content fades + rises in — small, but it's what makes each tap feel alive. */
-const stepIn: React.CSSProperties = { animation: "bh-pop-in 0.28s cubic-bezier(0.22,1,0.36,1) both" };
-
 export default function Book() {
-  const [step, setStep] = useState<Step>("vehicle");
   const [catalog, setCatalog] = useState<Catalog | null>(null);
-  const [catalogErr, setCatalogErr] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
 
-  const [vehicleTypeValue, setVehicleTypeValue] = useState("");
-  const [area, setArea] = useState("");
-  const [level, setLevel] = useState("");
-  const [primaryId, setPrimaryId] = useState("");
-  const [addonIds, setAddonIds] = useState<string[]>([]);
+  const [step, setStep] = useState<Step>("vehicle");
+  const [vehicleType, setVehicleType] = useState("");
+  const [coverage, setCoverage] = useState("");
+  const [depth, setDepth] = useState("");
+  const [specialtyId, setSpecialtyId] = useState("");
+  const [chosenDepth, setChosenDepth] = useState("");
+  const [addons, setAddons] = useState<Record<string, number>>({});
+
+  const [opened, setOpened] = useState(false);
+  const [progress, setProgress] = useState(1);
+  const vaultRef = useRef<HTMLDivElement | null>(null);
+  const cardsRef = useRef<HTMLDivElement | null>(null);
 
   const [date, setDate] = useState(todayStr());
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slot, setSlot] = useState("");
 
-  const [name, setName] = useState("");
+  const [first, setFirst] = useState("");
+  const [last, setLast] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [consent, setConsent] = useState(false);
-  const [website, setWebsite] = useState(""); // honeypot
+  const [website, setWebsite] = useState("");
   const [mountedAt] = useState(() => Date.now());
 
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState("");
-  const [result, setResult] = useState<{ status: string; scheduled_start: string | null } | null>(null);
+  const [result, setResult] = useState<{ status: string; job_id?: string } | null>(null);
+  const shellRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * Report our height so the embedding page can size its iframe to the step
+   * being shown, instead of reserving the tallest step's worth of space.
+   *
+   * Deliberately measures the content shell, not the page: .bh-book carries
+   * min-height:100dvh, which inside an iframe resolves to the iframe's own
+   * height -- measuring that would feed our last answer back to us and the
+   * frame could only ever grow.
+   */
+  const postHeight = useCallback(() => {
+    const shell = shellRef.current;
+    if (!shell || window.parent === window) return;
+    const bar = document.querySelector<HTMLElement>(".bh-book .bar");
+    const height = Math.ceil(shell.scrollHeight + (bar?.offsetHeight ?? 0) + 32);
+    window.parent.postMessage({ type: "bh-book-height", height }, "*");
+  }, []);
+
+  // A ResizeObserver alone is not enough: its callbacks are delivered as part of
+  // a rendering update, so a frame scrolled out of view or sitting in a
+  // background tab may never get one and would keep a stale height. Posting on
+  // the state changes that actually alter the layout does not depend on
+  // anything being painted.
+  useEffect(() => {
+    const t = setTimeout(postHeight, 60);
+    return () => clearTimeout(t);
+  }, [step, opened, catalog, addons, slots, slotsLoading, err, postHeight]);
 
   useEffect(() => {
-    api<Catalog>("/api/book/catalog").then(setCatalog).catch(() => setCatalogErr(true));
+    const shell = shellRef.current;
+    if (!shell || window.parent === window) return;
+    const ro = new ResizeObserver(postHeight);
+    ro.observe(shell);
+    return () => ro.disconnect();
+  }, [postHeight]);
+
+  // The public endpoints are deliberately called with plain fetch: the shared
+  // api() helper redirects a 401 to /login, which is the last thing a customer
+  // should ever see.
+  useEffect(() => {
+    fetch("/api/book/catalog")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("catalog"))))
+      .then((c: Catalog) => setCatalog(c))
+      .catch(() => setLoadFailed(true));
   }, []);
 
   const bucket = useMemo(
-    () => catalog?.vehicle_types.find((v) => v.value === vehicleTypeValue)?.bucket ?? "other",
-    [catalog, vehicleTypeValue]
+    () => catalog?.vehicle_types.find((v) => v.value === vehicleType)?.bucket ?? "other",
+    [catalog, vehicleType]
   );
 
-  // Sellable primary services for this vehicle: real price, or specialty/planned
-  // work quoted on sight rather than hidden for having no menu price.
+  /** Sellable, non-add-on services. Specialty and planned work stay in even
+      without a menu price -- they are quoted on sight, not hidden. */
   const primaries = useMemo(
-    () => (catalog?.services ?? []).filter((s) =>
-      s.standalone && !s.is_addon &&
-      (priceFor(s, bucket) > 0 || s.requires_planning || s.level === "specialty")),
+    () => (catalog?.services ?? []).filter(
+      (s) => s.standalone && !s.is_addon &&
+        (priceFor(s, bucket) > 0 || s.requires_planning || s.level === "specialty")
+    ),
     [catalog, bucket]
   );
-  const levelsAvailable = useMemo(() => {
-    const seen = new Set(primaries.map((s) => s.level ?? "specialty"));
-    return LEVEL_ORDER.filter((l) => seen.has(l));
-  }, [primaries]);
 
-  // Honours the chosen area when the level actually offers something there;
-  // otherwise shows what the level does offer rather than a dead end.
-  const { serviceOptions, areaRelaxed } = useMemo(() => {
-    const atLevel = primaries.filter((s) => !level || s.level === level);
-    const inArea = atLevel.filter((s) => !area || area === "specialty" || s.area === area || s.area === "specialty");
-    if (inArea.length > 0) return { serviceOptions: inArea, areaRelaxed: false };
-    return { serviceOptions: atLevel, areaRelaxed: atLevel.length > 0 };
-  }, [primaries, area, level]);
+  const specialties = useMemo(
+    () => primaries.filter((s) => s.level === "specialty" || s.area === "specialty"),
+    [primaries]
+  );
 
-  const primary = useMemo(() => primaries.find((s) => s.id === primaryId) ?? null, [primaries, primaryId]);
+  /** Which rungs of the ladder this coverage actually offers. */
+  const depthsAvailable = useMemo(() => {
+    const seen = new Set(primaries.filter((s) => s.area === coverage).map((s) => s.level ?? ""));
+    return DEPTH_ORDER.filter((l) => seen.has(l));
+  }, [primaries, coverage]);
+
+  const serviceAt = useCallback(
+    (lvl: string) => primaries.find((s) => s.area === coverage && s.level === lvl) ?? null,
+    [primaries, coverage]
+  );
+
   const addonOptions = useMemo(
     () => (catalog?.services ?? []).filter((s) => s.is_addon && priceFor(s, bucket) > 0),
     [catalog, bucket]
   );
-  const chosenAddons = useMemo(() => addonOptions.filter((a) => addonIds.includes(a.id)), [addonOptions, addonIds]);
 
-  const needsPlanning = !!primary?.requires_planning;
-  const totalCents = (primary ? priceFor(primary, bucket) : 0) + chosenAddons.reduce((s, a) => s + priceFor(a, bucket), 0);
-  const totalMinutes = (primary?.duration_min ?? 0) + chosenAddons.reduce((s, a) => s + (a.duration_min ?? 0), 0);
-  const priceIsReal = !!primary && priceFor(primary, bucket) > 0;
+  const specialty = useMemo(
+    () => specialties.find((s) => s.id === specialtyId) ?? null,
+    [specialties, specialtyId]
+  );
 
-  // Live slots, loaded when the schedule step needs them.
+  /** Always two cards: what they picked, and the rung above. At the top there is
+      nothing above, so the rung below sits beside it -- they see they took the best. */
+  const cardLevels = useMemo(() => {
+    if (coverage === "specialty") return [];
+    const i = depthsAvailable.indexOf(depth);
+    if (i < 0) return [];
+    if (i < depthsAvailable.length - 1) return [depthsAvailable[i], depthsAvailable[i + 1]];
+    return depthsAvailable.length > 1 ? [depthsAvailable[i - 1], depthsAvailable[i]] : [depthsAvailable[i]];
+  }, [coverage, depth, depthsAvailable]);
+
+  const chosen = useMemo(() => {
+    if (coverage === "specialty") return specialty;
+    return serviceAt(chosenDepth || depth);
+  }, [coverage, specialty, serviceAt, chosenDepth, depth]);
+
+  const needsPlanning = !!chosen?.requires_planning;
+  const chosenPrice = chosen ? priceFor(chosen, bucket) : 0;
+  const quoteOnly = !!chosen && chosenPrice <= 0;
+
+  const addonTotal = useMemo(
+    () => Object.entries(addons).reduce((sum, [id, qty]) => {
+      const a = addonOptions.find((x) => x.id === id);
+      return a ? sum + priceFor(a, bucket) * qty : sum;
+    }, 0),
+    [addons, addonOptions, bucket]
+  );
+  const total = (quoteOnly ? 0 : chosenPrice) + addonTotal;
+
+  // ---- the reveal: grow the panel from its sealed shape to the cards' height
   useEffect(() => {
-    if (step !== "schedule" || needsPlanning) return;
+    if (!opened) return;
+    const v = vaultRef.current, body = cardsRef.current;
+    if (!v || !body) return;
+    const target = body.scrollHeight;
+    const id = requestAnimationFrame(() => { v.style.height = `${target}px`; });
+    const t = setTimeout(() => { v.style.height = ""; }, 520);
+    return () => { cancelAnimationFrame(id); clearTimeout(t); };
+  }, [opened]);
+
+  // ---- count the numbers up once the cover is off.
+  // The count is decoration; the price is not. requestAnimationFrame is paused
+  // in a backgrounded tab and in an iframe scrolled out of view, so a timer
+  // always lands the real figure even if not a single frame is ever drawn --
+  // otherwise a customer opens their price and reads $0.
+  useEffect(() => {
+    if (!opened) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setProgress(1); return; }
+    let raf = 0, t0 = 0;
+    const tick = (ts: number) => {
+      if (!t0) t0 = ts;
+      const p = Math.min(1, (ts - t0) / 620);
+      setProgress(1 - Math.pow(1 - p, 3));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    setProgress(0);
+    raf = requestAnimationFrame(tick);
+    const settle = setTimeout(() => setProgress(1), 800);
+    return () => { cancelAnimationFrame(raf); clearTimeout(settle); };
+  }, [opened]);
+
+  // ---- live slots
+  useEffect(() => {
+    if (step !== "when" || needsPlanning) return;
     setSlot(""); setSlots([]); setSlotsLoading(true);
-    api<{ slots: string[] }>(`/api/book/availability?date=${date}`)
-      .then((r) => setSlots(r.slots)).catch(() => setSlots([])).finally(() => setSlotsLoading(false));
+    fetch(`/api/book/availability?date=${date}`)
+      .then((r) => r.json())
+      .then((r: { slots: string[] }) => setSlots(r.slots ?? []))
+      .catch(() => setSlots([]))
+      .finally(() => setSlotsLoading(false));
   }, [step, date, needsPlanning]);
 
-  // Save an incomplete lead as soon as name + phone are both filled in, even
-  // if they never finish — a drop-off becomes a callable lead, not lost data.
+  // ---- a drop-off is still a lead worth calling. Saved once there is a name
+  // and a phone; sets no consent, so it is callable, never textable.
   useEffect(() => {
-    if (!name.trim() || !phone.trim()) return;
+    const nm = `${first} ${last}`.trim();
+    if (!nm || !phone.trim()) return;
     const t = setTimeout(() => {
       fetch("/api/book/lead", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, email, website }),
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: nm, phone, email, website }),
       }).catch(() => {});
     }, 1200);
     return () => clearTimeout(t);
-  }, [name, phone, email, website]);
+  }, [first, last, phone, email, website]);
 
-  function toggleAddon(id: string) {
-    setAddonIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  }
-
-  function goNext() {
-    const i = STEP_ORDER.indexOf(step);
-    setStep(STEP_ORDER[Math.min(i + 1, STEP_ORDER.length - 1)]);
-  }
-  function goBack() {
-    const i = STEP_ORDER.indexOf(step);
-    setStep(STEP_ORDER[Math.max(i - 1, 0)]);
+  function reveal() {
+    const v = vaultRef.current;
+    if (v) v.style.height = `${v.getBoundingClientRect().height}px`;
+    setOpened(true);
   }
 
-  /** Specialty Service skips the Maintenance/Light/Full split entirely. */
-  function selectArea(value: string) {
-    setArea(value);
-    setPrimaryId("");
-    if (value === "specialty") {
-      setLevel("specialty");
-      setStep("service");
-    } else {
-      setLevel("");
-      setStep("level");
-    }
+  function goTo(s: Step) {
+    setStep(s);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
+
+  function pickCoverage(id: string) {
+    setCoverage(id);
+    setDepth(""); setChosenDepth(""); setSpecialtyId(""); setOpened(false);
+    goTo("depth");
+  }
+
+  function pickDepth(lvl: string) {
+    setDepth(lvl); setChosenDepth(lvl); setOpened(false);
+    goTo("price");
+  }
+
+  function pickSpecialty(id: string) {
+    setSpecialtyId(id); setOpened(false);
+    goTo("price");
+  }
+
+  function toggleAddon(s: Service) {
+    setAddons((prev) => {
+      const next = { ...prev };
+      if (next[s.id]) delete next[s.id];
+      else next[s.id] = 1;
+      return next;
+    });
+  }
+
+  function stepQty(s: Service, by: number) {
+    setAddons((prev) => {
+      const cur = prev[s.id] ?? 1;
+      return { ...prev, [s.id]: Math.min(PER_UNIT_MAX, Math.max(1, cur + by)) };
+    });
+  }
+
+  const back = () => {
+    const order: Step[] = coverage === "specialty"
+      ? ["vehicle", "coverage", "depth", "price", "addons", "when", "who"]
+      : [...STEPS].slice(0, 7) as Step[];
+    const i = order.indexOf(step);
+    goTo(order[Math.max(0, i - 1)]);
+  };
 
   async function submit() {
     setErr("");
-    if (!consent) { setErr("Please check the box to confirm you'd like a text about your appointment."); return; }
-    if (!phone.trim()) { setErr("Add a phone number."); return; }
-    if (!needsPlanning && !slot) { setErr("Pick a time."); return; }
+    if (!consent) { setErr("Please tick the box so we can text you about your booking."); return; }
+    if (!phone.trim()) { setErr("Add a phone number so we can confirm."); return; }
+    if (!needsPlanning && !slot) { setErr("Pick a time first."); return; }
+    if (!chosen) { setErr("Choose a service first."); return; }
+
     setSubmitting(true);
     try {
-      const lines = [primaryId, ...addonIds].filter(Boolean).map((service_id) => ({ service_id, qty: 1 }));
+      const lines = [
+        { service_id: chosen.id, qty: 1 },
+        ...Object.entries(addons).map(([id, qty]) => ({ service_id: id, qty })),
+      ];
       const res = await fetch("/api/book/quote", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          vehicle_type: vehicleTypeValue, lines,
+          vehicle_type: vehicleType,
+          lines,
           scheduled_start: needsPlanning ? null : slot,
-          first_name: name.split(" ")[0] || "", last_name: name.split(" ").slice(1).join(" "),
-          phone, email, address, notes, sms_opt_in: consent, website, ts: mountedAt,
+          first_name: first, last_name: last,
+          phone, email, address, notes,
+          sms_opt_in: consent,
+          website, ts: mountedAt,
         }),
       });
       const body = await res.json().catch(() => null);
-      if (res.status === 409) { setErr("That time was just taken — pick another."); setStep("schedule"); return; }
+      if (res.status === 409) { setErr("That time was just taken. Pick another."); goTo("when"); return; }
       if (!res.ok || !body?.ok) {
-        setErr(body?.error === "consent_required" ? "Please check the consent box to continue." : "Something went wrong — try again.");
+        setErr(body?.error === "consent_required"
+          ? "Please tick the consent box to continue."
+          : "That didn't go through. Try again, or call us on (917) 783-1038.");
         return;
       }
-      setResult({ status: body.status, scheduled_start: body.status === "scheduled" ? slot : null });
-      setStep("done");
+      setResult({ status: body.status, job_id: body.job_id });
+      goTo("done");
       window.parent?.postMessage({ type: "bh-booking-complete", status: body.status }, "*");
-    } catch { setErr("Something went wrong — try again."); }
-    finally { setSubmitting(false); }
+    } catch {
+      setErr("That didn't go through. Try again, or call us on (917) 783-1038.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  if (catalogErr) {
+  if (loadFailed) {
     return (
-      <div className="mx-auto max-w-md p-6 text-center">
-        <p className="text-sm text-neutral-600">Couldn't load pricing right now. Call or text us at <a className="text-red-600 underline" href="tel:+19177831038">(917) 783-1038</a>.</p>
+      <div className="bh-book">
+        <div className="shell">
+          <div className="step">
+            <h1 className="ask">We can't load pricing <em>right now.</em></h1>
+            <p className="hint">
+              Call or text us on <a href="tel:+19177831038" style={{ color: "#ff4153" }}>(917) 783-1038</a> and
+              we'll quote you directly.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
 
+  const stepIx = STEPS.indexOf(step);
+  const showMoney = opened && stepIx >= STEPS.indexOf("price") && step !== "done";
+  const canContinue =
+    (step === "price" && opened) ||
+    step === "addons" ||
+    (step === "when" && (needsPlanning || !!slot));
+
+  const crumbs: Array<{ label: string; to: Step }> = [];
+  if (vehicleType) crumbs.push({ label: VEHICLE_CHOICES.find((v) => v.type === vehicleType)!.t, to: "vehicle" });
+  if (coverage) crumbs.push({ label: COVERAGE.find((c) => c.id === coverage)!.t, to: "coverage" });
+  if (coverage !== "specialty" && depth) crumbs.push({ label: DEPTH_COPY[depth]?.t ?? depth, to: "depth" });
+  if (specialty) crumbs.push({ label: specialty.name, to: "depth" });
+
   return (
-    <div className="relative mx-auto max-w-md overflow-hidden p-4 sm:p-6">
-      <div aria-hidden className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-red-500/10 blur-3xl" />
-      <div aria-hidden className="pointer-events-none absolute -left-16 top-40 h-56 w-56 rounded-full bg-chrome-300/20 blur-3xl" />
-
-      <div className="relative mb-5 flex flex-col items-center text-center" style={stepIn}>
-        <img src="/brand/logo.png" alt="BH Car Detailing" className="mb-3 h-14 w-auto" />
-        <h1 className="font-display text-2xl leading-none text-graphite-950">Get Your Price &amp; Book</h1>
-        <p className="eyebrow mt-1.5 text-[10px] text-chrome-400">Miami · Fort Lauderdale</p>
-      </div>
-
-      {step !== "done" && (
-        <div className="relative mb-5 flex gap-1.5">
-          {STEP_ORDER.slice(0, -1).map((s, i) => (
-            <span key={s} className={`h-1 flex-1 rounded-full transition-all duration-300 ${STEP_ORDER.indexOf(step) >= i ? "bg-red-600" : "bg-steel-200"}`} />
-          ))}
-        </div>
-      )}
-
-      {!catalog && step !== "done" && <p className="relative text-sm text-neutral-400">Loading pricing…</p>}
-
-      {primary && ["addons", "schedule", "contact"].includes(step) && (
-        <div className="relative mb-4 flex items-center justify-between rounded-lg bg-steel-100 px-3.5 py-2.5 text-sm" style={stepIn}>
-          <span className="text-graphite-800">
-            <span className="font-medium">{primary.name}</span>
-            <span className="text-neutral-400"> · {catalog?.vehicle_types.find((v) => v.value === vehicleTypeValue)?.label}</span>
-          </span>
-          <span className="shrink-0 font-semibold text-graphite-900">{priceIsReal ? money(priceFor(primary, bucket)) : "Quote"}</span>
-        </div>
-      )}
-
-      {catalog && step === "vehicle" && (
-        <div className="relative space-y-4" style={stepIn}>
-          <p className="text-sm font-medium text-graphite-900">What are we detailing?</p>
-          <div className="grid grid-cols-2 gap-2">
-            {catalog.vehicle_types.map((v) => (
-              <button key={v.value} type="button" onClick={() => { setVehicleTypeValue(v.value); goNext(); }}
-                className={`min-h-[52px] rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] ${vehicleTypeValue === v.value ? "border-red-600 bg-red-50 text-red-700 shadow-sm shadow-red-600/10" : "border-steel-200 bg-white text-graphite-800 hover:border-red-300"}`}>
-                {v.label}
-                {v.note && <span className="mt-0.5 block text-[11px] font-normal text-neutral-400">{v.note}</span>}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {catalog && step === "area" && (
-        <div className="relative space-y-4" style={stepIn}>
-          <p className="text-sm font-medium text-graphite-900">What do you need done?</p>
-          <div className="grid grid-cols-2 gap-2">
-            {AREA_OPTIONS.map((a) => (
-              <button key={a.value} type="button" onClick={() => selectArea(a.value)}
-                className={`flex min-h-[76px] flex-col items-start justify-center gap-0.5 rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] ${area === a.value ? "border-red-600 bg-red-50 text-red-700 shadow-sm shadow-red-600/10" : "border-steel-200 bg-white text-graphite-800 hover:border-red-300"}`}>
-                <span className="text-lg leading-none">{a.icon}</span>
-                <span>{a.label}</span>
-                <span className="text-[11px] font-normal text-neutral-400">{a.hint}</span>
-              </button>
-            ))}
-          </div>
-          <div className="pt-1"><Button variant="ghost" onClick={goBack}>Back</Button></div>
-        </div>
-      )}
-
-      {catalog && step === "level" && (
-        <div className="relative space-y-5" style={stepIn}>
-          <p className="text-sm font-medium text-graphite-900">Choose your package</p>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            {levelsAvailable.map((l) => (
-              <button key={l} type="button" onClick={() => { setLevel(l); setPrimaryId(""); goNext(); }}
-                className={`flex min-h-[64px] flex-col items-start justify-center gap-0.5 rounded-lg border px-3.5 py-2.5 text-left text-sm font-semibold transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] ${level === l ? "border-red-600 bg-red-50 text-red-700 shadow-sm shadow-red-600/10" : "border-steel-200 bg-white text-graphite-900 hover:border-red-300"}`}>
-                <span className="text-base leading-none">{LEVEL_ICONS[l]}</span>
-                {LEVEL_LABELS[l] ?? l}
-              </button>
-            ))}
-          </div>
-
-          <div className="overflow-x-auto rounded-lg border border-steel-200">
-            <table className="w-full min-w-[420px] border-collapse text-xs">
-              <thead>
-                <tr className="bg-steel-100 text-graphite-700">
-                  <th className="px-3 py-2 text-left font-medium">What's included</th>
-                  {LEVEL_ORDER.map((l) => (
-                    <th key={l} className={`px-2 py-2 text-center font-semibold ${level === l ? "bg-red-50 text-red-700" : ""}`}>{LEVEL_ICONS[l]} {LEVEL_LABELS[l]}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {(["Exterior", "Interior"] as const).map((group) => (
-                  <Fragment key={group}>
-                    <tr className="bg-steel-50">
-                      <td colSpan={4} className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-chrome-400">{group}</td>
-                    </tr>
-                    {COMPARE_ROWS.filter((r) => r.group === group).map((r) => (
-                      <tr key={r.feature} className="border-t border-steel-100">
-                        <td className="px-3 py-1.5 text-graphite-700">{r.feature}</td>
-                        <td className={`px-2 py-1.5 text-center ${level === "maintenance" ? "bg-red-50/60" : ""}`}>{r.maintenance ? <span className="text-emerald-600">✓</span> : <span className="text-neutral-300">—</span>}</td>
-                        <td className={`px-2 py-1.5 text-center ${level === "light" ? "bg-red-50/60" : ""}`}>{r.light ? <span className="text-emerald-600">✓</span> : <span className="text-neutral-300">—</span>}</td>
-                        <td className={`px-2 py-1.5 text-center ${level === "full" ? "bg-red-50/60" : ""}`}>{r.full ? <span className="text-emerald-600">✓</span> : <span className="text-neutral-300">—</span>}</td>
-                      </tr>
-                    ))}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="pt-1"><Button variant="ghost" onClick={goBack}>Back</Button></div>
-        </div>
-      )}
-
-      {catalog && step === "service" && (
-        <div className="relative space-y-4" style={stepIn}>
-          <p className="text-sm font-medium text-graphite-900">Choose your service</p>
-          {areaRelaxed && (
-            <p className="rounded-lg bg-steel-50 px-3 py-2 text-xs text-neutral-500">
-              Nothing at that exact area for this package — here's what {LEVEL_LABELS[level] ?? level} does offer.
-            </p>
-          )}
-          <div className="space-y-2">
-            {serviceOptions.map((s) => {
-              const p = priceFor(s, bucket);
-              const quoteOnly = s.requires_planning || p <= 0;
-              return (
-                <button key={s.id} type="button" onClick={() => { setPrimaryId(s.id); goNext(); }}
-                  className={`flex w-full items-start justify-between gap-3 rounded-lg border px-3.5 py-3 text-left transition-all duration-150 hover:scale-[1.01] active:scale-[0.99] ${primaryId === s.id ? "border-red-600 bg-red-50" : "border-steel-200 bg-white hover:border-red-300"}`}>
-                  <span>
-                    <span className="block text-sm font-medium text-graphite-900">{s.name}</span>
-                    {s.description && <span className="mt-0.5 block text-xs text-neutral-500">{s.description}</span>}
-                    {s.duration_min ? <span className="mt-0.5 block text-[11px] text-neutral-400">{duration(s.duration_min)}</span> : null}
-                  </span>
-                  <span className="shrink-0 text-sm font-semibold text-graphite-900">{quoteOnly ? "Quote" : money(p)}</span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="pt-1"><Button variant="ghost" onClick={goBack}>Back</Button></div>
-        </div>
-      )}
-
-      {catalog && step === "addons" && (
-        <div className="relative space-y-4" style={stepIn}>
-          <p className="text-sm font-medium text-graphite-900">Add anything on top? <span className="font-normal text-neutral-400">(optional)</span></p>
-          {addonOptions.length === 0 ? (
-            <p className="text-sm text-neutral-400">Nothing else priced for this vehicle right now.</p>
-          ) : (
-            <div className="space-y-2">
-              {addonOptions.map((a) => (
-                <label key={a.id} className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3.5 py-3 transition-all duration-150 ${addonIds.includes(a.id) ? "border-red-600 bg-red-50" : "border-steel-200 bg-white hover:border-red-300"}`}>
-                  <span className="flex items-center gap-2.5">
-                    <input type="checkbox" checked={addonIds.includes(a.id)} onChange={() => toggleAddon(a.id)} />
-                    <span className="text-sm font-medium text-graphite-900">{a.name}</span>
-                  </span>
-                  <span className="shrink-0 text-sm font-semibold text-graphite-900">+{money(priceFor(a, bucket))}</span>
-                </label>
+    <div className="bh-book">
+      <div className="shell" ref={shellRef}>
+        {step !== "done" && (
+          <>
+            <div className="rail">
+              {STEPS.slice(0, 7).map((s, i) => (
+                <i key={s} className={i <= stepIx ? "on" : ""} />
               ))}
             </div>
-          )}
-          {priceIsReal && (
-            <div className="flex items-center justify-between rounded-lg bg-steel-100 px-3.5 py-3 text-sm">
-              <span className="text-neutral-500">Estimated total</span>
-              <span className="font-display text-lg text-graphite-950">{money(totalCents)}{totalMinutes ? <span className="ml-2 text-xs font-normal text-neutral-400">{duration(totalMinutes)}</span> : null}</span>
+            <div className="crumbs">
+              {crumbs.map((c) => (
+                <button key={c.label} type="button" className="crumb" onClick={() => goTo(c.to)}>
+                  {c.label}
+                </button>
+              ))}
             </div>
-          )}
-          <div className="flex gap-2 pt-1">
-            <Button variant="ghost" onClick={goBack}>Back</Button>
-            <Button onClick={goNext} className="flex-1">Continue</Button>
-          </div>
-        </div>
-      )}
+          </>
+        )}
 
-      {catalog && step === "schedule" && (
-        <div className="relative space-y-4" style={stepIn}>
-          {needsPlanning ? (
-            <div className="rounded-lg border border-steel-200 bg-steel-50 px-4 py-4 text-sm text-neutral-600">
-              <p className="font-medium text-graphite-900">This one needs a quick look before we lock a date.</p>
-              <p className="mt-1">We'll call you to confirm scheduling and final pricing. Add your info next and any notes about the job.</p>
+        {!catalog && !loadFailed && (
+          <div className="step"><p className="hint">Loading the menu…</p></div>
+        )}
+
+        {catalog && step === "vehicle" && (
+          <section className="step">
+            <h1 className="ask">What are we <em>detailing?</em></h1>
+            <p className="hint">Size and finish change what the job takes, so this sets your price.</p>
+            <div className="opts">
+              {VEHICLE_CHOICES.map((v) => (
+                <button key={v.type} type="button" className="opt"
+                  aria-pressed={vehicleType === v.type}
+                  onClick={() => { setVehicleType(v.type); setOpened(false); goTo("coverage"); }}>
+                  <span className="txt"><span className="t">{v.t}</span><span className="d">{v.d}</span></span>
+                  <span className="go" aria-hidden>&rsaquo;</span>
+                </button>
+              ))}
             </div>
-          ) : (
-            <>
-              <p className="text-sm font-medium text-graphite-900">Pick a day and time</p>
-              <Field label="Date">
-                <Input type="date" min={todayStr()} value={date} onChange={(e) => setDate(e.target.value)} />
-              </Field>
-              <div>
-                <span className="mb-1 block text-xs font-medium text-neutral-600">Available times</span>
-                {slotsLoading ? <p className="text-sm text-neutral-400">Loading…</p> :
-                  slots.length === 0 ? <p className="text-sm text-neutral-400">No open times that day — try another date.</p> :
-                    <div className="flex flex-wrap gap-2">
-                      {slots.map((s) => (
-                        <button type="button" key={s} onClick={() => { setSlot(s); goNext(); }}
-                          className={`min-h-[40px] rounded-md px-3 text-sm font-medium transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] ${slot === s ? "bg-red-600 text-white" : "bg-steel-100 text-graphite-800 hover:bg-steel-200"}`}>
-                          {new Date(s).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-                        </button>
-                      ))}
-                    </div>}
+          </section>
+        )}
+
+        {catalog && step === "coverage" && (
+          <section className="step">
+            <h1 className="ask">What needs the <em>work?</em></h1>
+            <p className="hint">Inside, outside, or the whole car.</p>
+            <div className="opts">
+              {COVERAGE.map((c) => (
+                <button key={c.id} type="button" className="opt"
+                  aria-pressed={coverage === c.id}
+                  onClick={() => pickCoverage(c.id)}>
+                  <span className="txt"><span className="t">{c.t}</span><span className="d">{c.d}</span></span>
+                  <span className="go" aria-hidden>&rsaquo;</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {catalog && step === "depth" && coverage !== "specialty" && (
+          <section className="step">
+            <h1 className="ask">How far do we <em>take it?</em></h1>
+            <p className="hint">Pick the level of work. You'll see your price next.</p>
+            <div className="opts">
+              {depthsAvailable.map((l) => (
+                <button key={l} type="button" className="opt"
+                  aria-pressed={depth === l}
+                  onClick={() => pickDepth(l)}>
+                  <span className="txt">
+                    <span className="t">{DEPTH_COPY[l]?.t ?? l}</span>
+                    <span className="d">{DEPTH_COPY[l]?.d ?? ""}</span>
+                  </span>
+                  <span className="go" aria-hidden>&rsaquo;</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {catalog && step === "depth" && coverage === "specialty" && (
+          <section className="step">
+            <h1 className="ask">Which <em>specialty?</em></h1>
+            <p className="hint">Some of these we price on sight rather than off a menu.</p>
+            <div className="opts">
+              {specialties.map((s) => (
+                <button key={s.id} type="button" className="opt"
+                  aria-pressed={specialtyId === s.id}
+                  onClick={() => pickSpecialty(s.id)}>
+                  <span className="txt">
+                    <span className="t">{s.name}</span>
+                    <span className="d">{s.description ?? ""}</span>
+                  </span>
+                  <span className="go" aria-hidden>&rsaquo;</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {catalog && step === "price" && chosen && (
+          <section className="step">
+            <h1 className="ask">Your price is <em>ready.</em></h1>
+            <p className="hint">Open it to see what your detail costs, and what it includes.</p>
+
+            <div ref={vaultRef} className={`vault${opened ? "" : " sealed"}`}>
+              <span className={`sheen${opened ? " go" : ""}`} aria-hidden />
+              <div className={`vault-cover${opened ? " off" : ""}`}>
+                <span className="lead">Quoted for</span>
+                <span className="what">{chosen.name}</span>
+                <button type="button" className="reveal-btn" onClick={reveal}>Show my price</button>
               </div>
-            </>
-          )}
-          <div className="flex gap-2 pt-1">
-            <Button variant="ghost" onClick={goBack}>Back</Button>
-            {needsPlanning && <Button onClick={goNext} className="flex-1">Continue</Button>}
-          </div>
-        </div>
-      )}
 
-      {catalog && step === "contact" && (
-        <div className="relative space-y-3" style={stepIn}>
-          <p className="text-sm font-medium text-graphite-900">Your info</p>
-          <Field label="Name"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" /></Field>
-          <Field label="Phone"><Input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="Phone number" /></Field>
-          <Field label="Email (optional)"><Input value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" placeholder="Email" /></Field>
-          <Field label="Where should we come? (address)"><Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address" /></Field>
-          <Field label="Notes (optional)"><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={needsPlanning ? "Preferred day/time, damage details, etc." : "Anything we should know"} /></Field>
-          <input value={website} onChange={(e) => setWebsite(e.target.value)} tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
+              {/* Painting over a price is not hiding it: without inert the
+                  numbers are still reachable by find-in-page and screen readers
+                  before the customer has opened anything. */}
+              <div
+                ref={cardsRef}
+                className="vault-body"
+                {...(!opened ? { inert: "" as unknown as boolean, "aria-hidden": true } : {})}
+              >
+                {coverage === "specialty" && specialty && (
+                  <div className="card" data-sel="1">
+                    <span className="tag you">Your pick</span>
+                    <div className="card-top">
+                      <h3>{specialty.name}</h3>
+                      <span className={`amt${priceFor(specialty, bucket) <= 0 ? " q" : ""}`}>
+                        {priceFor(specialty, bucket) > 0
+                          ? money(Math.round(priceFor(specialty, bucket) * progress))
+                          : "We'll quote it"}
+                      </span>
+                    </div>
+                    {specialty.description && <p className="only">{specialty.description}</p>}
+                  </div>
+                )}
 
-          <label className="flex items-start gap-2 pt-1 text-xs leading-relaxed text-neutral-500">
-            <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5" required />
-            <span>
-              Yes, text me about my quote and appointment updates from BH Car Detailing. Msg &amp; data rates may apply. Msg frequency varies. Reply STOP to opt out anytime.{" "}
-              <a href="https://bhcardetails.com/terms.html" target="_blank" rel="noreferrer" className="text-red-600 underline">Terms</a>
-              {" · "}
-              <a href="https://bhcardetails.com/privacy-policy.html" target="_blank" rel="noreferrer" className="text-red-600 underline">Privacy</a>
-            </span>
-          </label>
-
-          {priceIsReal && (
-            <div className="flex items-center justify-between rounded-lg bg-steel-100 px-3.5 py-3 text-sm">
-              <span className="text-neutral-500">{needsPlanning ? "Estimated (confirmed on the call)" : "Total"}</span>
-              <span className="font-display text-lg text-graphite-950">{money(totalCents)}</span>
+                {coverage !== "specialty" && cardLevels.map((lvl, i) => {
+                  const svc = serviceAt(lvl);
+                  if (!svc) return null;
+                  const mine = lvl === depth;
+                  const lower = cardLevels[0];
+                  const isUpper = i === 1;
+                  const lowerSvc = serviceAt(lower);
+                  const diff = isUpper && lowerSvc ? priceFor(svc, bucket) - priceFor(lowerSvc, bucket) : 0;
+                  const groups: Array<"exterior" | "interior"> =
+                    coverage === "both" ? ["exterior", "interior"] : [coverage as "exterior" | "interior"];
+                  const ix = TIER_IX[lvl] ?? 1;
+                  const prevIx = isUpper ? TIER_IX[lower] ?? 0 : 0;
+                  return (
+                    <button
+                      key={lvl}
+                      type="button"
+                      className="card"
+                      data-sel={(chosenDepth || depth) === lvl ? "1" : "0"}
+                      onClick={() => setChosenDepth(lvl)}
+                    >
+                      <span className={`tag ${mine ? "you" : "up"}`}>
+                        {mine ? "Your pick" : isUpper ? "Step up" : "One below"}
+                      </span>
+                      <div className="card-top">
+                        <h3>{svc.name}</h3>
+                        <span>
+                          <span className="amt">{money(Math.round(priceFor(svc, bucket) * progress))}</span>
+                          {diff > 0 && <span className="delta">+{money(diff)} more</span>}
+                        </span>
+                      </div>
+                      <div className="inc">
+                        {groups.map((g) => (
+                          <div className="inc-g" key={g}>
+                            <b>{g}</b>
+                            <ul>
+                              {FEATURES[g].filter((r) => r[ix]).map((r) => (
+                                <li key={r[0]} className={prevIx && !r[prevIx] ? "new" : undefined}>{r[0]}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          )}
+          </section>
+        )}
 
-          {err && <p className="text-sm text-red-600">{err}</p>}
-          <div className="flex gap-2 pt-1">
-            <Button variant="ghost" onClick={goBack} disabled={submitting}>Back</Button>
-            <Button onClick={submit} disabled={submitting} className="flex-1">
-              {submitting ? "Booking…" : needsPlanning ? "Request Callback" : "Confirm Booking"}
-            </Button>
+        {catalog && step === "addons" && (
+          <section className="step">
+            <h1 className="ask">Anything <em>else?</em></h1>
+            <p className="hint">Optional. Skip straight past if you don't need any.</p>
+            <div className="opts">
+              {addonOptions.length === 0 && <p className="hint">Nothing else priced for this vehicle right now.</p>}
+              {addonOptions.map((a) => {
+                const on = !!addons[a.id];
+                const perUnit = PER_UNIT.test(a.name);
+                return (
+                  <div key={a.id} className="add" data-on={on ? "1" : "0"}
+                    role="button" tabIndex={0}
+                    onClick={() => toggleAddon(a)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleAddon(a); } }}>
+                    <span className="bx" aria-hidden>✓</span>
+                    <span className="nm">{a.name}</span>
+                    <span className="pr">+{money(priceFor(a, bucket))}{perUnit ? " ea" : ""}</span>
+                    {perUnit && on && (
+                      <span className="qty" onClick={(e) => e.stopPropagation()}>
+                        <button type="button" aria-label="One fewer headlight" onClick={() => stepQty(a, -1)}>−</button>
+                        <span>{addons[a.id]}</span>
+                        <button type="button" aria-label="One more headlight" onClick={() => stepQty(a, 1)}>+</button>
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {catalog && step === "when" && (
+          <section className="step">
+            {needsPlanning ? (
+              <>
+                <h1 className="ask">We'll call to <em>book this in.</em></h1>
+                <p className="hint">
+                  This one needs a look before we lock a date. Add your details next and we'll
+                  confirm scheduling and the final price on the phone.
+                </p>
+              </>
+            ) : (
+              <>
+                <h1 className="ask">When suits <em>you?</em></h1>
+                <p className="hint">Two-hour arrival windows. We come to you.</p>
+                <div className="opts">
+                  <input className="date-in" type="date" min={todayStr()} value={date}
+                    onChange={(e) => setDate(e.target.value)} aria-label="Date" />
+                </div>
+                <div className="slots">
+                  {slotsLoading && <p className="hint">Loading times…</p>}
+                  {!slotsLoading && slots.length === 0 && <p className="hint">Nothing open that day. Try another date.</p>}
+                  {slots.map((s) => (
+                    <button key={s} type="button" aria-pressed={slot === s} onClick={() => setSlot(s)}>
+                      {new Date(s).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+        )}
+
+        {catalog && step === "who" && (
+          <section className="step">
+            <h1 className="ask">Where do we <em>find you?</em></h1>
+            <p className="hint">We confirm by text before we set off.</p>
+            <div className="fields">
+              <div className="two">
+                <input type="text" placeholder="First name" autoComplete="given-name"
+                  value={first} onChange={(e) => setFirst(e.target.value)} />
+                <input type="text" placeholder="Last name" autoComplete="family-name"
+                  value={last} onChange={(e) => setLast(e.target.value)} />
+              </div>
+              <input type="tel" inputMode="tel" placeholder="Phone number" autoComplete="tel"
+                value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <input type="email" inputMode="email" placeholder="Email (optional)" autoComplete="email"
+                value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input type="text" placeholder="Street address" autoComplete="street-address"
+                value={address} onChange={(e) => setAddress(e.target.value)} />
+              <textarea rows={2} placeholder="Anything we should know? Pet hair, problem spots, gate code"
+                value={notes} onChange={(e) => setNotes(e.target.value)} />
+            </div>
+
+            <input className="hp" tabIndex={-1} autoComplete="off" aria-hidden="true"
+              value={website} onChange={(e) => setWebsite(e.target.value)} />
+
+            <label className="consent">
+              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+              {/* Wording is identical everywhere a phone number is collected --
+                  the site forms, this page, the QR intake and the quote builder. */}
+              <span>
+                Yes, text me about my quote and appointment updates from BH Car Detailing. Msg &amp; data
+                rates may apply. Msg frequency varies. Reply STOP to opt out anytime.{" "}
+                <a href="https://bhcardetails.com/terms.html" target="_blank" rel="noreferrer">Terms</a>
+                {" · "}
+                <a href="https://bhcardetails.com/privacy-policy.html" target="_blank" rel="noreferrer">Privacy</a>
+              </span>
+            </label>
+
+            <p className="fine">
+              A travel fee applies more than 15 miles out, confirmed before we arrive. Heavily soiled
+              vehicles may be adjusted at booking.
+            </p>
+            {err && <p className="err">{err}</p>}
+          </section>
+        )}
+
+        {step === "done" && result && (
+          <section className="step done">
+            <div className="mark" aria-hidden>✓</div>
+            <h1 className="ask">
+              {result.status === "scheduled" ? <>You're <em>booked in.</em></> : <>Got it — <em>we'll call.</em></>}
+            </h1>
+            <p>
+              {result.status === "scheduled"
+                ? <>{chosen?.name} on {slot ? new Date(slot).toLocaleString([], { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" }) : "your chosen time"}. We'll text you to confirm.</>
+                : <>We'll call shortly to confirm scheduling and the final price for {chosen?.name}.</>}
+            </p>
+            {result.job_id && <p className="ref">Reference {result.job_id.slice(0, 8).toUpperCase()}</p>}
+          </section>
+        )}
+      </div>
+
+      {catalog && step !== "done" && (
+        <div className="bar">
+          <div className="bar-in">
+            {step !== "vehicle" && (
+              <button type="button" className="back" onClick={back}>Back</button>
+            )}
+            {showMoney && chosen && (
+              <>
+                <div className="lbl">
+                  <b>{chosen.name}</b>
+                  <small>
+                    {VEHICLE_CHOICES.find((v) => v.type === vehicleType)?.t}
+                    {Object.keys(addons).length > 0 && ` · ${Object.keys(addons).length} add-on${Object.keys(addons).length > 1 ? "s" : ""}`}
+                  </small>
+                </div>
+                <div className="tot">
+                  {quoteOnly ? (addonTotal ? `${money(addonTotal)} + quote` : "Quote") : money(total)}
+                </div>
+              </>
+            )}
+            {step === "who" ? (
+              <button type="button" className="cta" onClick={submit} disabled={submitting}>
+                {submitting ? "Sending…" : quoteOnly || needsPlanning ? "Request my quote" : "Confirm booking"}
+              </button>
+            ) : (
+              (step === "price" || step === "addons" || step === "when") && (
+                <button type="button" className="cta" disabled={!canContinue}
+                  onClick={() => goTo(step === "price" ? "addons" : step === "addons" ? "when" : "who")}>
+                  {step === "price" ? "Looks good" : step === "addons"
+                    ? (Object.keys(addons).length ? "Continue" : "No thanks")
+                    : "Continue"}
+                </button>
+              )
+            )}
           </div>
-        </div>
-      )}
-
-      {step === "done" && result && (
-        <div className="relative py-4 text-center" style={{ animation: "bh-pop-in 0.4s cubic-bezier(0.22,1,0.36,1) both" }}>
-          <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-6 mx-auto h-40 w-40 rounded-full bg-red-500/15 blur-3xl" />
-          <img src="/brand/logo.png" alt="BH Car Detailing" className="relative mx-auto mb-5 h-14 w-auto bh-float" />
-          <h2 className="relative font-display text-2xl text-graphite-950">
-            {result.status === "scheduled" ? "You're booked! 🎉" : "Got it — we'll call you 📞"}
-          </h2>
-          <p className="relative mt-2 text-sm text-neutral-600">
-            {result.status === "scheduled" && result.scheduled_start
-              ? <>We've got you down for {primary?.name} on {new Date(result.scheduled_start).toLocaleString()}. We'll be in touch to confirm.</>
-              : <>We'll call you shortly to confirm scheduling and final pricing for {primary?.name}.</>}
-          </p>
         </div>
       )}
     </div>

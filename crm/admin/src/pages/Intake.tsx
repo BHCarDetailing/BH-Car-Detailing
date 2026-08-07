@@ -44,7 +44,6 @@ export default function Intake() {
     website: "", // honeypot — never shown, never filled by a real customer
   });
   const [smsOptIn, setSmsOptIn] = useState(false);
-  const [marketingOptIn, setMarketingOptIn] = useState(false);
 
   useEffect(() => {
     fetch(`/api/intent/${token}`)
@@ -64,7 +63,8 @@ export default function Intake() {
         body: JSON.stringify({
           ...form, ts: startedAt,
           scheduled_start: form.scheduled_at ? new Date(form.scheduled_at).toISOString() : undefined,
-          sms_opt_in: smsOptIn, marketing_opt_in: marketingOptIn,
+          // Single unified consent box only -- no separate marketing opt-in.
+          sms_opt_in: smsOptIn, marketing_opt_in: false,
         }),
       });
       const body = await res.json() as { ok?: boolean; status?: string; total_cents?: number; error?: string };
@@ -186,20 +186,19 @@ export default function Intake() {
               className="absolute -left-[9999px]" aria-hidden="true" />
           </div>
 
-          <div className="mt-4 space-y-3 rounded-xl bg-neutral-50 p-4">
+          {/* One checkbox, one line, wording identical everywhere a phone number
+              is collected -- the site forms, /book, this page and the quote builder. */}
+          <div className="mt-4 rounded-xl bg-neutral-50 p-4">
             <label className="flex items-start gap-3 text-sm text-neutral-700">
               <input type="checkbox" checked={smsOptIn} onChange={(e) => setSmsOptIn(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-red-600" />
-              <span>Text me about my quote and appointment (service messages).</span>
+              <span>
+                Yes, text me about my quote and appointment updates from BH Car Detailing. Msg &amp; data
+                rates may apply. Msg frequency varies. Reply STOP to opt out anytime.{" "}
+                <a href="https://bhcardetails.com/terms.html" target="_blank" rel="noreferrer" className="underline">Terms</a>
+                {" · "}
+                <a href="https://bhcardetails.com/privacy-policy.html" target="_blank" rel="noreferrer" className="underline">Privacy</a>
+              </span>
             </label>
-            <label className="flex items-start gap-3 text-sm text-neutral-700">
-              <input type="checkbox" checked={marketingOptIn} onChange={(e) => setMarketingOptIn(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-red-600" />
-              <span>Also send me occasional offers &amp; promotions (optional).</span>
-            </label>
-            <p className="text-[11px] leading-relaxed text-neutral-400">
-              By checking the box(es) above you agree to receive the selected texts from {data.business}.
-              Checking a box is optional and not a condition of purchase. Msg &amp; data rates may apply,
-              frequency varies, reply STOP to opt out, HELP for help.
-            </p>
           </div>
 
           {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
