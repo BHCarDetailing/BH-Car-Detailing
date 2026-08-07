@@ -1,6 +1,6 @@
 # CRM Pricing + Booking Revamp — Design
 
-**Date:** 2026-08-06
+**Date:** 2026-08-06 (revised)
 **Status:** Approved by Maxwell, pending write-up review
 
 ## Context
@@ -14,157 +14,158 @@ Two threads converged into this spec:
    gone") found the SEO plan mostly never landed — only the nav dropdown shipped.
    That work is tracked separately and is NOT part of this spec.
 
-This spec covers the pricing + direct-booking piece only, since it was the most
-novel and highest-impact of the three, and turned out to require reconciling a
-long-diverged git branch before anything else could be built on solid ground.
+This spec covers the pricing + direct-booking piece only.
 
-## Key discovery: branch divergence
+## Key finding: git `main` doesn't reflect what's actually live
 
-`crm/` has two branches that diverged 36 vs. 3 commits ago (merge-base `7382375`):
+`crm/`'s two branches diverged 36 vs. 3 commits ago (merge-base `7382375`).
+`origin/crm-operating-system` was initially assumed to be unmerged, undeployed
+parked work — that assumption was wrong. Checked directly against
+`wrangler deployments list` for the `bh-crm` worker: deployment timestamps and
+version IDs line up with `crm-operating-system`'s commit history through
+2026-07-30 (QR intake/equipment/expenses, commit `4f62fbf`). **Production is
+running code close to that branch, not bare `main`.** Maxwell confirmed the CRM
+itself ("bh-crm is good") — Quote Builder, Stripe deposits, tax, and QR intake
+are all live today, reachable through the logged-in admin.
 
-- **`main`** (deployed to production at `bh-crm.bhdev.workers.dev`, confirmed live
-  by Maxwell opening `/book` and reporting the bare 5-option dropdown) — has only
-  the original contacts/jobs/tasks/messaging/sequences/labels/missed-call system.
-  No services table, no pricing engine, no Stripe, no Quote Builder.
-- **`crm-operating-system`** (local + `origin/crm-operating-system`, never merged,
-  never deployed) — 14,391 lines of diff. Contains the full services/pricing
-  catalog, Stripe deposits, tax, Quote Builder wizard, QR intake, equipment,
-  expenses, and the `requires_planning` service flag. Built and tested (298
-  tests) but sitting parked.
+The one page that's genuinely behind on **both** branches is `/book` itself —
+diffing `Book.tsx` between `main` and `crm-operating-system` shows only a 24-line
+difference (a logo + the old two-checkbox consent block), not the pricing wizard.
+So `/book` — the CRM's one public, no-login page — never got the services/pricing
+work at all. That's the actual gap this spec closes.
 
-Even on the parked branch, Maxwell's final locked pricing numbers (from the
-pricing-chart sessions) were never written into any database — they stayed
-chart-only. Neither branch has real, live pricing data anywhere today.
-
-Three files changed on **both** branches since the split: `index.html`,
-`js/main.js`, `terms.html`. The branch's version of these still reflects the old
-two-checkbox marketing/transactional SMS consent split — the exact pattern
+The branch's version of `index.html`/`js/main.js`/`terms.html` still carries the
+old two-checkbox marketing/transactional SMS consent split — the exact pattern
 today's session (commits `2da2e0e`, `709f846`, `f221c50`) deliberately replaced
-with a single unified consent checkbox for A2P compliance. A naive merge would
-silently reintroduce the two-checkbox flow.
+with a single unified consent checkbox for A2P compliance. When pulling
+`crm-operating-system`'s work into `main`, **`main`'s version wins on any
+consent/promo-related lines** in those three files; everything else (CRM routes,
+migrations, admin pages, tests, `wrangler.jsonc`) comes in from the branch as-is,
+since it's proven code already running in production.
 
-**Separately flagged, not part of this spec's scope:** `js/main.js`'s
-`CRM_ENDPOINT` posts leads to `bh-crm.bhcardetails.workers.dev`, but the CRM's
-real live subdomain is `bh-crm.bhdev.workers.dev` (confirmed by Maxwell). Website
-lead capture into the CRM may be silently failing (the POST is wrapped in
-`.catch(() => {})`). Worth checking as its own follow-up.
+**Bonus fix riding along:** `js/main.js`'s `CRM_ENDPOINT` currently points at
+`bh-crm.bhcardetails.workers.dev`, which has never resolved (confirmed by branch
+commit `c52e01a`'s own message: "doesn't resolve"). The real subdomain is
+`bh-crm.bhdev.workers.dev`. Every website lead form has been silently failing to
+reach the CRM (Formspree still received them, so it went unnoticed). The branch
+already has the one-line fix — carried forward as part of this merge rather than
+tracked separately, since it's touching the same file anyway.
+
+Neither branch has Maxwell's final locked pricing numbers (from the
+pricing-chart sessions) written into the database — they stayed chart-only.
 
 ## Goal
 
-Give website visitors a way to see real pricing and book an appointment directly,
-through the CRM's existing booking system — replacing the current Calendly embed,
-which shows no pricing and doesn't create CRM records with real service/price
-data.
+Give website visitors a way to see real pricing and either book instantly or
+start a quote, through the CRM's `/book` page — embedded in the site — instead
+of the current Calendly widget, which shows no pricing and creates no priced CRM
+record. Also capture leads who start but don't finish, so drop-offs aren't lost.
 
 ## Phases
 
-### Phase A — Merge `crm-operating-system` into `main`
+### Phase A — Bring `crm-operating-system`'s CRM code into `main`
 
-Reconcile the two branches. On any conflict in `index.html`, `js/main.js`, or
-`terms.html` involving consent language or the removed promo modal, **`main`'s
-version wins** — pull forward only the non-consent, non-promo parts of the
-branch's changes to those files. Everything else (CRM routes, migrations, admin
-pages, tests, `wrangler.jsonc` pricing-engine additions) merges in as-is.
-
-Run the full test suite after merging; it should still pass (branch had 298
-passing before divergence-widening).
-
-Apply migrations 0007–0020 (present on the branch, never applied to any remote
-D1) plus 0021–0023 (already uncommitted in the working tree, built on top of the
-branch) in order, to a database — not production. `wrangler d1 migrations apply
-bh-crm --remote` against prod is a separate, explicit step later, requiring
-Maxwell's direct confirmation before it runs (per the incident logged in the
-`crm-booking-machine-audit` memory: deploying before migrations broke prod for
-~6 minutes on 2026-07-28 — migrations always go first, confirmed successful,
-before any `wrangler deploy`).
-
-This phase does **not** deploy anything to production. It only makes the local
-codebase whole.
+Reconcile the two branches per the consent-wins rule above, including the
+`CRM_ENDPOINT` fix. Run the full test suite after (298 passing as of the
+branch's last commit). Apply migrations 0007–0020 (never applied to any remote
+D1 despite being live-deployed via direct `wrangler deploy` from working-tree
+state) plus 0021–0023 (already uncommitted in the working tree, built on top of
+the branch — refund sync, booking funnel, tier rename) in order, to a database —
+not production yet. This phase makes the committed codebase match reality; it
+does not itself deploy anything.
 
 ### Phase B — Real pricing data
 
 Confirm with Maxwell that the previously-locked pricing (Maintenance/Signature/
-Complete tiers + add-ons, per-vehicle-size numbers from the pricing-chart
-sessions) is still current — it's been about a week. Write it into the merged-in
-`services` table via a new migration. The 7 add-ons noted as still-$0 in the
-Quote Builder work need real prices before they can appear in the wizard (a
-long-standing gap from before this spec).
+Complete tiers + add-ons, per-vehicle-size numbers) is still current. Write it
+into the `services` table via a new migration. The 7 add-ons still at $0 need
+real prices before they can appear in the wizard.
 
-### Phase C — Rebuild `/book`'s services step
+### Phase C — Rebuild `/book` as a self-serve pricing + quote wizard
 
-Current `/book` (`Book.tsx` + `POST /api/book` in `public.ts`): hardcoded
-5-option service dropdown, no vehicle size, no pricing, `price_cents` never set
-(every self-booked job is $0), no SMS consent capture of any kind (an old memory
-claimed otherwise; verified directly against current code — it isn't there).
-
-New flow, step-by-step wizard (matches Quote Builder's pattern, per Maxwell's
-choice over a single-page pricing-card menu):
+Step-by-step flow (matches Quote Builder's pattern):
 
 1. Vehicle size
 2. Tier (Maintenance / Signature / Complete) or standalone specialty/add-on
 3. Add-ons
-4. Live price total — computed server-side (reusing the branch's pricing calc,
-   not re-derived client-side, since a self-submitted price can't be trusted
-   when Stripe is involved downstream)
-5. For most services: a slot picker (existing `availableSlots`/`businessHours`
-   engine, unchanged)
+4. Live price total — computed **server-side** (reusing the branch's existing
+   pricing calc, not re-derived client-side — a self-submitted price can't be
+   trusted once Stripe is involved downstream)
+5. For most services: the existing slot picker, unchanged
 6. For `requires_planning` services (Ceramic Coating, PPF, Vehicle Wraps, Paint
-   Correction, Window Tinting, Glass Ceramic Coating): no slot picker — instead
-   a "request a call" capture (name/phone/preferred date/notes), creating the
-   job as `status='quoted'` with no `scheduled_start`, matching the rule already
-   established (but never wired into any public flow) in the Quote Builder work
-7. Required single SMS consent checkbox (see Phase E)
+   Correction, Window Tinting, Glass Ceramic Coating): no slot picker — a
+   "request a call" capture instead (name/phone/preferred date/notes), job
+   created as `status='quoted'`, no `scheduled_start` — the rule already
+   established in the Quote Builder work, never wired into a public flow before
+7. Required single SMS consent checkbox (Phase E)
 8. Confirm — creates the job with real `price_cents`, fires the existing
    confirmation flow
 
-### Phase D — Website integration
+**Visual restyle**, since this becomes an embedded, customer-facing page:
+add the BH logo (already sitting unused in `crm/public/brand/`), import Manrope
+(the site's font) into the CRM's HTML shell, swap Tailwind's default red for the
+site's exact brand red `#c8102e`, loosely match the site's rounded-corner card
+feel. Stays a standalone page — no CRM nav/chrome to strip.
 
-- Replace the Calendly inline widget in the `#book` section (`index.html:430`)
-  with an `<iframe>` pointing at the CRM's `/book`.
-- The per-package "Book" buttons (currently `data-calendly` attributes opening a
-  Calendly popup scoped to that package's event type, wired in `js/main.js`)
-  instead deep-link to `/book?service=<slug>` to preselect that tier/service in
-  the wizard.
-- The Google Ads conversion tracker (`js/main.js`, currently listens for
-  Calendly's `calendly.event_scheduled` postMessage) is replaced with a listener
-  for a postMessage the CRM's `/book` page fires on successful booking — cross-
-  origin, since the iframe is a different origin than the site.
-- Calendly script loading, the inline-widget intersection observer, and the
-  popup-open logic in `js/main.js` are removed once nothing references them.
+### Phase D — Capture leads who don't finish
+
+As soon as a customer enters name + phone at any step of the wizard, upsert a
+CRM contact immediately (not waiting for final confirm) — same match-or-create
+logic `/api/book` already uses. This contact is **not** enrolled in any SMS
+automation and does not get texted — the existing `canSend` guardrail already
+requires recorded consent, and consent isn't recorded until the checkbox in
+step 7 is actually checked and the flow completes. A partial capture just means
+Maxwell can see and call the lead; it does not create an SMS compliance gap.
+Tag these contacts distinctly (e.g. `source: quote-wizard-incomplete`) so
+they're visibly different from a completed booking in the CRM UI.
+
+**Privacy Policy update required**: the current policy describes data collection
+tied to form submission ("When you submit a quote, booking or contact form...").
+Needs a line disclosing that partially-completed forms may also be saved,
+before this ships.
 
 ### Phase E — Consent alignment
 
 `/book` gets the same required, single, non-promotional SMS consent checkbox
-introduced on the hero form today (`index.html:311`), same copy, same Terms/
-Privacy links. Recorded server-side with IP + timestamp (this doesn't exist in
-any current booking path — `/book`'s `POST /api/book` and the branch's
-`completeQuote()` both hardcode `email_opt_in = 1` with no real capture).
-Necessary because `/book` becomes the site's primary booking surface, and the
-Twilio campaign's declared opt-in method needs to match what customers actually
-see.
+as the hero form, same copy, same Terms/Privacy links. Recorded server-side
+with IP + timestamp — genuinely new, doesn't exist in any current booking path
+(`/book`'s `POST /api/book` and the branch's `completeQuote()` both hardcode
+`email_opt_in = 1` with no real capture today).
+
+### Phase F — Website integration
+
+- Replace the Calendly inline widget in the `#book` section (`index.html:430`)
+  with an `<iframe>` pointing at the CRM's `/book`.
+- Per-package "Book" buttons (currently `data-calendly` popups scoped to a
+  package's Calendly event type) instead deep-link to `/book?service=<slug>` to
+  preselect that tier in the wizard.
+- The Google Ads conversion tracker (currently listens for Calendly's
+  `calendly.event_scheduled` postMessage) is replaced with a listener for a
+  postMessage the CRM's `/book` page fires on successful booking (cross-origin,
+  since the iframe is a different origin than the site).
+- Calendly script loading, the inline-widget intersection observer, and popup
+  logic in `js/main.js` are removed once nothing references them.
 
 ## Deployment sequencing
 
-Nothing in this spec deploys to production automatically. Each of the following
-requires Maxwell's explicit go-ahead, in order:
+Nothing in this spec deploys to production automatically. Each step requires
+Maxwell's explicit go-ahead, in order:
 
 1. Confirm Phase A's merge conflict resolutions before pushing to `origin/main`
-2. Apply migrations to remote D1, confirm success
+2. Apply migrations to remote D1, confirm success (migrations always before
+   deploy — a prior incident broke prod ~6 minutes on 2026-07-28 by deploying
+   first)
 3. `wrangler deploy` the CRM worker
-4. Push the website changes (Phase D) — separate deploy path (GitHub Pages off
-   `origin/main` of this same repo, confirmed working this session)
+4. Push the website changes (Phase F) — GitHub Pages off `origin/main`,
+   confirmed working this session
 5. Re-screenshot the new consent flow and update the Twilio campaign submission
-   to reference `/book` as an additional opt-in surface, if the CRM booking page
-   ends up reachable independent of the hero form
+   if `/book` ends up reachable as its own opt-in surface independent of the
+   hero form
 
 ## Out of scope
 
-- The SEO revamp (H1s, FAQ content, clean URLs, sitemap) — separate, already
-  partially scoped from the earlier session, tracked independently
-- Per-service pages — needs its own scoping pass (which services need dedicated
-  pages vs. already have one)
-- Fixing the `CRM_ENDPOINT` subdomain mismatch in `js/main.js` — flagged above,
-  not addressed here
+- The SEO revamp (H1s, FAQ content, clean URLs, sitemap) — separate, tracked
+  independently
+- Per-service pages — needs its own scoping pass
 - Deposit-required-to-book as a hard gate — Phase C reuses the existing
-  deposit-optional pattern; making deposits mandatory for self-booked slots is a
-  separate product decision not raised in this session
+  deposit-optional pattern; making deposits mandatory is a separate decision
