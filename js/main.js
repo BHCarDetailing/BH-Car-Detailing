@@ -302,68 +302,7 @@
   });
 
   /* ---------- Forms: AJAX submit to Formspree (no off-site redirect) ---------- */
-  const CALENDLY_URL = "https://calendly.com/bhcardetails/booknow?hide_event_type_details=1&hide_gdpr_banner=1";
-  let calendlyReady = null;
-  function loadCalendly() {
-    if (window.Calendly) return Promise.resolve();
-    if (calendlyReady) return calendlyReady;
-    calendlyReady = new Promise((resolve, reject) => {
-      const link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href = "https://assets.calendly.com/assets/external/widget.css";
-      document.head.appendChild(link);
-      const script = document.createElement("script");
-      script.src = "https://assets.calendly.com/assets/external/widget.js";
-      script.async = true;
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error("Calendly script failed to load"));
-      document.body.appendChild(script);
-    });
-    return calendlyReady;
-  }
-
-  /* ---------- Static Calendly widget in the #book section ----------
-     Uses Calendly's own declarative embed pattern (a data-url'd
-     .calendly-inline-widget element + widget.js, exactly like the code
-     Calendly's UI hands out) instead of the manual initInlineWidget()
-     API — widget.js auto-scans the DOM for that element on load and
-     wires it up itself. We only lazy-load the script on scroll-into-view
-     and show a fallback if the script itself fails to load. */
-  const bookCalendly = document.getElementById("book-calendly-widget");
-  if (bookCalendly) {
-    const bookFallback = document.getElementById("book-calendly-fallback");
-    const bcio = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (!e.isIntersecting) return;
-          bcio.unobserve(bookCalendly);
-          loadCalendly().catch(() => {
-            if (bookFallback) bookFallback.style.display = "flex";
-          });
-        });
-      },
-      { rootMargin: "300px 0px" }
-    );
-    bcio.observe(bookCalendly);
-  }
-
-  /* ---------- Per-package "Book" buttons: open a Calendly popup ----------
-     Each button carries a data-calendly URL for its own event type. We open
-     Calendly's popup widget on click; if the widget script can't load we fall
-     back to the element's own href (a new tab to the same booking URL). */
-  document.querySelectorAll("[data-calendly]").forEach((el) => {
-    el.addEventListener("click", (e) => {
-      const base = el.getAttribute("data-calendly");
-      if (!base) return;
-      e.preventDefault();
-      const url = base + (base.indexOf("?") > -1 ? "&" : "?") + "hide_gdpr_banner=1";
-      const open = () => window.Calendly && window.Calendly.initPopupWidget({ url });
-      if (window.Calendly) { open(); return; }
-      loadCalendly()
-        .then(open)
-        .catch(() => window.open(base, "_blank", "noopener"));
-    });
-  });
+  const BOOK_URL = "https://bh-crm.bhdev.workers.dev/book";
 
   /* ---------- CRM bridge: mirror every lead into the BH CRM backend ---------- */
   var CRM_ENDPOINT = "https://bh-crm.bhdev.workers.dev/api/lead";
@@ -465,22 +404,21 @@
 
         if (typeof gtag === "function") gtag("event", "generate_lead");
 
-        const calendly = form.parentElement.querySelector(".calendly-embed");
-        if (calendly && !calendly.dataset.loaded) {
-          calendly.dataset.loaded = "true";
-          calendly.style.display = "block";
-          const widget = document.createElement("div");
-          /* Not "calendly-inline-widget" — Calendly's widget.js auto-scans for that exact
-             class on script load and crashes (parseOptions: null.split) when it finds one
-             with no data-url, since this codebase initializes it manually instead. */
-          widget.className = "calendly-inline-target";
-          widget.style.minWidth = "320px";
-          widget.style.height = "700px";
-          calendly.appendChild(widget);
-          loadCalendly().then(() => {
-            window.Calendly && window.Calendly.initInlineWidget({ url: CALENDLY_URL, parentElement: widget });
-          });
-          calendly.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        const bookSlot = form.parentElement.querySelector(".calendly-embed");
+        if (bookSlot && !bookSlot.dataset.loaded) {
+          bookSlot.dataset.loaded = "true";
+          bookSlot.style.display = "block";
+          const frame = document.createElement("iframe");
+          frame.src = BOOK_URL;
+          frame.title = "Book your detail";
+          frame.loading = "lazy";
+          frame.style.width = "100%";
+          frame.style.minWidth = "320px";
+          frame.style.height = "760px";
+          frame.style.border = "0";
+          frame.style.borderRadius = "var(--radius)";
+          bookSlot.appendChild(frame);
+          bookSlot.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
       } catch (err) {
         msg.classList.add("error");
@@ -515,12 +453,11 @@
   );
   setTimeout(loadGA, 5000);
 
-  /* ---------- Google Ads conversion: fire when a Calendly booking is completed ----------
-     Booking happens inside the Calendly embed (#book + the post-form widget). Calendly
-     posts a window message {event:"calendly.event_scheduled"} the moment an appointment is
-     booked, which is our real "purchase". We listen for it and report the Google Ads
-     conversion (AW-18229436014 / label Q2rjCJ686sccEO68vPRD, value $1). A guard prevents
-     double-counting if Calendly fires the message more than once. */
+  /* ---------- Google Ads conversion: fire when a CRM booking is completed ----------
+     Booking happens inside the CRM's /book iframe (#book + the post-form embeds).
+     That page posts {type:"bh-booking-complete", status} to its parent the moment a
+     booking or quote request is saved — our real "purchase". A guard prevents
+     double-counting if the message fires more than once. */
   let bookingConversionSent = false;
   function reportBookingConversion() {
     if (bookingConversionSent) return;
@@ -537,10 +474,9 @@
   window.addEventListener("message", function (e) {
     if (
       e &&
-      e.origin === "https://calendly.com" &&
+      e.origin === "https://bh-crm.bhdev.workers.dev" &&
       e.data &&
-      typeof e.data.event === "string" &&
-      e.data.event === "calendly.event_scheduled"
+      e.data.type === "bh-booking-complete"
     ) {
       reportBookingConversion();
     }
