@@ -16,6 +16,7 @@ export default defineWorkersConfig(async () => {
               ADMIN_PASSWORD: "dev-password",
               SESSION_SECRET: "dev-session-secret-change-me-0123456789",
               AGENT_API_KEY: "dev-agent-key",
+              STRIPE_WEBHOOK_SECRET: "whsec_test_secret",
             },
           },
         },
