@@ -125,7 +125,7 @@ export interface QuoteCompletionInput {
   ip: string;
   actor: string;
   /** Tagged onto the activity log so a booking made from a QR link is visibly distinct. */
-  source: "quote-builder" | "customer-intake";
+  source: "quote-builder" | "customer-intake" | "self-book";
 }
 
 export type QuoteCompletionResult =
@@ -187,13 +187,15 @@ export async function completeQuote(env: Env, input: QuoteCompletionInput): Prom
   } else {
     createdContact = true;
     contactId = uuid();
+    const contactSource = input.source === "customer-intake" ? "customer-intake"
+      : input.source === "self-book" ? "self-book" : "in-person";
     await run(
       env.DB,
       `INSERT INTO contacts (id, first_name, last_name, email, phone, address, city, state, zip, stage, source,
                              email_opt_in, last_activity_at, created_at, updated_at)
        VALUES (?,?,?,?,?,?,?,?,?, 'scheduled', ?, 1, ?, ?, ?)`,
       contactId, first || null, last || null, email, phone, address, city, state, zip,
-      input.source === "customer-intake" ? "in-person" : "in-person", now, now, now
+      contactSource, now, now, now
     );
   }
 
@@ -255,8 +257,10 @@ export async function completeQuote(env: Env, input: QuoteCompletionInput): Prom
     });
   }
 
-  const verb = input.source === "customer-intake" ? "Booked via customer link" : "Booked in person";
-  const verbQuoted = input.source === "customer-intake" ? "Quoted via customer link" : "Quoted in person";
+  const verb = input.source === "customer-intake" ? "Booked via customer link"
+    : input.source === "self-book" ? "Self-booked online" : "Booked in person";
+  const verbQuoted = input.source === "customer-intake" ? "Quoted via customer link"
+    : input.source === "self-book" ? "Quote requested online" : "Quoted in person";
   await logActivity(env.DB, {
     contactId, type: start ? "job_scheduled" : "note",
     title: start ? `${verb}: ${title}` : `${verbQuoted}: ${title}`,

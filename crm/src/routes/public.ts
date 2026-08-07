@@ -11,13 +11,13 @@ import { buildIcs, type IcsJob } from "../lib/ics";
 import { exitEnrollments, unsubscribeContact, verifyUnsub } from "../lib/sequences";
 import { fireTrigger } from "../lib/triggers";
 import { analyzeLead } from "../lib/ai";
-import { availableSlots, businessHours, slotEndIso, slotIsFree } from "../lib/booking";
+import { availableSlots, businessHours, slotIsFree } from "../lib/booking";
 import { sendJobConfirmation } from "../lib/reminders";
 import { buildVoiceTwiml, handleMissedCall, loadMissedCallSettings } from "../lib/missedcall";
 import { createCheckoutSession, depositForTotal, loadPaymentSettings, stripeConfigured, verifyStripeWebhook } from "../lib/stripe";
 import { loadTaxSettings, taxOn } from "../lib/tax";
-import { completeQuote, priceLines } from "./quotebuilder";
-import { vehicleType } from "../lib/vehicles";
+import { completeQuote, parseLines, priceLines } from "./quotebuilder";
+import { VEHICLE_TYPES, vehicleType } from "../lib/vehicles";
 
 export const publicRoutes = new Hono<{ Bindings: Env }>();
 
@@ -294,66 +294,157 @@ publicRoutes.get("/book/availability", async (c) => {
   return c.json({ slots: await availableSlots(c.env, date), slot_min: cfg.slot_min }, 200, h);
 });
 
-publicRoutes.post("/book", async (c) => {
+// --- Public self-serve pricing + booking wizard ---
+// Replaces the old plain /book POST (5-option dropdown, no pricing, $0 jobs).
+// Reuses completeQuote() -- the same server-authoritative pricing/booking path
+// Quote Builder and the customer-intake link already trust -- so there is one
+// pricing rule set, not two that can drift.
+
+publicRoutes.get("/book/catalog", async (c) => {
+  const h = corsHeaders(c);
+  const services = await all<{
+    id: string; name: string; description: string | null; base_price_cents: number; size_pricing: string;
+    duration_min: number | null; is_addon: number; standalone: number; requires_planning: number;
+    level: string | null; area: string | null;
+  }>(
+    c.env.DB,
+    `SELECT id, name, description, base_price_cents, size_pricing, duration_min, is_addon, standalone,
+            requires_planning, level, area
+       FROM services WHERE active = 1 ORDER BY sort`
+  );
+  return c.json({
+    vehicle_types: VEHICLE_TYPES,
+    services: services.map((s) => {
+      let pricing: Record<string, number> = {};
+      try { pricing = JSON.parse(s.size_pricing || "{}"); } catch { pricing = {}; }
+      return {
+        id: s.id, name: s.name, description: s.description, size_pricing: pricing,
+        base_price_cents: s.base_price_cents, duration_min: s.duration_min,
+        is_addon: !!s.is_addon, standalone: !!s.standalone, requires_planning: !!s.requires_planning,
+        level: s.level, area: s.area,
+      };
+    }),
+  }, 200, h);
+});
+
+// Save a lead as soon as they've typed a name + phone, even if they never
+// finish the wizard -- so a drop-off is a callable lead, not lost. Never
+// touches consent (nothing's been confirmed yet) and never books a job.
+publicRoutes.options("/book/lead", (c) =>
+  new Response(null, { status: 204, headers: { ...corsHeaders(c), "Access-Control-Allow-Methods": "POST, OPTIONS" } }));
+
+publicRoutes.post("/book/lead", async (c) => {
   const h = corsHeaders(c);
   const body = await c.req.json<Record<string, unknown>>().catch(() => null);
-  if (!body) return c.json({ ok: false, error: "bad_json" }, 400, h);
-  const ts = typeof body.ts === "number" ? body.ts : NaN;
+  if (!body) return c.json({ ok: false }, 400, h);
   if (typeof body.website === "string" && body.website !== "") return c.json({ ok: true }, 200, h);
-  if (!Number.isFinite(ts) || Date.now() - ts < 2000) return c.json({ ok: true }, 200, h);
-
-  const ip = c.req.header("CF-Connecting-IP") ?? "local";
-  const rl = await one<{ n: number }>(c.env.DB, "SELECT COUNT(*) AS n FROM rl_events WHERE bucket = ? AND ts > ?", "book:" + ip, Date.now() - 3600_000);
-  if ((rl?.n ?? 0) >= 10) return c.json({ ok: true }, 200, h);
 
   const phone = normalizePhone(typeof body.phone === "string" ? body.phone : undefined);
-  const email = normalizeEmail(typeof body.email === "string" ? body.email : undefined);
-  if (!phone) return c.json({ ok: false, error: "phone_required" }, 400, h);
-  const slot = typeof body.slot_start === "string" ? body.slot_start : "";
-  if (!slot || !Number.isFinite(Date.parse(slot))) return c.json({ ok: false, error: "slot_required" }, 400, h);
-  if (!(await slotIsFree(c.env, slot))) return c.json({ ok: false, error: "slot_taken" }, 409, h);
+  if (!phone) return c.json({ ok: true }, 200, h); // nothing worth saving yet
 
-  await run(c.env.DB, "INSERT INTO rl_events (bucket, ts) VALUES (?, ?)", "book:" + ip, Date.now());
-  const cfg = await businessHours(c.env);
-  const service = typeof body.service === "string" && body.service.trim() ? body.service.slice(0, 120) : "Detailing";
+  const ip = c.req.header("CF-Connecting-IP") ?? "local";
+  const rl = await one<{ n: number }>(c.env.DB, "SELECT COUNT(*) AS n FROM rl_events WHERE bucket = ? AND ts > ?", "booklead:" + ip, Date.now() - 3600_000);
+  if ((rl?.n ?? 0) >= 20) return c.json({ ok: true }, 200, h);
+  await run(c.env.DB, "INSERT INTO rl_events (bucket, ts) VALUES (?, ?)", "booklead:" + ip, Date.now());
+
+  const email = normalizeEmail(typeof body.email === "string" ? body.email : undefined);
   const name = cleanName(typeof body.name === "string" ? body.name : undefined);
   const [first, ...rest] = (name ?? "").split(" ");
   const last = rest.join(" ");
-  const address = typeof body.address === "string" ? body.address.slice(0, 200) : null;
   const now = nowIso();
 
   let contact = email ? await one<{ id: string }>(c.env.DB, "SELECT id FROM contacts WHERE email = ?", email) : null;
-  if (!contact && phone) contact = await one<{ id: string }>(c.env.DB, "SELECT id FROM contacts WHERE phone = ?", phone);
-  let contactId: string;
+  if (!contact) contact = await one<{ id: string }>(c.env.DB, "SELECT id FROM contacts WHERE phone = ?", phone);
+
   if (contact) {
-    contactId = contact.id;
     await run(c.env.DB,
       "UPDATE contacts SET first_name = COALESCE(first_name, ?), last_name = COALESCE(last_name, ?), email = COALESCE(email, ?), phone = COALESCE(phone, ?), updated_at = ? WHERE id = ?",
-      first || null, last || null, email, phone, now, contactId);
+      first || null, last || null, email, phone, now, contact.id);
   } else {
-    contactId = uuid();
+    const contactId = uuid();
+    // Not consented to anything yet -- email_opt_in stays 0 until they finish
+    // the wizard and check the box. This contact is a lead to call, not an SMS
+    // target: nothing here enrolls them in messaging.
     await run(c.env.DB,
-      `INSERT INTO contacts (id, first_name, last_name, email, phone, address, stage, source, email_opt_in, created_at, updated_at)
-       VALUES (?,?,?,?,?,?, 'scheduled', 'self-booking', 1, ?, ?)`,
-      contactId, first || null, last || null, email, phone, address, now, now);
+      `INSERT INTO contacts (id, first_name, last_name, email, phone, stage, source, email_opt_in, created_at, updated_at)
+       VALUES (?,?,?,?,?, 'new', 'quote-wizard-incomplete', 0, ?, ?)`,
+      contactId, first || null, last || null, email, phone, now, now);
+    await logActivity(c.env.DB, {
+      contactId, type: "note", title: "Started the online quote/booking wizard, hasn't finished",
+      payload: { source: "quote-wizard-incomplete", ip }, actor: "system",
+    });
+  }
+  return c.json({ ok: true }, 200, h);
+});
+
+publicRoutes.options("/book/quote", (c) =>
+  new Response(null, { status: 204, headers: { ...corsHeaders(c), "Access-Control-Allow-Methods": "POST, OPTIONS" } }));
+
+publicRoutes.post("/book/quote", async (c) => {
+  const h = corsHeaders(c);
+  const body = await c.req.json<Record<string, unknown>>().catch(() => null);
+  if (!body) return c.json({ ok: false, error: "bad_json" }, 400, h);
+  if (typeof body.website === "string" && body.website !== "") return c.json({ ok: true }, 200, h);
+  const ts = typeof body.ts === "number" ? body.ts : NaN;
+  if (!Number.isFinite(ts) || Date.now() - ts < 2000) return c.json({ ok: false, error: "too_fast" }, 400, h);
+  // Required, single, non-promotional consent checkbox -- the same one the
+  // hero form carries. No separate marketing box on this flow.
+  if (body.sms_opt_in !== true) return c.json({ ok: false, error: "consent_required" }, 400, h);
+
+  const ip = c.req.header("CF-Connecting-IP") ?? "local";
+  const rl = await one<{ n: number }>(c.env.DB, "SELECT COUNT(*) AS n FROM rl_events WHERE bucket = ? AND ts > ?", "bookquote:" + ip, Date.now() - 3600_000);
+  if ((rl?.n ?? 0) >= 10) return c.json({ ok: false, error: "rate_limited" }, 429, h);
+  await run(c.env.DB, "INSERT INTO rl_events (bucket, ts) VALUES (?, ?)", "bookquote:" + ip, Date.now());
+
+  const vehicleTypeValue = typeof body.vehicle_type === "string" ? body.vehicle_type : "";
+  if (!vehicleType(vehicleTypeValue)) return c.json({ ok: false, error: "vehicle_type_required" }, 400, h);
+  const lines = parseLines(body);
+  if (!lines.length) return c.json({ ok: false, error: "service_required" }, 400, h);
+
+  // Price server-side from the real catalog before touching the calendar --
+  // requires_planning services never get a slot check, they get "quoted".
+  const services = await all<{
+    id: string; name: string; base_price_cents: number; size_pricing: string;
+    duration_min: number | null; is_addon: number; requires_planning: number; level: string | null;
+  }>(c.env.DB, `SELECT id, name, base_price_cents, size_pricing, duration_min, is_addon, requires_planning, level FROM services WHERE active = 1`);
+  const priced = priceLines(services, lines, vehicleTypeValue);
+  if (!priced.items.length) return c.json({ ok: false, error: "no_priced_services" }, 400, h);
+
+  let scheduledStart: string | null = null;
+  if (!priced.needsPlanning) {
+    const slot = typeof body.scheduled_start === "string" ? body.scheduled_start : "";
+    if (!slot || !Number.isFinite(Date.parse(slot))) return c.json({ ok: false, error: "slot_required" }, 400, h);
+    if (!(await slotIsFree(c.env, slot))) return c.json({ ok: false, error: "slot_taken" }, 409, h);
+    scheduledStart = slot;
   }
 
-  await recordSmsConsent(c.env, contactId, {
-    txn: body.sms_opt_in === true,
-    mkt: body.marketing_opt_in === true,
-    source: "self-booking", at: now, ip,
+  const result = await completeQuote(c.env, {
+    vehicleType: vehicleTypeValue,
+    vehicleNotes: null,
+    rawLines: lines,
+    priceOverrideCents: null, // never trust a client-submitted price
+    firstName: typeof body.first_name === "string" ? body.first_name : null,
+    lastName: typeof body.last_name === "string" ? body.last_name : null,
+    phone: normalizePhone(typeof body.phone === "string" ? body.phone : undefined) ?? null,
+    email: normalizeEmail(typeof body.email === "string" ? body.email : undefined) ?? null,
+    address: typeof body.address === "string" ? body.address.slice(0, 200) : null,
+    city: null, state: null, zip: null,
+    notes: typeof body.notes === "string" ? body.notes.slice(0, 1000) : null,
+    scheduledStart,
+    smsOptIn: true, // gated by the consent_required check above
+    marketingOptIn: false, // single unified checkbox only -- no separate marketing consent
+    ip,
+    actor: "system",
+    source: "self-book",
   });
-
-  const jobId = uuid();
-  await run(c.env.DB,
-    `INSERT INTO jobs (id, contact_id, title, status, scheduled_start, scheduled_end, address, created_at, updated_at)
-     VALUES (?,?,?, 'scheduled', ?, ?, ?, ?, ?)`,
-    jobId, contactId, service, slot, slotEndIso(slot, cfg.slot_min), address, now, now);
-  await logActivity(c.env.DB, { contactId, type: "job_scheduled", title: `Self-booked: ${service}`, payload: { job_id: jobId, scheduled_start: slot, source: "self-booking" } });
-  // They booked — that is what every sequence was trying to achieve. Stop them all.
-  await exitEnrollments(c.env, contactId, "booked");
-  c.executionCtx.waitUntil(sendJobConfirmation(c.env, jobId).then(() => undefined));
-  return c.json({ ok: true }, 200, h);
+  if (!result.ok) {
+    const code = ["no_priced_services", "service_required", "vehicle_type_required", "contact_info_required"].includes(result.error) ? 400 : 500;
+    return c.json(result, code, h);
+  }
+  if (result.status === "scheduled") {
+    c.executionCtx.waitUntil(sendJobConfirmation(c.env, result.job_id).then(() => undefined));
+  }
+  return c.json(result, 201, h);
 });
 
 // --- Public shareable quote (token-guarded, no auth). ---
