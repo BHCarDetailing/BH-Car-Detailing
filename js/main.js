@@ -342,29 +342,49 @@
     } catch (e) { /* never break the user-facing submit */ }
   }
 
+  /* The booking frame reports its own height as the customer moves through the
+     steps, so the embed is only ever as tall as the step being shown. Without
+     this it has to reserve room for the tallest step and the short ones sit in
+     a pool of dead space.
+
+     Only messages from the booking origin are honoured — any page can post to
+     us, and an unchecked handler would let a third party resize the frame. */
+  var BOOKING_ORIGIN = "https://bh-crm.bhdev.workers.dev";
+  window.addEventListener("message", function (e) {
+    if (e.origin !== BOOKING_ORIGIN) return;
+    var d = e.data;
+    if (!d || d.type !== "bh-book-height") return;
+    var h = Number(d.height);
+    if (!isFinite(h) || h < 240 || h > 4000) return;
+    document.querySelectorAll("iframe.book-embed").forEach(function (f) {
+      f.style.height = Math.round(h) + "px";
+    });
+  });
+
   /* SMS opt-in consent — injected at the point of phone collection.
      Quote/service consent only, no marketing checkbox, until the A2P
      campaign is verified for marketing use (error 30896 / 30913). */
   function injectSmsConsent(form) {
-    if (form.querySelector(".sms-consent")) return;
+    // Skip any form that already carries a consent checkbox. index.html hard-codes
+    // its own; without this check that page rendered two sms_opt_in boxes with
+    // different wording.
+    if (form.querySelector('.sms-consent, input[name="sms_opt_in"]')) return;
     var btn = form.querySelector("button[type=submit]");
     var box = document.createElement("div");
     box.className = "sms-consent";
     box.style.cssText =
       "margin:12px 0;font-size:12px;line-height:1.5;color:#8a8a8e;text-align:left";
-    var rowStyle = "display:flex;gap:8px;align-items:flex-start;margin-bottom:8px";
-    var cbStyle = "margin-top:3px;flex:0 0 auto";
+    var linkStyle = "color:var(--accent,#c8102e);text-decoration:underline";
+    // One checkbox, one line, wording identical everywhere a phone number is
+    // collected -- site, /book, QR intake and the in-person quote builder.
     box.innerHTML =
-      '<label style="' + rowStyle + '">' +
-        '<input type="checkbox" name="sms_opt_in" value="yes" style="' + cbStyle + '">' +
-        "<span>Yes, text me about the free quote I requested, my booking, and appointment reminders.</span>" +
-      "</label>" +
-      '<span style="display:block;color:#a0a0a4">By checking the box above, you agree to receive text messages ' +
-      "from BH Car Detailing about your quote request at the number provided. Checking the box is optional and not " +
-      "a condition of purchase &mdash; we'll still follow up about the quote you requested. " +
-      "Msg &amp; data rates may apply. Message frequency varies. Reply STOP to opt out, HELP for help. See our " +
-      '<a href="/terms.html" style="color:var(--accent,#c8102e);text-decoration:underline">Terms</a> &amp; ' +
-      '<a href="/privacy-policy.html" style="color:var(--accent,#c8102e);text-decoration:underline">Privacy Policy</a>.</span>';
+      '<label style="display:flex;gap:8px;align-items:flex-start">' +
+        '<input type="checkbox" name="sms_opt_in" value="yes" style="margin-top:3px;flex:0 0 auto">' +
+        "<span>Yes, text me about my quote and appointment updates from BH Car Detailing. " +
+        "Msg &amp; data rates may apply. Msg frequency varies. Reply STOP to opt out anytime. " +
+        '<a href="/terms.html" style="' + linkStyle + '">Terms</a> &middot; ' +
+        '<a href="/privacy-policy.html" style="' + linkStyle + '">Privacy</a></span>' +
+      "</label>";
     if (btn && btn.parentNode) btn.parentNode.insertBefore(box, btn);
     else form.appendChild(box);
   }

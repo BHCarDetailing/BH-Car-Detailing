@@ -943,6 +943,26 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
 .quote-grid .calendly-embed { grid-column: 1 / -1; margin-top: 32px; }
 .quote-grid .calendly-embed iframe { border-radius: var(--radius); overflow: hidden; }
 
+/* Booking embed — the CRM's /book flow.
+   That page is near-black, so the frame must match it: a white background here
+   shows as a white flash on load and pale edges around the dark page. */
+.book-embed {
+  display: block;
+  width: 100%;
+  min-width: 320px;
+  height: 860px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--ink);
+  overflow: hidden;
+}
+/* The booking flow is a phone-shaped column, so a full-container-width frame
+   would strand it in the middle of a very wide black panel. */
+.book-embed-wrap { margin: 32px auto 0; max-width: 620px; }
+@media (max-width: 860px) {
+  .book-embed { height: 760px; }
+}
+
 .contact-list { display: grid; gap: 22px; margin-top: 40px; }
 .contact-list a, .contact-list div { display: flex; align-items: center; gap: 16px; font-weight: 600; font-size: 1.05rem; transition: color 0.3s; }
 .contact-list a:hover { color: var(--accent); }
