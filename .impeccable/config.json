@@ -1,0 +1,71 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gradient-text",
+        "value": "*",
+        "files": [
+          "css/style.css"
+        ],
+        "createdAt": "2026-08-07T23:29:31.388Z",
+        "reason": "Brand accent gradient on italic headings, predates this work"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "css/style.css"
+        ],
+        "createdAt": "2026-08-07T23:29:39.480Z",
+        "reason": "Red rule on the Meet Maxwell pull-quote, brand styling"
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "css/style.css"
+        ],
+        "createdAt": "2026-08-07T23:29:39.585Z",
+        "reason": "1px nav underline width sweep, imperceptible cost"
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "index.html"
+        ],
+        "createdAt": "2026-08-07T23:29:39.695Z",
+        "reason": "Same nav underline, inlined critical CSS"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "index.html"
+        ],
+        "createdAt": "2026-08-07T23:29:39.784Z",
+        "reason": "Lightbox template img, src set by JS on gallery click"
+      },
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          "index.html"
+        ],
+        "createdAt": "2026-08-07T23:29:39.872Z",
+        "reason": "Brand red glow on button hover"
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "crm/admin/src/pages/book.css"
+        ],
+        "createdAt": "2026-08-07T23:29:39.982Z",
+        "reason": "Vault opens from sealed height to content height, one-off deliberate moment"
+      }
+    ]
+  }
+}
