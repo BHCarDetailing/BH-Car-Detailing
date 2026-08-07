@@ -116,6 +116,19 @@ jobRoutes.patch("/:id", async (c) => {
   if (typeof b.scheduled_start === "string" && b.scheduled_start && b.scheduled_start !== existing.scheduled_start) {
     await logActivity(c.env.DB, { contactId, type: "job_scheduled", title: `Job scheduled: ${existing.title}`, payload: { job_id: id, scheduled_start: b.scheduled_start }, actor });
   }
+  // Booked is what the sequences were chasing — stop nurturing a won customer.
+  if (b.status === "scheduled" && existing.status !== "scheduled") {
+    const { exitEnrollments } = await import("../lib/sequences");
+    await exitEnrollments(c.env, contactId, "booked");
+  }
+  // Completion side-effects, all in one place: stamp completed_at, refresh the
+  // contact's job count and lifetime value, and set when they're due back.
+  // Idempotent — a second PATCH to 'completed' (or a flip to 'paid') is a no-op.
+  if ((b.status === "completed" || b.status === "paid") && existing.status !== "completed" && existing.status !== "paid") {
+    const { onJobCompleted } = await import("../lib/rebook");
+    await onJobCompleted(c.env, id);
+  }
+
   // Auto review request on completion (opt-in via settings.review_auto).
   if (b.status === "completed" && existing.status !== "completed") {
     const auto = await one<{ value: string }>(c.env.DB, "SELECT value FROM settings WHERE key = 'review_auto'");
@@ -136,6 +149,54 @@ jobRoutes.post("/:id/confirm", async (c) => {
   const { sendJobConfirmation } = await import("../lib/reminders");
   const out = await sendJobConfirmation(c.env, c.req.param("id"));
   return c.json(out, out.status === "not_found" ? 404 : 200);
+});
+
+// Ensure the job has a public quote token and mark it as sent. Returns the
+// token + relative path so the UI can build the shareable link.
+jobRoutes.post("/:id/send-quote", async (c) => {
+  const id = c.req.param("id");
+  const job = await one<Record<string, unknown>>(c.env.DB, "SELECT * FROM jobs WHERE id = ?", id);
+  if (!job) return c.json({ error: "not_found" }, 404);
+  let token = (job.quote_token as string) || "";
+  if (!token) token = uuid().replace(/-/g, "");
+  await run(c.env.DB, "UPDATE jobs SET quote_token = ?, quote_sent_at = ?, updated_at = ? WHERE id = ?", token, nowIso(), nowIso(), id);
+  await logActivity(c.env.DB, { contactId: job.contact_id as string, type: "note", title: "Quote link sent", payload: { job_id: id }, actor: actorOf(c) });
+  return c.json({ token, path: `/quote/${token}` });
+});
+
+// Record a manual (non-Stripe) payment — Zelle, cash, check, etc.
+// "card_external" and "tap_to_pay" both mean a card taken outside Stripe, so the
+// CRM records that money arrived but cannot verify it — that is the trade for
+// getting paid on the spot in a driveway.
+const MANUAL_METHODS = new Set([
+  "zelle", "cash", "check", "card_external", "tap_to_pay", "venmo", "deposit", "other",
+]);
+jobRoutes.post("/:id/mark-paid", async (c) => {
+  const id = c.req.param("id");
+  const job = await one<Record<string, unknown>>(c.env.DB, "SELECT * FROM jobs WHERE id = ?", id);
+  if (!job) return c.json({ error: "not_found" }, 404);
+  const b = ((await c.req.json().catch(() => null)) ?? {}) as { amount_cents?: unknown; method?: unknown; in_full?: unknown };
+  const method = typeof b.method === "string" && MANUAL_METHODS.has(b.method) ? b.method : "other";
+  const amount = Math.max(0, Math.round(Number(b.amount_cents) || 0));
+  if (amount <= 0) return c.json({ error: "amount_required" }, 400);
+  const prevPaid = (job.amount_paid_cents as number) ?? 0;
+  const newPaid = prevPaid + amount;
+  const total = (job.price_cents as number) ?? 0;
+  const fullyPaid = b.in_full === true || newPaid >= total;
+  const now = nowIso();
+  await run(
+    c.env.DB,
+    "UPDATE jobs SET amount_paid_cents = ?, paid_at = COALESCE(paid_at, ?), paid_in_full = ?, updated_at = ? WHERE id = ?",
+    newPaid, now, fullyPaid ? 1 : 0, now, id
+  );
+  await logActivity(c.env.DB, {
+    contactId: job.contact_id as string,
+    type: "note",
+    title: `Payment recorded: $${(amount / 100).toFixed(2)} via ${method}${fullyPaid ? " (paid in full)" : ""}`,
+    payload: { job_id: id, amount_cents: amount, method, manual: true },
+    actor: actorOf(c),
+  });
+  return c.json({ ok: true, amount_paid_cents: newPaid, paid_in_full: fullyPaid });
 });
 
 jobRoutes.post("/:id/request-review", async (c) => {

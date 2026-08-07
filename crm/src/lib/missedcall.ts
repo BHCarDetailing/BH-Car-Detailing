@@ -5,7 +5,7 @@ import { logActivity } from "./activity";
 import { sendSms } from "./sms";
 
 export const DEFAULT_MISSED_CALL_BODY =
-  "Hey, this is BH Car Detailing - sorry we missed your call! Reply here with what you need and we'll be in touch.\nIf you'd like to book on your own our website is bhcardetails.com";
+  "Hey, this is BH Car Detailing - sorry we missed your call! Reply here with what you need and we'll be in touch.\nIf you'd like to book on your own our website is bhcardetails.com\nReply STOP to opt out.";
 
 export type SkipReason =
   | "answered" | "cooldown" | "disabled" | "unknown_number"

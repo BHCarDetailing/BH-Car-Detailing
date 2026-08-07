@@ -8,7 +8,9 @@
     "run_worker_first": ["/api/*", "/u/*"]
   },
   "compatibility_date": "2026-07-01",
-  "triggers": { "crons": ["*/5 * * * *"] },
+  // */5 — appointment reminders + due sequence steps.
+  // 0 13 UTC = 9am ET — the daily rebook pass that builds the due-this-week worklist.
+  "triggers": { "crons": ["*/5 * * * *", "0 13 * * *"] },
   "d1_databases": [
     {
       "binding": "DB",
@@ -17,6 +19,12 @@
       "migrations_dir": "migrations"
     }
   ],
+  // Content-media storage. Enable R2 in the Cloudflare dashboard, then
+  // `wrangler r2 bucket create bh-crm-media` and uncomment to activate uploads.
+  // Until then the /api/media route returns 503 and the UI degrades gracefully.
+  // "r2_buckets": [
+  //   { "binding": "MEDIA", "bucket_name": "bh-crm-media" }
+  // ],
   "vars": {
     "ALLOWED_ORIGINS": "https://bhcardetails.com,https://www.bhcardetails.com,http://localhost:4173,http://127.0.0.1:4173",
     "HOME_TZ": "America/New_York"

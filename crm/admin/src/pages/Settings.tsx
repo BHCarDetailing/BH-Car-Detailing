@@ -1,12 +1,132 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
-import type { Label } from "../types";
+import { money, SIZE_CLASSES, type Label, type Service, type SizeClass } from "../types";
+import { PageHeader } from "../components/ui";
 
-const DEFAULT_TEMPLATE = "Hi {first_name}, this is BH Car Detailing — thanks for reaching out! Happy to get you a quote. When works for a quick call or text?";
+const DEFAULT_TEMPLATE = "Hi {first_name}, this is BH Car Detailing — thanks for reaching out! Happy to get you a quote. When works for a quick call or text? Reply STOP to opt out.";
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DEFAULT_HOURS = { days: [1, 2, 3, 4, 5, 6], start: "09:00", end: "18:00", slot_min: 120, buffer_min: 30 };
-const DEFAULT_MISSED_BODY = "Hey, this is BH Car Detailing - sorry we missed your call! Reply here with what you need and we'll be in touch.\nIf you'd like to book on your own our website is bhcardetails.com";
+const DEFAULT_MISSED_BODY = "Hey, this is BH Car Detailing - sorry we missed your call! Reply here with what you need and we'll be in touch.\nIf you'd like to book on your own our website is bhcardetails.com\nReply STOP to opt out.";
+
+function ServicesManager() {
+  const [items, setItems] = useState<Service[]>([]);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+
+  const load = () => api<{ items: Service[] }>("/api/services").then((r) => setItems(r.items)).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  async function addBlank() {
+    const r = (await api("/api/services", { method: "POST", body: JSON.stringify({ name: "New service", size_pricing: {}, sort: (items.length + 1) * 10 }) })) as { id: string };
+    await load();
+    setEditing(r.id);
+  }
+  async function save(s: Service) {
+    setNote("");
+    try {
+      await api(`/api/services/${s.id}`, { method: "PATCH", body: JSON.stringify({
+        name: s.name, description: s.description, size_pricing: s.size_pricing, active: s.active, sort: s.sort,
+        area: s.area, level: s.level, duration_min: s.duration_min, is_addon: s.is_addon,
+        standalone: s.standalone, requires_planning: s.requires_planning,
+      }) });
+      setEditing(null); setNote("Saved."); load();
+    } catch { setNote("Couldn't save — try again."); }
+  }
+  async function del(id: string) {
+    await api(`/api/services/${id}`, { method: "DELETE" });
+    load();
+  }
+  function patchLocal(id: string, patch: Partial<Service>) {
+    setItems((xs) => xs.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  }
+  function setPrice(id: string, size: SizeClass, dollars: string) {
+    const cents = Math.max(0, Math.round((parseFloat(dollars) || 0) * 100));
+    setItems((xs) => xs.map((x) => (x.id === id ? { ...x, size_pricing: { ...x.size_pricing, [size]: cents } } : x)));
+  }
+
+  return (
+    <section className="rounded-xl bg-white p-5 shadow-sm">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="font-medium">Services & pricing</h2>
+        <button onClick={addBlank} className="min-h-[40px] rounded-md bg-red-600 px-3 text-sm text-white">＋ Add service</button>
+      </div>
+      <p className="mb-3 text-sm text-neutral-500">Your menu with prices per vehicle size. Used by the quote builder on each contact.</p>
+      {note && <p className="mb-2 text-xs text-neutral-500">{note}</p>}
+      <ul className="space-y-2">
+        {items.map((s) => (
+          <li key={s.id} className="rounded-lg border border-neutral-200 p-3">
+            {editing === s.id ? (
+              <div className="space-y-2">
+                <input value={s.name} onChange={(e) => patchLocal(s.id, { name: e.target.value })} placeholder="Service name" className="min-h-[40px] w-full rounded-md border border-neutral-300 px-2 text-sm" />
+                <input value={s.description ?? ""} onChange={(e) => patchLocal(s.id, { description: e.target.value })} placeholder="Short description" className="min-h-[40px] w-full rounded-md border border-neutral-300 px-2 text-sm" />
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {SIZE_CLASSES.map((size) => (
+                    <label key={size} className="text-xs capitalize text-neutral-500">{size}
+                      <div className="mt-0.5 flex items-center rounded-md border border-neutral-300 px-2">
+                        <span className="text-neutral-400">$</span>
+                        <input inputMode="decimal" value={((s.size_pricing[size] ?? 0) / 100) || ""} onChange={(e) => setPrice(s.id, size, e.target.value)} placeholder="0" className="min-h-[40px] w-full px-1 text-sm outline-none" />
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                {/* Taxonomy drives which wizard step offers this service and how
+                    the Products filters group it. */}
+                <div className="grid grid-cols-3 gap-2">
+                  <label className="text-xs text-neutral-500">Area
+                    <select value={s.area ?? "both"} onChange={(e) => patchLocal(s.id, { area: e.target.value })}
+                      className="mt-0.5 min-h-[40px] w-full rounded-md border border-neutral-300 px-2 text-sm">
+                      {["interior", "exterior", "both", "specialty"].map((v) => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-xs text-neutral-500">Level
+                    <select value={s.level ?? "specialty"} onChange={(e) => patchLocal(s.id, { level: e.target.value })}
+                      className="mt-0.5 min-h-[40px] w-full rounded-md border border-neutral-300 px-2 text-sm">
+                      {["maintenance", "light", "full", "specialty"].map((v) => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-xs text-neutral-500">Minutes
+                    <input inputMode="numeric" value={s.duration_min ?? ""} onChange={(e) => patchLocal(s.id, { duration_min: Number(e.target.value) || 0 })}
+                      placeholder="120" className="mt-0.5 min-h-[40px] w-full rounded-md border border-neutral-300 px-2 text-sm" />
+                  </label>
+                </div>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.active} onChange={(e) => patchLocal(s.id, { active: e.target.checked })} /> Active (shown in quote builder)</label>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!s.is_addon} onChange={(e) => patchLocal(s.id, { is_addon: e.target.checked })} /> Add-on (offered alongside a main service)</label>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.standalone !== false} onChange={(e) => patchLocal(s.id, { standalone: e.target.checked })} /> Can be sold on its own</label>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!s.requires_planning} onChange={(e) => patchLocal(s.id, { requires_planning: e.target.checked })} /> Needs planning — quote only, never booked on the spot</label>
+                {s.is_addon && !Object.values(s.size_pricing).some((v) => (v ?? 0) > 0) && (
+                  <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
+                    Set at least one price above, or this add-on stays hidden in the quote builder.
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <button onClick={() => save(s)} className="min-h-[40px] flex-1 rounded-md bg-red-600 px-3 text-sm text-white">Save</button>
+                  <button onClick={() => { setEditing(null); load(); }} className="min-h-[40px] rounded-md bg-neutral-200 px-3 text-sm">Cancel</button>
+                  <button onClick={() => del(s.id)} className="min-h-[40px] rounded-md bg-neutral-100 px-3 text-sm text-red-600">Delete</button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">
+                    {s.name}
+                    {s.is_addon && <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700">ADD-ON</span>}
+                    {!s.active && <span className="ml-2 text-xs text-neutral-400">(inactive)</span>}
+                  </div>
+                  <div className="text-xs text-neutral-500">
+                    {SIZE_CLASSES.filter((z) => s.size_pricing[z]).slice(0, 3).map((z) => `${z} ${money(s.size_pricing[z]!)}`).join(" · ") || `from ${money(s.base_price_cents)}`}
+                  </div>
+                </div>
+                <button onClick={() => setEditing(s.id)} className="min-h-[40px] shrink-0 rounded-md bg-neutral-100 px-3 text-sm">Edit</button>
+              </div>
+            )}
+          </li>
+        ))}
+        {items.length === 0 && <li className="text-sm text-neutral-400">No services yet — add your first one.</li>}
+      </ul>
+    </section>
+  );
+}
 
 export default function Settings() {
   const [template, setTemplate] = useState("");
@@ -15,15 +135,23 @@ export default function Settings() {
   const [savedNote, setSavedNote] = useState("");
   const [brandNote, setBrandNote] = useState("");
   const [copied, setCopied] = useState(false);
+  const [copiedKey, setCopiedKey] = useState("");
   const [labels, setLabels] = useState<Label[]>([]);
   const [newLabel, setNewLabel] = useState({ label: "", color: "#ef4444" });
   const [hours, setHours] = useState(DEFAULT_HOURS);
   const [hoursNote, setHoursNote] = useState("");
   const [reviewUrl, setReviewUrl] = useState("");
+  const [supportContact, setSupportContact] = useState("");
+  const [supportNote, setSupportNote] = useState("");
   const [reviewAuto, setReviewAuto] = useState(false);
   const [reviewNote, setReviewNote] = useState("");
   const [mc, setMc] = useState({ enabled: true, forward: "", timeout: "20", body: "", cooldown: "4", notifyEnabled: true, notifyNumber: "" });
   const [mcNote, setMcNote] = useState("");
+  const [pay, setPay] = useState({ enabled: true, percent: "25", allowFull: true, ach: false });
+  const [payNote, setPayNote] = useState("");
+  const [tax, setTax] = useState({ enabled: false, rate: "7", label: "Sales tax" });
+  const [taxNote, setTaxNote] = useState("");
+  const [integrations, setIntegrations] = useState<{ stripe?: boolean; stripe_webhook?: boolean }>({});
 
   function loadLabels() { api<{ items: Label[] }>("/api/labels").then((r) => setLabels(r.items)).catch(() => {}); }
 
@@ -35,6 +163,7 @@ export default function Settings() {
         setFeedToken(r.settings.ics_feed_token ?? "");
         if (r.settings.business_hours) { try { setHours({ ...DEFAULT_HOURS, ...JSON.parse(r.settings.business_hours) }); } catch { /* keep default */ } }
         setReviewUrl(r.settings.review_url ?? "");
+        setSupportContact(r.settings.support_contact ?? "");
         setReviewAuto(r.settings.review_auto === "1");
         setMc({
           enabled: (r.settings.missed_call_enabled ?? "1") === "1",
@@ -45,15 +174,67 @@ export default function Settings() {
           notifyEnabled: (r.settings.owner_notify_enabled ?? "1") === "1",
           notifyNumber: r.settings.owner_notify_number ?? "",
         });
+        setPay({
+          enabled: (r.settings.payments_enabled ?? "1") === "1",
+          percent: r.settings.deposit_percent ?? "25",
+          allowFull: (r.settings.deposit_allow_full ?? "1") === "1",
+          ach: (r.settings.payments_ach ?? "0") === "1",
+        });
+        setTax({
+          enabled: (r.settings.tax_enabled ?? "0") === "1",
+          rate: r.settings.tax_rate ?? "7",
+          label: r.settings.tax_label ?? "Sales tax",
+        });
       })
       .catch(() => setTemplate(DEFAULT_TEMPLATE));
     loadLabels();
+    api<{ stripe: boolean; stripe_webhook: boolean }>("/api/settings/integrations").then(setIntegrations).catch(() => {});
   }, []);
+
+  async function saveTax() {
+    setTaxNote("");
+    const rate = Number(tax.rate);
+    if (tax.enabled && (!Number.isFinite(rate) || rate <= 0 || rate > 100)) {
+      setTaxNote("Enter a rate between 0 and 100.");
+      return;
+    }
+    const pairs: Array<[string, string]> = [
+      ["tax_enabled", tax.enabled ? "1" : "0"],
+      ["tax_rate", String(Number.isFinite(rate) ? rate : 0)],
+      ["tax_label", tax.label.trim() || "Sales tax"],
+    ];
+    try {
+      for (const [key, value] of pairs) await api("/api/settings", { method: "PUT", body: JSON.stringify({ key, value }) });
+      setTaxNote("Saved.");
+    } catch { setTaxNote("Couldn't save — try again."); }
+  }
+
+  async function savePayments() {
+    setPayNote("");
+    const pct = String(Math.min(100, Math.max(0, Number.parseInt(pay.percent, 10) || 0)));
+    const pairs: Array<[string, string]> = [
+      ["payments_enabled", pay.enabled ? "1" : "0"],
+      ["deposit_percent", pct],
+      ["deposit_allow_full", pay.allowFull ? "1" : "0"],
+      ["payments_ach", pay.ach ? "1" : "0"],
+    ];
+    try {
+      for (const [key, value] of pairs) await api("/api/settings", { method: "PUT", body: JSON.stringify({ key, value }) });
+      setPayNote("Saved.");
+    } catch { setPayNote("Couldn't save — try again."); }
+  }
 
   async function saveHours() {
     setHoursNote("");
     try { await api("/api/settings", { method: "PUT", body: JSON.stringify({ key: "business_hours", value: JSON.stringify(hours) }) }); setHoursNote("Saved."); }
     catch { setHoursNote("Couldn't save — try again."); }
+  }
+  async function saveSupport() {
+    setSupportNote("");
+    try {
+      await api("/api/settings", { method: "PUT", body: JSON.stringify({ key: "support_contact", value: supportContact.trim() }) });
+      setSupportNote("Saved.");
+    } catch { setSupportNote("Couldn't save — try again."); }
   }
   async function saveReview() {
     setReviewNote("");
@@ -119,10 +300,18 @@ export default function Settings() {
   }
 
   const feedUrl = feedToken ? `${location.origin}/api/calendar/${feedToken}.ics` : "";
+  const bookingUrl = `${location.origin}/book`;
+  const embedCode = `<iframe src="${bookingUrl}" title="Book BH Car Detailing" width="100%" height="900" style="border:0;max-width:480px;margin:0 auto;display:block" loading="lazy"></iframe>`;
+  const chatSnippet = `<script src="${location.origin}/api/widget.js" async></script>`;
+  function copyText(key: string, text: string) {
+    navigator.clipboard?.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(""), 1500);
+  }
 
   return (
     <div className="p-4 md:p-8">
-      <h1 className="mb-4 text-2xl font-semibold">Settings</h1>
+      <PageHeader eyebrow="Configuration" title="Settings" subtitle="Services, messaging, booking, AI, and integrations." />
 
       <div className="max-w-xl space-y-6">
         <Link to="/sequences" className="flex items-center justify-between rounded-xl bg-white p-5 shadow-sm hover:shadow">
@@ -132,6 +321,85 @@ export default function Settings() {
           </div>
           <span className="text-red-600">›</span>
         </Link>
+
+        <ServicesManager />
+
+        {/* Off by default: Florida does not tax most detailing labour, so
+            charging it by mistake is worse than not offering it. */}
+        <section className="rounded-xl bg-white p-5 shadow-sm">
+          <h2 className="mb-2 font-medium">Sales tax</h2>
+          <p className="mb-3 text-sm text-neutral-500">
+            Adds a tax line to quotes built in the Quote Builder. Off unless you turn it on — check with your
+            accountant whether your services are taxable before you do.
+          </p>
+          <label className="mb-3 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={tax.enabled} onChange={(e) => setTax({ ...tax, enabled: e.target.checked })} />
+            Charge sales tax on new quotes
+          </label>
+          <div className="mb-3 grid grid-cols-2 gap-3">
+            <label className="text-xs text-neutral-500">Rate (%)
+              <input inputMode="decimal" value={tax.rate} onChange={(e) => setTax({ ...tax, rate: e.target.value })}
+                placeholder="7" className="mt-0.5 min-h-[44px] w-full rounded-md border border-neutral-300 px-2 text-sm" />
+            </label>
+            <label className="text-xs text-neutral-500">Label on the quote
+              <input value={tax.label} onChange={(e) => setTax({ ...tax, label: e.target.value })}
+                placeholder="Sales tax" className="mt-0.5 min-h-[44px] w-full rounded-md border border-neutral-300 px-2 text-sm" />
+            </label>
+          </div>
+          <p className="mb-3 text-xs text-neutral-400">
+            Applies to quotes created from now on. Existing quotes and jobs keep the price they were saved with.
+          </p>
+          <div className="flex items-center gap-3">
+            <button onClick={saveTax} className="min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">Save</button>
+            {taxNote && <span className="text-sm text-neutral-500">{taxNote}</span>}
+          </div>
+        </section>
+
+        <section className="rounded-xl bg-white p-5 shadow-sm">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="font-medium">Payments & deposits</h2>
+            <span className={`rounded-full px-2 py-0.5 text-xs ${integrations.stripe ? "bg-green-100 text-green-700" : "bg-neutral-200 text-neutral-600"}`}>
+              {integrations.stripe ? "Stripe connected" : "Stripe not connected"}
+            </span>
+          </div>
+          <p className="mb-3 text-sm text-neutral-500">Collect deposits on accepted quotes via Stripe Checkout. Customers pay on Stripe's secure page — no card data touches the CRM.</p>
+          {!integrations.stripe && (
+            <div className="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+              To turn payments on, add your Stripe keys as Worker secrets: <code>STRIPE_SECRET_KEY</code> and <code>STRIPE_WEBHOOK_SECRET</code>. Until then, the Pay buttons stay hidden on quotes.
+            </div>
+          )}
+          {integrations.stripe && !integrations.stripe_webhook && (
+            <div className="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+              Add <code>STRIPE_WEBHOOK_SECRET</code> too, and point a Stripe webhook at <code>{location.origin}/api/stripe/webhook</code> (event: <code>checkout.session.completed</code>) so payments get recorded.
+            </div>
+          )}
+          <label className="mb-3 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={pay.enabled} onChange={(e) => setPay({ ...pay, enabled: e.target.checked })} /> Show payment buttons on quotes
+          </label>
+          <div className="mb-3 flex flex-wrap gap-4">
+            <label className="text-sm">Deposit %
+              <input type="number" min={0} max={100} value={pay.percent} onChange={(e) => setPay({ ...pay, percent: e.target.value })} className="mt-1 min-h-[44px] w-24 rounded-md border border-neutral-300 px-2 text-sm" />
+            </label>
+            <label className="flex items-end gap-2 text-sm pb-2">
+              <input type="checkbox" checked={pay.allowFull} onChange={(e) => setPay({ ...pay, allowFull: e.target.checked })} /> Also let them pay in full
+            </label>
+          </div>
+          <label className="mb-3 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={pay.ach} onChange={(e) => setPay({ ...pay, ach: e.target.checked })} /> Accept bank transfer (ACH) — much lower fees on big jobs (~$5 vs ~3% on cards)
+          </label>
+          <div className="flex items-center gap-3">
+            <button onClick={savePayments} className="min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">Save</button>
+            {payNote && <span className="text-xs text-neutral-500">{payNote}</span>}
+          </div>
+        </section>
+
+        <section className="rounded-xl bg-white p-5 shadow-sm">
+          <h2 className="mb-2 font-medium">Website chat widget</h2>
+          <p className="mb-3 text-sm text-neutral-500">Adds a chat bubble to your website. Visitors leave their name, phone, and message — it becomes a new lead in your CRM and shows up in the Inbox to text back.</p>
+          <p className="mb-2 text-xs text-neutral-500">Paste this before <code>&lt;/body&gt;</code> on bhcardetails.com:</p>
+          <textarea readOnly value={chatSnippet} rows={2} onFocus={(e) => e.currentTarget.select()} className="w-full rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2 font-mono text-xs" />
+          <button onClick={() => copyText("chat", chatSnippet)} className="mt-2 min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">{copiedKey === "chat" ? "Copied!" : "Copy chat code"}</button>
+        </section>
 
         <section className="rounded-xl bg-white p-5 shadow-sm">
           <h2 className="mb-2 font-medium">Text message template</h2>
@@ -223,6 +491,42 @@ export default function Settings() {
             <button onClick={saveHours} className="min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">Save hours</button>
             <a href="/book" target="_blank" rel="noreferrer" className="text-sm text-red-600 hover:underline">Open booking page ↗</a>
             {hoursNote && <span className="text-xs text-neutral-500">{hoursNote}</span>}
+          </div>
+        </section>
+
+        <section className="rounded-xl bg-white p-5 shadow-sm">
+          <h2 className="mb-2 font-medium">Share your booking page</h2>
+          <p className="mb-3 text-sm text-neutral-500">Send this link in a text or email so customers can book a time themselves — or embed it right on your website.</p>
+
+          <label className="mb-1 block text-sm font-medium text-neutral-700">Sendable link</label>
+          <div className="mb-4 flex items-center gap-2">
+            <input readOnly value={bookingUrl} className="min-w-0 flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm" />
+            <button onClick={() => copyText("link", bookingUrl)} className="min-h-[44px] shrink-0 rounded-md bg-neutral-900 px-3 text-sm text-white">{copiedKey === "link" ? "Copied" : "Copy"}</button>
+            <a href={bookingUrl} target="_blank" rel="noreferrer" className="min-h-[44px] shrink-0 rounded-md bg-neutral-200 px-3 py-2 text-sm">Open ↗</a>
+          </div>
+
+          <label className="mb-1 block text-sm font-medium text-neutral-700">Embed on your website</label>
+          <p className="mb-2 text-xs text-neutral-500">Paste this HTML where you want the booking form to appear on bhcardetails.com.</p>
+          <textarea readOnly value={embedCode} rows={4} onFocus={(e) => e.currentTarget.select()} className="w-full rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2 font-mono text-xs" />
+          <button onClick={() => copyText("embed", embedCode)} className="mt-2 min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">{copiedKey === "embed" ? "Copied!" : "Copy embed code"}</button>
+        </section>
+
+        <section className="rounded-xl bg-white p-5 shadow-sm">
+          <h2 className="mb-2 font-medium">Support contact (required for texting)</h2>
+          <p className="mb-3 text-sm text-neutral-500">
+            When someone texts HELP, carriers require an automatic reply naming your business and how to
+            reach a human. This is what goes in that reply — keep it accurate, it is checked during A2P review.
+          </p>
+          <input value={supportContact} onChange={(e) => setSupportContact(e.target.value)}
+            placeholder="(917) 783-1038 or info@bhcardetails.com"
+            className="mb-2 min-h-[44px] w-full rounded-md border border-neutral-300 px-3 text-sm" />
+          <p className="mb-3 text-xs text-neutral-500">
+            Preview: “BH Car Detailing — mobile detailing. {supportContact.trim() ? `Support: ${supportContact.trim()}. ` : ""}
+            Msg &amp; data rates may apply. Reply STOP to unsubscribe.”
+          </p>
+          <div className="flex items-center gap-3">
+            <button onClick={saveSupport} className="min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">Save</button>
+            {supportNote && <span className="text-xs text-neutral-500">{supportNote}</span>}
           </div>
         </section>
 

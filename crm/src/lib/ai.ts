@@ -96,6 +96,44 @@ export async function draftMessage(env: Env, contactId: string, channel: string)
   return callClaude(env, { system, user, maxTokens: 300 });
 }
 
+/**
+ * Ask Claude — an operations assistant grounded in a live snapshot of the
+ * business. Pulls light counts/sums from the operating-system tables and the
+ * core CRM, then answers the owner's question. Returns null when AI is dormant.
+ */
+export async function askCrm(env: Env, question: string, history?: Array<{ role: string; text: string }>): Promise<string | null> {
+  const num = async (sql: string, ...b: unknown[]) => (await one<{ n: number }>(env.DB, sql, ...b))?.n ?? 0;
+  const safe = async (fn: () => Promise<number>) => { try { return await fn(); } catch { return 0; } };
+
+  const [leads, clientsActive, clientsRecurring, openTasks, needsAttn, paidMonth, paidYear, pending, recentUpdates] = await Promise.all([
+    safe(() => num("SELECT COUNT(*) AS n FROM contacts WHERE stage = 'new'")),
+    safe(() => num("SELECT COUNT(*) AS n FROM clients WHERE stage = 'active'")),
+    safe(() => num("SELECT COUNT(*) AS n FROM clients WHERE stage = 'recurring'")),
+    safe(() => num("SELECT COUNT(*) AS n FROM acct_tasks WHERE status != 'done' AND bucket != 'wins'")),
+    safe(() => num("SELECT COUNT(*) AS n FROM acct_tasks WHERE status = 'needs_attention'")),
+    safe(() => num("SELECT COALESCE(SUM(amount_cents),0) AS n FROM revenue_entries WHERE status = 'paid' AND occurred_at >= strftime('%Y-%m-01','now')")),
+    safe(() => num("SELECT COALESCE(SUM(amount_cents),0) AS n FROM revenue_entries WHERE status = 'paid' AND occurred_at >= strftime('%Y-01-01','now')")),
+    safe(() => num("SELECT COALESCE(SUM(amount_cents),0) AS n FROM revenue_entries WHERE status = 'pending'")),
+    safe(() => num("SELECT COUNT(*) AS n FROM updates WHERE created_at >= datetime('now','-7 days')")),
+  ]);
+
+  const brief = await brandBrief(env);
+  const d = (cents: number) => `$${(cents / 100).toLocaleString("en-US")}`;
+  const snapshot = [
+    `New leads: ${leads}`,
+    `Active clients: ${clientsActive} · Recurring: ${clientsRecurring}`,
+    `Open accountability tasks: ${openTasks} (needs attention: ${needsAttn})`,
+    `Revenue paid this month: ${d(paidMonth)} · this year: ${d(paidYear)} · pending: ${d(pending)}`,
+    `Updates posted this week: ${recentUpdates}`,
+  ].join("\n");
+
+  const system = `${brief}\n\nYou are the operations copilot embedded inside BH Car Detailing's internal CRM. You help the owner run the business: follow-ups, planning, prioritization, and decisions. Be direct and concrete. Use the live snapshot below when relevant, but do not invent numbers you were not given. Keep answers tight and actionable.\n\nLIVE SNAPSHOT:\n${snapshot}`;
+
+  const convo = (history ?? []).slice(-6).map((m) => `${m.role === "assistant" ? "You" : "Owner"}: ${m.text}`).join("\n");
+  const user = convo ? `${convo}\nOwner: ${question}` : question;
+  return callClaude(env, { system, user, maxTokens: 700 });
+}
+
 /** Weekly digest: computed numbers, optionally wrapped in an AI narrative. */
 export async function generateDigest(env: Env): Promise<{ stats: Record<string, number>; narrative: string | null }> {
   const wk = new Date(Date.now() - 7 * 86400_000).toISOString();

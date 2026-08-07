@@ -1,1 +1,151 @@
 @import "tailwindcss";
+
+/* ============================================================
+   BH Car Detailing — "detailing bay premium" design system.
+   Cool graphite (show-car clearcoat) shell, steel canvas, one
+   confident brand red, Oswald condensed display + Inter body.
+   ============================================================ */
+@theme {
+  /* Brand red — the exact logo red (existing accent stays on-brand) */
+  --color-red-50: #fff1f2;
+  --color-red-100: #ffe1e4;
+  --color-red-500: #ff4153;
+  --color-red-600: #c8102e;
+  --color-red-700: #7e0a1d;
+  --color-brand: #c8102e;
+  --color-brand-bright: #ff4153;
+  --color-brand-dark: #7e0a1d;
+
+  /* Graphite — cool near-black, reads like deep automotive clearcoat */
+  --color-graphite-950: #0b0d10;
+  --color-graphite-900: #14171c;
+  --color-graphite-850: #1b1f26;
+  --color-graphite-800: #232833;
+  --color-graphite-700: #333a46;
+
+  /* Steel — cool light canvas + metallic text (not warm, not flat) */
+  --color-steel-50: #f7f9fb;
+  --color-steel-100: #edf1f5;
+  --color-steel-200: #dde3ea;
+  --color-chrome-300: #c2c9d2;
+  --color-chrome-400: #9aa3af;
+
+  /* Type */
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Oswald Variable", "Inter Variable", ui-sans-serif, sans-serif;
+}
+
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: var(--font-sans);
+  background: var(--color-steel-100);
+  color: #14171c;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Oswald display utility: condensed uppercase "spec-sheet" labels + titles */
+.font-display { font-family: var(--font-display); font-weight: 600; letter-spacing: 0.01em; }
+.eyebrow {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-weight: 600;
+}
+
+/* ---- Branding motion: loading screen + animated backdrop ---- */
+@keyframes bh-logo-in {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.94); }
+  60%  { opacity: 1; transform: translateY(-4px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes bh-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-9px); }
+}
+@keyframes bh-sweep {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+@keyframes bh-drift {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(6%, -4%) scale(1.08); }
+  66%  { transform: translate(-5%, 5%) scale(0.96); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes bh-bar { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
+@keyframes bh-toast-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes bh-pop-in { from { opacity: 0; transform: translateY(-6px) scale(0.98); } to { opacity: 1; transform: none; } }
+
+/* Signature: "polish shine" — a specular streak buffs across a panel */
+@keyframes bh-shine {
+  0%   { transform: translateX(-160%) skewX(-18deg); }
+  100% { transform: translateX(260%) skewX(-18deg); }
+}
+
+/* Deep graphite backdrop with two slow-drifting brand-red glows */
+.bh-bg {
+  position: relative;
+  background: radial-gradient(120% 120% at 50% -10%, #1a1e26 0%, #0d1013 58%, #06070a 100%);
+  overflow: hidden;
+}
+.bh-bg::before,
+.bh-bg::after {
+  content: "";
+  position: absolute;
+  width: 55vmax;
+  height: 55vmax;
+  border-radius: 9999px;
+  filter: blur(60px);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.bh-bg::before { top: -18%; left: -12%; background: radial-gradient(circle, rgba(200,16,46,0.55), transparent 65%); animation: bh-drift 14s ease-in-out infinite; }
+.bh-bg::after  { bottom: -22%; right: -14%; background: radial-gradient(circle, rgba(255,65,83,0.35), transparent 65%); animation: bh-drift 18s ease-in-out infinite reverse; }
+
+/* Polish-shine overlay applied over a logo/panel (parent must be relative + overflow-hidden) */
+.bh-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.85) 50%, transparent 100%);
+  width: 45%;
+  mix-blend-mode: screen;
+  animation: bh-shine 2.6s ease-in-out infinite;
+  animation-delay: 0.4s;
+  pointer-events: none;
+}
+
+.bh-logo-in { animation: bh-logo-in 0.7s cubic-bezier(0.22,1,0.36,1) both; }
+.bh-float   { animation: bh-float 3s ease-in-out infinite; }
+
+/* Glossy top-highlight for the graphite sidebar / dark panels */
+.bh-gloss { box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.06); }
+
+@media (prefers-reduced-motion: reduce) {
+  .bh-logo-in, .bh-float, .bh-shine::after, .bh-bg::before, .bh-bg::after { animation: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   Safe areas.
+
+   The app runs installed, with viewport-fit=cover and a translucent status bar,
+   so the page really does extend under the Dynamic Island and the home
+   indicator. Anything pinned to an edge has to inset itself or it lands
+   somewhere a thumb cannot reach — on an iPhone 16 Pro the top ~59px is the
+   island, which is exactly where a 48px header used to sit.
+   --------------------------------------------------------------------------- */
+.safe-top    { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-x      { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+
+/* Overlays that cover the whole screen: keep their content clear of both edges. */
+.safe-screen {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Sheets that sit against the bottom edge. */
+.safe-sheet { padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }

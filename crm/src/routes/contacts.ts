@@ -23,6 +23,10 @@ const PATCH_FIELDS = new Set([
   "email_opt_in", "sms_opt_in", "replied_flag", "ai_summary", "ai_next_action",
 ]);
 
+function safeParse<T>(v: string | null | undefined, fallback: T): T {
+  try { return JSON.parse(v || "") as T; } catch { return fallback; }
+}
+
 function actorOf(c: { req: { header: (n: string) => string | undefined } }): string {
   return c.req.header("Authorization")?.startsWith("Bearer ") ? "agent" : "human";
 }
@@ -54,6 +58,8 @@ contactRoutes.get("/", async (c) => {
   const offset = Number(q.offset) > 0 ? Number(q.offset) : 0;
   const where: string[] = [];
   const binds: unknown[] = [];
+  // Archive filter: default hides soft-deleted contacts; ?archived=1 shows only them.
+  where.push(q.archived === "1" ? "deleted_at IS NOT NULL" : "deleted_at IS NULL");
   if (q.search) {
     const term = `%${q.search.replace(/[%_]/g, "")}%`;
     where.push("(first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR phone LIKE ?)");
@@ -66,12 +72,17 @@ contactRoutes.get("/", async (c) => {
   const total = await one<{ n: number }>(c.env.DB, `SELECT COUNT(*) AS n FROM contacts ${w}`, ...binds);
   const orderCol = ORDER_COLS[q.order_by ?? ""] ?? "c.created_at";
   const orderDir = q.order === "asc" ? "ASC" : "DESC";
-  const items = await all(
+  const rows = await all<Record<string, unknown>>(
     c.env.DB,
     `SELECT c.*, (SELECT COUNT(*) FROM vehicles v WHERE v.contact_id = c.id) AS vehicle_count
      FROM contacts c ${w} ORDER BY ${orderCol} ${orderDir} LIMIT ? OFFSET ?`,
     ...binds, limit, offset
   );
+  const items = rows.map((r) => ({
+    ...r,
+    tags: safeParse(r.tags as string, []),
+    custom: safeParse(r.custom as string, {}),
+  }));
   return c.json({ items, total: total?.n ?? 0 });
 });
 
@@ -104,6 +115,16 @@ contactRoutes.post("/bulk-action", async (c) => {
       updated++;
     } else if (b.op === "enroll_sequence") {
       if (b.value) { await enrollContact(c.env, b.value, id); updated++; }
+    } else if (b.op === "archive") {
+      // Soft by default, matching single-contact delete: money history survives
+      // and the contact can be restored from the Archived view.
+      await run(c.env.DB, "UPDATE contacts SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", now, now, id);
+      await run(c.env.DB, "UPDATE enrollments SET status = 'exited', exit_reason = 'archived', completed_at = ? WHERE contact_id = ? AND status = 'active'", now, id);
+      await logActivity(c.env.DB, { contactId: id, type: "note", title: "Archived (bulk)", actor: actorOf(c) });
+      updated++;
+    } else if (b.op === "restore") {
+      await run(c.env.DB, "UPDATE contacts SET deleted_at = NULL, updated_at = ? WHERE id = ?", now, id);
+      updated++;
     } else {
       return c.json({ error: "unknown_op" }, 400);
     }
@@ -147,11 +168,19 @@ contactRoutes.get("/:id", async (c) => {
   if (!row) return c.json({ error: "not_found" }, 404);
   const vehicles = await all(
     c.env.DB, "SELECT * FROM vehicles WHERE contact_id = ? ORDER BY created_at DESC", row.id);
+  // Revenue events linked to this contact + summary counts (used for the
+  // delete warning and the contact's Revenue panel).
+  const revenue = await all(
+    c.env.DB, "SELECT * FROM revenue_entries WHERE contact_id = ? ORDER BY COALESCE(occurred_at, created_at) DESC, created_at DESC LIMIT 100", row.id);
+  const jobsRow = await one<{ n: number }>(c.env.DB, "SELECT COUNT(*) AS n FROM jobs WHERE contact_id = ?", row.id);
+  const revRow = await one<{ cents: number }>(c.env.DB, "SELECT COALESCE(SUM(amount_cents),0) AS cents FROM revenue_entries WHERE contact_id = ? AND status = 'paid'", row.id);
   return c.json({
     ...row,
     tags: JSON.parse((row.tags as string) || "[]"),
     custom: JSON.parse((row.custom as string) || "{}"),
     vehicles,
+    revenue,
+    related: { jobs: jobsRow?.n ?? 0, paid_revenue_cents: revRow?.cents ?? 0 },
   });
 });
 
@@ -196,8 +225,22 @@ contactRoutes.patch("/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+// Soft delete (archive): sets deleted_at so the contact is hidden but fully
+// restorable — jobs, revenue, messages and timeline are preserved. ?purge=1
+// hard-deletes (cascades jobs/tasks/messages via FK) for a permanent wipe from
+// the Archive view.
 contactRoutes.delete("/:id", async (c) => {
-  await run(c.env.DB, "DELETE FROM contacts WHERE id = ?", c.req.param("id"));
+  const id = c.req.param("id");
+  if (c.req.query("purge") === "1") {
+    await run(c.env.DB, "DELETE FROM contacts WHERE id = ?", id);
+    return c.json({ ok: true, purged: true });
+  }
+  await run(c.env.DB, "UPDATE contacts SET deleted_at = ?, updated_at = ? WHERE id = ?", nowIso(), nowIso(), id);
+  return c.json({ ok: true, archived: true });
+});
+
+contactRoutes.post("/:id/restore", async (c) => {
+  await run(c.env.DB, "UPDATE contacts SET deleted_at = NULL, updated_at = ? WHERE id = ?", nowIso(), c.req.param("id"));
   return c.json({ ok: true });
 });
 
@@ -212,9 +255,86 @@ contactRoutes.get("/:id/activities", async (c) => {
 
 export const statsRoutes = new Hono<{ Bindings: Env }>();
 statsRoutes.use("*", requireAuth());
+
+/**
+ * KPI actuals that can be measured rather than typed in.
+ *
+ * Money KPIs are deliberately absent: revenue and average ticket already have a
+ * canonical definition in GET /api/stats (jobs + deposits + the manual ledger,
+ * netted so nothing double-counts), and the KPI page reads them from there. A
+ * second definition here would drift from the Dashboard within a week.
+ */
+statsRoutes.get("/kpi", async (c) => {
+  const monthStart = "date('now','start of month')";
+
+  const jobsMonth = await one<{ n: number }>(
+    c.env.DB,
+    `SELECT COUNT(*) AS n FROM jobs
+      WHERE status IN ('completed','paid')
+        AND date(COALESCE(completed_at, scheduled_start, updated_at)) >= ${monthStart}`
+  );
+
+  // Bulk imports are stamped with the day they were imported, so 113 phone
+  // contacts loaded in one afternoon would otherwise read as 113 new leads that
+  // week — and drag the conversion rate through the floor. A lead is someone who
+  // arrived, not someone who was uploaded.
+  const NOT_IMPORTED = "COALESCE(source,'') NOT LIKE '%import%'";
+
+  const leadsWeek = await one<{ n: number }>(
+    c.env.DB,
+    `SELECT COUNT(*) AS n FROM contacts
+      WHERE deleted_at IS NULL AND ${NOT_IMPORTED} AND date(created_at) >= date('now','-7 days')`
+  );
+
+  // Lead → booked over a 30-day cohort: of the people who arrived, how many
+  // ended up with a job on the calendar. Measured on the cohort's own contacts
+  // so a busy month of old customers cannot flatter it.
+  const cohort = await one<{ total: number; booked: number }>(
+    c.env.DB,
+    `SELECT COUNT(*) AS total,
+            SUM(CASE WHEN EXISTS (
+                  SELECT 1 FROM jobs j
+                   WHERE j.contact_id = c.id
+                     AND j.status IN ('scheduled','in_progress','completed','paid')
+                ) THEN 1 ELSE 0 END) AS booked
+       FROM contacts c
+      WHERE c.deleted_at IS NULL AND ${NOT_IMPORTED.replace(/source/, "c.source")}
+        AND date(c.created_at) >= date('now','-30 days')`
+  );
+
+  // Rebook rate: of everyone who has bought once, how many came back.
+  const rebook = await one<{ once: number; again: number }>(
+    c.env.DB,
+    `SELECT COUNT(*) AS once, SUM(CASE WHEN n >= 2 THEN 1 ELSE 0 END) AS again
+       FROM (
+         SELECT j.contact_id, COUNT(*) AS n
+           FROM jobs j JOIN contacts c ON c.id = j.contact_id
+          WHERE j.status IN ('completed','paid') AND c.deleted_at IS NULL
+          GROUP BY j.contact_id
+       )`
+  );
+
+  const reviewsMonth = await one<{ n: number }>(
+    c.env.DB,
+    `SELECT COUNT(*) AS n FROM jobs
+      WHERE review_left_at IS NOT NULL AND date(review_left_at) >= ${monthStart}`
+  );
+
+  const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : null);
+
+  return c.json({
+    jobs_completed_month: jobsMonth?.n ?? 0,
+    new_leads_week: leadsWeek?.n ?? 0,
+    // null, not zero: "no leads yet this month" is not "a 0% close rate".
+    lead_to_booked_pct: pct(cohort?.booked ?? 0, cohort?.total ?? 0),
+    rebook_rate_pct: pct(rebook?.again ?? 0, rebook?.once ?? 0),
+    reviews_month: reviewsMonth?.n ?? 0,
+  });
+});
+
 statsRoutes.get("/", async (c) => {
   const rows = await all<{ stage: string; n: number }>(
-    c.env.DB, "SELECT stage, COUNT(*) AS n FROM contacts GROUP BY stage");
+    c.env.DB, "SELECT stage, COUNT(*) AS n FROM contacts WHERE deleted_at IS NULL GROUP BY stage");
   const byStage: Record<string, number> = {};
   for (const s of STAGES) byStage[s] = 0;
   for (const r of rows) byStage[r.stage] = r.n;
@@ -222,6 +342,7 @@ statsRoutes.get("/", async (c) => {
     c.env.DB,
     `SELECT a.id, a.type, a.title, a.created_at, a.contact_id, c.first_name, c.last_name
      FROM activities a JOIN contacts c ON c.id = a.contact_id
+     WHERE c.deleted_at IS NULL
      ORDER BY a.id DESC LIMIT 20`
   );
   const todayJobs = await all(
@@ -231,14 +352,100 @@ statsRoutes.get("/", async (c) => {
      WHERE j.status IN ('scheduled','in_progress')
        AND j.scheduled_start IS NOT NULL
        AND date(j.scheduled_start) = date('now')
+       AND c.deleted_at IS NULL
      ORDER BY j.scheduled_start ASC`
   );
   const openTasks = await all(
     c.env.DB,
     `SELECT t.id, t.title, t.due_at, t.contact_id, c.first_name, c.last_name
      FROM tasks t LEFT JOIN contacts c ON c.id = t.contact_id
-     WHERE t.status = 'open'
+     WHERE t.status = 'open' AND (c.id IS NULL OR c.deleted_at IS NULL)
      ORDER BY (t.due_at IS NULL), t.due_at ASC LIMIT 10`
   );
-  return c.json({ byStage, recent, todayJobs, openTasks });
+
+  // --- Money influx. A "sale" is realized revenue from EITHER source:
+  //   • a completed/paid job (dated by scheduled_start, falling back to update), or
+  //   • a paid revenue_entries row (the manually-logged Revenue Events ledger).
+  // Both are folded together so the Dashboard matches the Revenue page exactly.
+  // Pipeline = money in flight = quoted/scheduled jobs + pending revenue entries. ---
+  const EARNED = "status IN ('completed','paid')";
+  const jobDate = "COALESCE(scheduled_start, updated_at)";
+  const entDate = "COALESCE(occurred_at, created_at)";
+
+  const jobTotals = await one<{ cents: number; n: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(price_cents),0) AS cents, COUNT(*) AS n FROM jobs WHERE ${EARNED}`);
+  const jobMonth = await one<{ cents: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(price_cents),0) AS cents FROM jobs
+               WHERE ${EARNED} AND strftime('%Y-%m', ${jobDate}) = strftime('%Y-%m','now')`);
+  const jobWeek = await one<{ cents: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(price_cents),0) AS cents FROM jobs
+               WHERE ${EARNED} AND strftime('%Y-%W', ${jobDate}) = strftime('%Y-%W','now')`);
+  // Pipeline = the UNPAID remainder of in-flight jobs (a collected deposit is no
+  // longer "in flight" — it's cash in hand, counted below).
+  const jobPipe = await one<{ cents: number; n: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(price_cents - COALESCE(amount_paid_cents,0)),0) AS cents, COUNT(*) AS n FROM jobs
+               WHERE status IN ('quoted','scheduled','in_progress')`);
+  const jobSeries = await all<{ ym: string; cents: number; n: number }>(
+    c.env.DB, `SELECT strftime('%Y-%m', ${jobDate}) AS ym, COALESCE(SUM(price_cents),0) AS cents, COUNT(*) AS n
+               FROM jobs WHERE ${EARNED} AND ${jobDate} >= date('now','-6 months','start of month')
+               GROUP BY ym ORDER BY ym ASC`);
+
+  // Deposits collected on still-in-flight jobs — real cash received before the
+  // job is finished. Dated by paid_at. Counted as realized revenue (the balance
+  // is picked up when the job flips to completed/paid, so no double-count).
+  const IN_FLIGHT = "status IN ('quoted','scheduled','in_progress') AND COALESCE(amount_paid_cents,0) > 0";
+  const depDate = "COALESCE(paid_at, updated_at)";
+  const depAll = await one<{ cents: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(amount_paid_cents),0) AS cents FROM jobs WHERE ${IN_FLIGHT}`);
+  const depMonth = await one<{ cents: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(amount_paid_cents),0) AS cents FROM jobs WHERE ${IN_FLIGHT} AND strftime('%Y-%m', ${depDate}) = strftime('%Y-%m','now')`);
+  const depWeek = await one<{ cents: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(amount_paid_cents),0) AS cents FROM jobs WHERE ${IN_FLIGHT} AND strftime('%Y-%W', ${depDate}) = strftime('%Y-%W','now')`);
+  const depSeries = await all<{ ym: string; cents: number; n: number }>(
+    c.env.DB, `SELECT strftime('%Y-%m', ${depDate}) AS ym, COALESCE(SUM(amount_paid_cents),0) AS cents, 0 AS n
+               FROM jobs WHERE ${IN_FLIGHT} AND ${depDate} >= date('now','-6 months','start of month')
+               GROUP BY ym ORDER BY ym ASC`);
+
+  // Same aggregates over the paid revenue_entries ledger (guarded — table is
+  // additive from migration 0009/0010 and always present, but stay defensive).
+  const entTotals = await one<{ cents: number; n: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(amount_cents),0) AS cents, COUNT(*) AS n FROM revenue_entries WHERE status = 'paid'`).catch(() => null);
+  const entMonth = await one<{ cents: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(amount_cents),0) AS cents FROM revenue_entries
+               WHERE status = 'paid' AND strftime('%Y-%m', ${entDate}) = strftime('%Y-%m','now')`).catch(() => null);
+  const entWeek = await one<{ cents: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(amount_cents),0) AS cents FROM revenue_entries
+               WHERE status = 'paid' AND strftime('%Y-%W', ${entDate}) = strftime('%Y-%W','now')`).catch(() => null);
+  const entPending = await one<{ cents: number; n: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(amount_cents),0) AS cents, COUNT(*) AS n FROM revenue_entries WHERE status = 'pending'`).catch(() => null);
+  const entSeries = await all<{ ym: string; cents: number; n: number }>(
+    c.env.DB, `SELECT strftime('%Y-%m', ${entDate}) AS ym, COALESCE(SUM(amount_cents),0) AS cents, COUNT(*) AS n
+               FROM revenue_entries WHERE status = 'paid' AND ${entDate} >= date('now','-6 months','start of month')
+               GROUP BY ym ORDER BY ym ASC`).catch(() => []);
+
+  // Merge the monthly series (completed jobs + deposits + ledger) by year-month.
+  const seriesMap = new Map<string, { ym: string; cents: number; n: number }>();
+  for (const r of [...(jobSeries ?? []), ...(depSeries ?? []), ...(entSeries ?? [])]) {
+    if (!r.ym) continue;
+    const cur = seriesMap.get(r.ym) ?? { ym: r.ym, cents: 0, n: 0 };
+    cur.cents += r.cents; cur.n += r.n;
+    seriesMap.set(r.ym, cur);
+  }
+  const seriesRows = [...seriesMap.values()].sort((a, b) => a.ym.localeCompare(b.ym));
+
+  const completedCents = (jobTotals?.cents ?? 0) + (entTotals?.cents ?? 0);
+  const allCents = completedCents + (depAll?.cents ?? 0);
+  const salesAll = (jobTotals?.n ?? 0) + (entTotals?.n ?? 0);
+  const revenue = {
+    month_cents: (jobMonth?.cents ?? 0) + (depMonth?.cents ?? 0) + (entMonth?.cents ?? 0),
+    week_cents: (jobWeek?.cents ?? 0) + (depWeek?.cents ?? 0) + (entWeek?.cents ?? 0),
+    pipeline_cents: (jobPipe?.cents ?? 0) + (entPending?.cents ?? 0),
+    pipeline_jobs: (jobPipe?.n ?? 0) + (entPending?.n ?? 0),
+    all_time_cents: allCents,
+    jobs_paid_all: salesAll,
+    // avg ticket is per completed sale — deposits on open jobs don't count as sales yet
+    avg_ticket_cents: salesAll > 0 ? Math.round(completedCents / salesAll) : 0,
+    series: seriesRows,
+  };
+  return c.json({ byStage, recent, todayJobs, openTasks, revenue });
 });

@@ -50,6 +50,15 @@ describe("contacts CRUD", () => {
     expect(c.custom).toEqual({ referral: "yes", gate_code: "1234" });
   });
 
+  it("list returns tags as a parsed array, not a JSON string", async () => {
+    const { id } = (await (await createContact({ first_name: "Tagged", email: "tagged@x.com", tags: ["vip"] })).json()) as { id: string };
+    const res = await SELF.fetch("http://x/api/contacts?search=Tagged", { headers: AUTH });
+    const { items } = (await res.json()) as { items: Array<{ id: string; tags: unknown }> };
+    const row = items.find((i) => i.id === id)!;
+    expect(Array.isArray(row.tags)).toBe(true);
+    expect(row.tags).toEqual(["vip"]);
+  });
+
   it("search finds by partial name", async () => {
     await createContact({ first_name: "Zebulon", last_name: "Quartermain", email: "zq@x.com" });
     const res = await SELF.fetch("http://x/api/contacts?search=zebul", { headers: AUTH });
@@ -66,11 +75,16 @@ describe("contacts CRUD", () => {
     expect(Array.isArray(stats.recent)).toBe(true);
   });
 
-  it("DELETE removes the contact", async () => {
+  it("DELETE archives the contact (soft delete); ?purge=1 hard-deletes", async () => {
     const { id } = (await (await createContact({ first_name: "Gone", email: "gone@x.com" })).json()) as { id: string };
     await SELF.fetch(`http://x/api/contacts/${id}`, { method: "DELETE", headers: AUTH });
-    const got = await SELF.fetch(`http://x/api/contacts/${id}`, { headers: AUTH });
-    expect(got.status).toBe(404);
+    // Archived: hidden from the default list but still fetchable for restore.
+    const list = (await (await SELF.fetch("http://x/api/contacts?limit=200", { headers: AUTH })).json()) as { items: Array<{ id: string }> };
+    expect(list.items.some((c) => c.id === id)).toBe(false);
+    expect((await SELF.fetch(`http://x/api/contacts/${id}`, { headers: AUTH })).status).toBe(200);
+    // Purge = permanent hard delete.
+    await SELF.fetch(`http://x/api/contacts/${id}?purge=1`, { method: "DELETE", headers: AUTH });
+    expect((await SELF.fetch(`http://x/api/contacts/${id}`, { headers: AUTH })).status).toBe(404);
   });
 
   it("PATCH with null JSON body returns 400", async () => {

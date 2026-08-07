@@ -174,16 +174,14 @@
     document.addEventListener("keydown", (e) => e.key === "Escape" && close());
   }
 
-  /* Promo modal removed for A2P compliance */
-
   /* ---------- "The Best Option For You" recommender ---------- */
   const quiz = document.getElementById("quiz");
   if (quiz) {
     const PACKAGES = {
       washExt: { name: "Exterior Car Wash", desc: "A meticulous hand wash & dry to keep your paint clean between details." },
-      washFull: { name: "Full Car Wash", desc: "Hand wash & dry outside, light vacuum and clean windows inside. The perfect reset." },
-      light: { name: "Light Detail", desc: "Full interior scrub — jambs, sills, crevices, fabric & carpet — plus hand wash, wheels and a 3-month spray sealant." },
-      full: { name: "Full Detail", desc: "Our complete restoration detail: deep carpet & fabric extraction, scuff removal, wheel wells, 3-month wax + 6-month paint sealant." },
+      washFull: { name: "Maintenance Detail", desc: "Hand wash & dry outside, light vacuum and clean windows inside. The perfect reset." },
+      light: { name: "Signature Detail", desc: "Full interior scrub — jambs, sills, crevices, fabric & carpet — plus hand wash, wheels and a 3-month spray sealant." },
+      full: { name: "Complete Detail", desc: "Our complete restoration detail: deep carpet & fabric extraction, scuff removal, wheel wells, 3-month wax + 6-month paint sealant." },
       correction: { name: "Paint Correction", desc: "Single-stage machine polish that removes swirl marks, light scratches and defects — restoring true clarity and gloss." },
       ceramic: { name: "Ceramic Coating", desc: "Clay bar decontamination + professional-grade ceramic. Hydrophobic, UV-resistant protection that lasts 1–2 years." },
       maintenance: { name: "Maintenance Plan", desc: "A recurring plan tailored to your vehicle and schedule, so it never falls out of showroom condition." },
@@ -368,7 +366,7 @@
   });
 
   /* ---------- CRM bridge: mirror every lead into the BH CRM backend ---------- */
-  var CRM_ENDPOINT = "https://bh-crm.bhcardetails.workers.dev/api/lead";
+  var CRM_ENDPOINT = "https://bh-crm.bhdev.workers.dev/api/lead";
   var PAGE_LOADED_AT = Date.now();
 
   function crmSource(form) {
@@ -394,6 +392,8 @@
           email: fd.get("email") || "",
           vehicle: fd.get("vehicle") || "",
           message: fd.get("message") || "",
+          sms_opt_in: fd.get("sms_opt_in") === "yes",
+          marketing_opt_in: fd.get("marketing_opt_in") === "yes",
           source: crmSource(form),
           source_detail: location.pathname + location.search,
           ts: PAGE_LOADED_AT,
@@ -402,6 +402,34 @@
       }).catch(function () {});
     } catch (e) { /* never break the user-facing submit */ }
   }
+
+  /* SMS opt-in consent — injected at the point of phone collection.
+     Quote/service consent only, no marketing checkbox, until the A2P
+     campaign is verified for marketing use (error 30896 / 30913). */
+  function injectSmsConsent(form) {
+    if (form.querySelector(".sms-consent")) return;
+    var btn = form.querySelector("button[type=submit]");
+    var box = document.createElement("div");
+    box.className = "sms-consent";
+    box.style.cssText =
+      "margin:12px 0;font-size:12px;line-height:1.5;color:#8a8a8e;text-align:left";
+    var rowStyle = "display:flex;gap:8px;align-items:flex-start;margin-bottom:8px";
+    var cbStyle = "margin-top:3px;flex:0 0 auto";
+    box.innerHTML =
+      '<label style="' + rowStyle + '">' +
+        '<input type="checkbox" name="sms_opt_in" value="yes" style="' + cbStyle + '">' +
+        "<span>Yes, text me about the free quote I requested, my booking, and appointment reminders.</span>" +
+      "</label>" +
+      '<span style="display:block;color:#a0a0a4">By checking the box above, you agree to receive text messages ' +
+      "from BH Car Detailing about your quote request at the number provided. Checking the box is optional and not " +
+      "a condition of purchase &mdash; we'll still follow up about the quote you requested. " +
+      "Msg &amp; data rates may apply. Message frequency varies. Reply STOP to opt out, HELP for help. See our " +
+      '<a href="/terms.html" style="color:var(--accent,#c8102e);text-decoration:underline">Terms</a> &amp; ' +
+      '<a href="/privacy-policy.html" style="color:var(--accent,#c8102e);text-decoration:underline">Privacy Policy</a>.</span>';
+    if (btn && btn.parentNode) btn.parentNode.insertBefore(box, btn);
+    else form.appendChild(box);
+  }
+  document.querySelectorAll("form.form").forEach(injectSmsConsent);
 
   document.querySelectorAll("form.form").forEach((form) => {
     form.addEventListener("submit", async (e) => {

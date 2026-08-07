@@ -1,5 +1,6 @@
 export interface Env {
   DB: D1Database;
+  MEDIA?: R2Bucket;
   ASSETS?: Fetcher;
   ADMIN_PASSWORD: string;
   SESSION_SECRET: string;
@@ -17,6 +18,8 @@ export interface Env {
   TWILIO_MESSAGING_SERVICE_SID?: string;
   PUBLIC_BASE_URL?: string;
   ANTHROPIC_API_KEY?: string;
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
 }
 
 export const STAGES = ["new", "contacted", "quoted", "scheduled", "customer", "lost"] as const;
