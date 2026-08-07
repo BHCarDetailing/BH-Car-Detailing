@@ -139,8 +139,7 @@ export default function Book() {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slot, setSlot] = useState("");
 
-  const [first, setFirst] = useState("");
-  const [last, setLast] = useState("");
+  const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
@@ -314,7 +313,7 @@ export default function Book() {
   // ---- a drop-off is still a lead worth calling. Saved once there is a name
   // and a phone; sets no consent, so it is callable, never textable.
   useEffect(() => {
-    const nm = `${first} ${last}`.trim();
+    const nm = fullName.trim();
     if (!nm || !phone.trim()) return;
     const t = setTimeout(() => {
       fetch("/api/book/lead", {
@@ -324,7 +323,7 @@ export default function Book() {
       }).catch(() => {});
     }, 1200);
     return () => clearTimeout(t);
-  }, [first, last, phone, email, website]);
+  }, [fullName, phone, email, website]);
 
   function reveal() {
     const v = vaultRef.current;
@@ -397,7 +396,11 @@ export default function Book() {
           vehicle_type: vehicleType,
           lines,
           scheduled_start: needsPlanning ? null : slot,
-          first_name: first, last_name: last,
+          // The server stores first/last separately; one field is less to type
+          // on a phone, so the split happens here. A single-word name keeps an
+          // empty surname rather than guessing at one.
+          first_name: fullName.trim().split(/\s+/)[0] ?? "",
+          last_name: fullName.trim().split(/\s+/).slice(1).join(" "),
           phone, email, address, notes,
           sms_opt_in: consent,
           website, ts: mountedAt,
@@ -702,19 +705,15 @@ export default function Book() {
             <h1 className="ask">Where do we <em>find you?</em></h1>
             <p className="hint">We confirm by text before we set off.</p>
             <div className="fields">
-              <div className="two">
-                <input type="text" placeholder="First name" autoComplete="given-name"
-                  value={first} onChange={(e) => setFirst(e.target.value)} />
-                <input type="text" placeholder="Last name" autoComplete="family-name"
-                  value={last} onChange={(e) => setLast(e.target.value)} />
-              </div>
-              <input type="tel" inputMode="tel" placeholder="Phone number" autoComplete="tel"
+              <input type="text" placeholder="Full name" autoComplete="name"
+                value={fullName} onChange={(e) => setFullName(e.target.value)} />
+              <input type="tel" inputMode="tel" placeholder="Phone" autoComplete="tel"
                 value={phone} onChange={(e) => setPhone(e.target.value)} />
               <input type="email" inputMode="email" placeholder="Email (optional)" autoComplete="email"
                 value={email} onChange={(e) => setEmail(e.target.value)} />
-              <input type="text" placeholder="Street address" autoComplete="street-address"
+              <input type="text" placeholder="Address" autoComplete="street-address"
                 value={address} onChange={(e) => setAddress(e.target.value)} />
-              <textarea rows={2} placeholder="Anything we should know? Pet hair, problem spots, gate code"
+              <textarea rows={2} placeholder="Notes — pet hair, problem spots, gate code"
                 value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
 
