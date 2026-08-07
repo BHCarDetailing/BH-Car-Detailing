@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { Button, Field, Input } from "../components/ui";
 
@@ -28,16 +28,45 @@ interface Service {
 interface VehicleTypeOption { value: string; label: string; bucket: string; note?: string }
 interface Catalog { vehicle_types: VehicleTypeOption[]; services: Service[] }
 
-type Step = "vehicle" | "level" | "service" | "addons" | "schedule" | "contact" | "done";
-const STEP_ORDER: Step[] = ["vehicle", "level", "service", "addons", "schedule", "contact", "done"];
+type Step = "vehicle" | "area" | "level" | "service" | "addons" | "schedule" | "contact" | "done";
+const STEP_ORDER: Step[] = ["vehicle", "area", "level", "service", "addons", "schedule", "contact", "done"];
 
-const LEVEL_ORDER = ["maintenance", "light", "full", "specialty"];
+const AREA_OPTIONS = [
+  { value: "interior", label: "Interior", icon: "🪑", hint: "Inside only" },
+  { value: "exterior", label: "Exterior", icon: "🚿", hint: "Outside only" },
+  { value: "both", label: "Interior + Exterior", icon: "✨", hint: "The full car" },
+  { value: "specialty", label: "Specialty Service", icon: "💎", hint: "Ceramic, correction, PPF & more" },
+];
+
+const LEVEL_ORDER = ["maintenance", "light", "full"];
 const LEVEL_LABELS: Record<string, string> = {
-  maintenance: "Maintenance",
-  light: "Light",
-  full: "Full",
-  specialty: "Special",
+  maintenance: "Maintenance Detail",
+  light: "Light Detail",
+  full: "Full Detail",
+  specialty: "Specialty Services",
 };
+const LEVEL_ICONS: Record<string, string> = {
+  maintenance: "🧽", light: "✨", full: "💎", specialty: "🌟",
+};
+
+/** Same checklist shown on the marketing site's package-comparison table. */
+const COMPARE_ROWS: Array<{ group: "Exterior" | "Interior"; feature: string; maintenance: boolean; light: boolean; full: boolean }> = [
+  { group: "Exterior", feature: "Foam bath & hand wash", maintenance: true, light: true, full: true },
+  { group: "Exterior", feature: "Spray sealant / drying aid", maintenance: true, light: true, full: true },
+  { group: "Exterior", feature: "Tires & rims cleaned + dressed", maintenance: false, light: true, full: true },
+  { group: "Exterior", feature: "Door jambs & gas cap cleaned", maintenance: false, light: true, full: true },
+  { group: "Exterior", feature: "Exterior glass streak-free finish", maintenance: false, light: true, full: true },
+  { group: "Exterior", feature: "Wheel wells cleaned", maintenance: false, light: false, full: true },
+  { group: "Exterior", feature: "Wax & ceramic seal (3 months)", maintenance: false, light: false, full: true },
+  { group: "Exterior", feature: "Clay bar decontamination", maintenance: false, light: false, full: true },
+  { group: "Interior", feature: "Two-stage vacuum", maintenance: true, light: true, full: true },
+  { group: "Interior", feature: "Floor mats cleaned", maintenance: true, light: true, full: true },
+  { group: "Interior", feature: "Full air purge blow-out", maintenance: false, light: true, full: true },
+  { group: "Interior", feature: "Plastic, vinyl & leather wiped down", maintenance: false, light: true, full: true },
+  { group: "Interior", feature: "Interior glass streak-free finish", maintenance: false, light: true, full: true },
+  { group: "Interior", feature: "Cloth seats shampooed & extracted", maintenance: false, light: false, full: true },
+  { group: "Interior", feature: "Leather scrubbed & conditioned", maintenance: false, light: false, full: true },
+];
 
 const money = (cents: number) => `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
 
@@ -59,12 +88,16 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/** Every step's content fades + rises in — small, but it's what makes each tap feel alive. */
+const stepIn: React.CSSProperties = { animation: "bh-pop-in 0.28s cubic-bezier(0.22,1,0.36,1) both" };
+
 export default function Book() {
   const [step, setStep] = useState<Step>("vehicle");
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [catalogErr, setCatalogErr] = useState(false);
 
   const [vehicleTypeValue, setVehicleTypeValue] = useState("");
+  const [area, setArea] = useState("");
   const [level, setLevel] = useState("");
   const [primaryId, setPrimaryId] = useState("");
   const [addonIds, setAddonIds] = useState<string[]>([]);
@@ -95,21 +128,30 @@ export default function Book() {
     () => catalog?.vehicle_types.find((v) => v.value === vehicleTypeValue)?.bucket ?? "other",
     [catalog, vehicleTypeValue]
   );
-  const primaryOptions = useMemo(
-    () => (catalog?.services ?? []).filter((s) => s.standalone && !s.is_addon),
-    [catalog]
+
+  // Sellable primary services for this vehicle: real price, or specialty/planned
+  // work quoted on sight rather than hidden for having no menu price.
+  const primaries = useMemo(
+    () => (catalog?.services ?? []).filter((s) =>
+      s.standalone && !s.is_addon &&
+      (priceFor(s, bucket) > 0 || s.requires_planning || s.level === "specialty")),
+    [catalog, bucket]
   );
-  const primaryByLevel = useMemo(() => {
-    const groups: Record<string, Service[]> = {};
-    for (const s of primaryOptions) (groups[s.level ?? "specialty"] ??= []).push(s);
-    return groups;
-  }, [primaryOptions]);
-  const levelsAvailable = useMemo(
-    () => LEVEL_ORDER.filter((l) => (primaryByLevel[l]?.length ?? 0) > 0),
-    [primaryByLevel]
-  );
-  const serviceOptions = useMemo(() => primaryByLevel[level] ?? [], [primaryByLevel, level]);
-  const primary = useMemo(() => primaryOptions.find((s) => s.id === primaryId) ?? null, [primaryOptions, primaryId]);
+  const levelsAvailable = useMemo(() => {
+    const seen = new Set(primaries.map((s) => s.level ?? "specialty"));
+    return LEVEL_ORDER.filter((l) => seen.has(l));
+  }, [primaries]);
+
+  // Honours the chosen area when the level actually offers something there;
+  // otherwise shows what the level does offer rather than a dead end.
+  const { serviceOptions, areaRelaxed } = useMemo(() => {
+    const atLevel = primaries.filter((s) => !level || s.level === level);
+    const inArea = atLevel.filter((s) => !area || area === "specialty" || s.area === area || s.area === "specialty");
+    if (inArea.length > 0) return { serviceOptions: inArea, areaRelaxed: false };
+    return { serviceOptions: atLevel, areaRelaxed: atLevel.length > 0 };
+  }, [primaries, area, level]);
+
+  const primary = useMemo(() => primaries.find((s) => s.id === primaryId) ?? null, [primaries, primaryId]);
   const addonOptions = useMemo(
     () => (catalog?.services ?? []).filter((s) => s.is_addon && priceFor(s, bucket) > 0),
     [catalog, bucket]
@@ -155,6 +197,19 @@ export default function Book() {
     setStep(STEP_ORDER[Math.max(i - 1, 0)]);
   }
 
+  /** Specialty Service skips the Maintenance/Light/Full split entirely. */
+  function selectArea(value: string) {
+    setArea(value);
+    setPrimaryId("");
+    if (value === "specialty") {
+      setLevel("specialty");
+      setStep("service");
+    } else {
+      setLevel("");
+      setStep("level");
+    }
+  }
+
   async function submit() {
     setErr("");
     if (!consent) { setErr("Please check the box to confirm you'd like a text about your appointment."); return; }
@@ -194,25 +249,28 @@ export default function Book() {
   }
 
   return (
-    <div className="mx-auto max-w-md p-4 sm:p-6">
-      <div className="mb-5 flex flex-col items-center text-center">
+    <div className="relative mx-auto max-w-md overflow-hidden p-4 sm:p-6">
+      <div aria-hidden className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-red-500/10 blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute -left-16 top-40 h-56 w-56 rounded-full bg-chrome-300/20 blur-3xl" />
+
+      <div className="relative mb-5 flex flex-col items-center text-center" style={stepIn}>
         <img src="/brand/logo.png" alt="BH Car Detailing" className="mb-3 h-14 w-auto" />
         <h1 className="font-display text-2xl leading-none text-graphite-950">Get Your Price &amp; Book</h1>
         <p className="eyebrow mt-1.5 text-[10px] text-chrome-400">Miami · Fort Lauderdale</p>
       </div>
 
       {step !== "done" && (
-        <div className="mb-5 flex gap-1.5">
+        <div className="relative mb-5 flex gap-1.5">
           {STEP_ORDER.slice(0, -1).map((s, i) => (
-            <span key={s} className={`h-1 flex-1 rounded-full ${STEP_ORDER.indexOf(step) >= i ? "bg-red-600" : "bg-steel-200"}`} />
+            <span key={s} className={`h-1 flex-1 rounded-full transition-all duration-300 ${STEP_ORDER.indexOf(step) >= i ? "bg-red-600" : "bg-steel-200"}`} />
           ))}
         </div>
       )}
 
-      {!catalog && step !== "done" && <p className="text-sm text-neutral-400">Loading pricing…</p>}
+      {!catalog && step !== "done" && <p className="relative text-sm text-neutral-400">Loading pricing…</p>}
 
       {primary && ["addons", "schedule", "contact"].includes(step) && (
-        <div className="mb-4 flex items-center justify-between rounded-lg bg-steel-100 px-3.5 py-2.5 text-sm">
+        <div className="relative mb-4 flex items-center justify-between rounded-lg bg-steel-100 px-3.5 py-2.5 text-sm" style={stepIn}>
           <span className="text-graphite-800">
             <span className="font-medium">{primary.name}</span>
             <span className="text-neutral-400"> · {catalog?.vehicle_types.find((v) => v.value === vehicleTypeValue)?.label}</span>
@@ -222,12 +280,12 @@ export default function Book() {
       )}
 
       {catalog && step === "vehicle" && (
-        <div className="space-y-4">
+        <div className="relative space-y-4" style={stepIn}>
           <p className="text-sm font-medium text-graphite-900">What are we detailing?</p>
           <div className="grid grid-cols-2 gap-2">
             {catalog.vehicle_types.map((v) => (
               <button key={v.value} type="button" onClick={() => { setVehicleTypeValue(v.value); goNext(); }}
-                className={`min-h-[52px] rounded-lg border px-3 py-2 text-left text-sm font-medium transition ${vehicleTypeValue === v.value ? "border-red-600 bg-red-50 text-red-700" : "border-steel-200 bg-white text-graphite-800 hover:border-red-300"}`}>
+                className={`min-h-[52px] rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] ${vehicleTypeValue === v.value ? "border-red-600 bg-red-50 text-red-700 shadow-sm shadow-red-600/10" : "border-steel-200 bg-white text-graphite-800 hover:border-red-300"}`}>
                 {v.label}
                 {v.note && <span className="mt-0.5 block text-[11px] font-normal text-neutral-400">{v.note}</span>}
               </button>
@@ -236,34 +294,85 @@ export default function Book() {
         </div>
       )}
 
-      {catalog && step === "level" && (
-        <div className="space-y-4">
-          <p className="text-sm font-medium text-graphite-900">What kind of service?</p>
+      {catalog && step === "area" && (
+        <div className="relative space-y-4" style={stepIn}>
+          <p className="text-sm font-medium text-graphite-900">What do you need done?</p>
           <div className="grid grid-cols-2 gap-2">
+            {AREA_OPTIONS.map((a) => (
+              <button key={a.value} type="button" onClick={() => selectArea(a.value)}
+                className={`flex min-h-[76px] flex-col items-start justify-center gap-0.5 rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] ${area === a.value ? "border-red-600 bg-red-50 text-red-700 shadow-sm shadow-red-600/10" : "border-steel-200 bg-white text-graphite-800 hover:border-red-300"}`}>
+                <span className="text-lg leading-none">{a.icon}</span>
+                <span>{a.label}</span>
+                <span className="text-[11px] font-normal text-neutral-400">{a.hint}</span>
+              </button>
+            ))}
+          </div>
+          <div className="pt-1"><Button variant="ghost" onClick={goBack}>Back</Button></div>
+        </div>
+      )}
+
+      {catalog && step === "level" && (
+        <div className="relative space-y-5" style={stepIn}>
+          <p className="text-sm font-medium text-graphite-900">Choose your package</p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             {levelsAvailable.map((l) => (
-              <button key={l} type="button"
-                onClick={() => { setLevel(l); setPrimaryId(""); goNext(); }}
-                className={`min-h-[52px] rounded-lg border px-3 py-2 text-left text-sm font-medium transition ${level === l ? "border-red-600 bg-red-50 text-red-700" : "border-steel-200 bg-white text-graphite-800 hover:border-red-300"}`}>
+              <button key={l} type="button" onClick={() => { setLevel(l); setPrimaryId(""); goNext(); }}
+                className={`flex min-h-[64px] flex-col items-start justify-center gap-0.5 rounded-lg border px-3.5 py-2.5 text-left text-sm font-semibold transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] ${level === l ? "border-red-600 bg-red-50 text-red-700 shadow-sm shadow-red-600/10" : "border-steel-200 bg-white text-graphite-900 hover:border-red-300"}`}>
+                <span className="text-base leading-none">{LEVEL_ICONS[l]}</span>
                 {LEVEL_LABELS[l] ?? l}
               </button>
             ))}
           </div>
-          <div className="pt-1">
-            <Button variant="ghost" onClick={goBack}>Back</Button>
+
+          <div className="overflow-x-auto rounded-lg border border-steel-200">
+            <table className="w-full min-w-[420px] border-collapse text-xs">
+              <thead>
+                <tr className="bg-steel-100 text-graphite-700">
+                  <th className="px-3 py-2 text-left font-medium">What's included</th>
+                  {LEVEL_ORDER.map((l) => (
+                    <th key={l} className={`px-2 py-2 text-center font-semibold ${level === l ? "bg-red-50 text-red-700" : ""}`}>{LEVEL_ICONS[l]} {LEVEL_LABELS[l]}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(["Exterior", "Interior"] as const).map((group) => (
+                  <Fragment key={group}>
+                    <tr className="bg-steel-50">
+                      <td colSpan={4} className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-chrome-400">{group}</td>
+                    </tr>
+                    {COMPARE_ROWS.filter((r) => r.group === group).map((r) => (
+                      <tr key={r.feature} className="border-t border-steel-100">
+                        <td className="px-3 py-1.5 text-graphite-700">{r.feature}</td>
+                        <td className={`px-2 py-1.5 text-center ${level === "maintenance" ? "bg-red-50/60" : ""}`}>{r.maintenance ? <span className="text-emerald-600">✓</span> : <span className="text-neutral-300">—</span>}</td>
+                        <td className={`px-2 py-1.5 text-center ${level === "light" ? "bg-red-50/60" : ""}`}>{r.light ? <span className="text-emerald-600">✓</span> : <span className="text-neutral-300">—</span>}</td>
+                        <td className={`px-2 py-1.5 text-center ${level === "full" ? "bg-red-50/60" : ""}`}>{r.full ? <span className="text-emerald-600">✓</span> : <span className="text-neutral-300">—</span>}</td>
+                      </tr>
+                    ))}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
           </div>
+
+          <div className="pt-1"><Button variant="ghost" onClick={goBack}>Back</Button></div>
         </div>
       )}
 
       {catalog && step === "service" && (
-        <div className="space-y-4">
+        <div className="relative space-y-4" style={stepIn}>
           <p className="text-sm font-medium text-graphite-900">Choose your service</p>
+          {areaRelaxed && (
+            <p className="rounded-lg bg-steel-50 px-3 py-2 text-xs text-neutral-500">
+              Nothing at that exact area for this package — here's what {LEVEL_LABELS[level] ?? level} does offer.
+            </p>
+          )}
           <div className="space-y-2">
             {serviceOptions.map((s) => {
               const p = priceFor(s, bucket);
               const quoteOnly = s.requires_planning || p <= 0;
               return (
                 <button key={s.id} type="button" onClick={() => { setPrimaryId(s.id); goNext(); }}
-                  className={`flex w-full items-start justify-between gap-3 rounded-lg border px-3.5 py-3 text-left transition ${primaryId === s.id ? "border-red-600 bg-red-50" : "border-steel-200 bg-white hover:border-red-300"}`}>
+                  className={`flex w-full items-start justify-between gap-3 rounded-lg border px-3.5 py-3 text-left transition-all duration-150 hover:scale-[1.01] active:scale-[0.99] ${primaryId === s.id ? "border-red-600 bg-red-50" : "border-steel-200 bg-white hover:border-red-300"}`}>
                   <span>
                     <span className="block text-sm font-medium text-graphite-900">{s.name}</span>
                     {s.description && <span className="mt-0.5 block text-xs text-neutral-500">{s.description}</span>}
@@ -274,21 +383,19 @@ export default function Book() {
               );
             })}
           </div>
-          <div className="pt-1">
-            <Button variant="ghost" onClick={goBack}>Back</Button>
-          </div>
+          <div className="pt-1"><Button variant="ghost" onClick={goBack}>Back</Button></div>
         </div>
       )}
 
       {catalog && step === "addons" && (
-        <div className="space-y-4">
+        <div className="relative space-y-4" style={stepIn}>
           <p className="text-sm font-medium text-graphite-900">Add anything on top? <span className="font-normal text-neutral-400">(optional)</span></p>
           {addonOptions.length === 0 ? (
             <p className="text-sm text-neutral-400">Nothing else priced for this vehicle right now.</p>
           ) : (
             <div className="space-y-2">
               {addonOptions.map((a) => (
-                <label key={a.id} className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3.5 py-3 transition ${addonIds.includes(a.id) ? "border-red-600 bg-red-50" : "border-steel-200 bg-white"}`}>
+                <label key={a.id} className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3.5 py-3 transition-all duration-150 ${addonIds.includes(a.id) ? "border-red-600 bg-red-50" : "border-steel-200 bg-white hover:border-red-300"}`}>
                   <span className="flex items-center gap-2.5">
                     <input type="checkbox" checked={addonIds.includes(a.id)} onChange={() => toggleAddon(a.id)} />
                     <span className="text-sm font-medium text-graphite-900">{a.name}</span>
@@ -312,7 +419,7 @@ export default function Book() {
       )}
 
       {catalog && step === "schedule" && (
-        <div className="space-y-4">
+        <div className="relative space-y-4" style={stepIn}>
           {needsPlanning ? (
             <div className="rounded-lg border border-steel-200 bg-steel-50 px-4 py-4 text-sm text-neutral-600">
               <p className="font-medium text-graphite-900">This one needs a quick look before we lock a date.</p>
@@ -331,7 +438,7 @@ export default function Book() {
                     <div className="flex flex-wrap gap-2">
                       {slots.map((s) => (
                         <button type="button" key={s} onClick={() => { setSlot(s); goNext(); }}
-                          className={`min-h-[40px] rounded-md px-3 text-sm font-medium ${slot === s ? "bg-red-600 text-white" : "bg-steel-100 text-graphite-800 hover:bg-steel-200"}`}>
+                          className={`min-h-[40px] rounded-md px-3 text-sm font-medium transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] ${slot === s ? "bg-red-600 text-white" : "bg-steel-100 text-graphite-800 hover:bg-steel-200"}`}>
                           {new Date(s).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
                         </button>
                       ))}
@@ -347,7 +454,7 @@ export default function Book() {
       )}
 
       {catalog && step === "contact" && (
-        <div className="space-y-3">
+        <div className="relative space-y-3" style={stepIn}>
           <p className="text-sm font-medium text-graphite-900">Your info</p>
           <Field label="Name"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" /></Field>
           <Field label="Phone"><Input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="Phone number" /></Field>
@@ -384,12 +491,13 @@ export default function Book() {
       )}
 
       {step === "done" && result && (
-        <div className="py-4 text-center">
-          <img src="/brand/logo.png" alt="BH Car Detailing" className="mx-auto mb-5 h-14 w-auto" />
-          <h2 className="font-display text-2xl text-graphite-950">
+        <div className="relative py-4 text-center" style={{ animation: "bh-pop-in 0.4s cubic-bezier(0.22,1,0.36,1) both" }}>
+          <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-6 mx-auto h-40 w-40 rounded-full bg-red-500/15 blur-3xl" />
+          <img src="/brand/logo.png" alt="BH Car Detailing" className="relative mx-auto mb-5 h-14 w-auto bh-float" />
+          <h2 className="relative font-display text-2xl text-graphite-950">
             {result.status === "scheduled" ? "You're booked! 🎉" : "Got it — we'll call you 📞"}
           </h2>
-          <p className="mt-2 text-sm text-neutral-600">
+          <p className="relative mt-2 text-sm text-neutral-600">
             {result.status === "scheduled" && result.scheduled_start
               ? <>We've got you down for {primary?.name} on {new Date(result.scheduled_start).toLocaleString()}. We'll be in touch to confirm.</>
               : <>We'll call you shortly to confirm scheduling and final pricing for {primary?.name}.</>}
