@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import { api } from "../api";
 import { Button, Input, Textarea } from "../components/ui";
 import { useToast } from "../components/Toast";
+import "./quotebuilder.css";
 
 /**
  * In-person quote builder.
@@ -112,12 +113,12 @@ function ChoiceCard({ label, hint, selected, onClick }: {
       onClick={onClick}
       className={`min-h-[84px] w-full rounded-2xl border-2 px-5 py-4 text-left transition active:scale-[0.98] ${
         selected
-          ? "border-red-500 bg-red-50 ring-2 ring-red-100"
-          : "border-neutral-200 bg-white hover:border-neutral-300"
+          ? "border-red-500 bg-[#c8102e] ring-2 ring-[rgba(200,16,46,0.35)]"
+          : "border-[rgba(255,255,255,0.10)] bg-[#121013] hover:border-[rgba(255,255,255,0.28)]"
       }`}
     >
-      <div className="text-lg font-semibold text-neutral-900">{label}</div>
-      {hint && <div className="mt-0.5 text-sm text-neutral-500">{hint}</div>}
+      <div className="text-lg font-semibold text-white">{label}</div>
+      {hint && <div className="mt-0.5 text-sm text-[#8f8b93]">{hint}</div>}
     </button>
   );
 }
@@ -388,7 +389,7 @@ export default function QuoteBuilder() {
   const back = () => go(STEP_ORDER[Math.max(0, stepIndex - 1)]);
 
   if (loading) {
-    return <div className="p-8 text-sm text-neutral-400">Loading the menu…</div>;
+    return <div className="p-8 text-sm text-[#8f8b93]">Loading the menu…</div>;
   }
 
   // ---------- Step 6: the handoff. Covers the CRM completely. ----------
@@ -396,10 +397,10 @@ export default function QuoteBuilder() {
     const cust = d.customer;
     const setCust = (k: string, v: string) => set({ customer: { ...cust, [k]: v } });
     return (
-      <div className="safe-top safe-x fixed inset-0 z-[100] overflow-y-auto bg-white">
+      <div className="bh-qb safe-top safe-x fixed inset-0 z-[100] overflow-y-auto">
         <div className="mx-auto max-w-lg px-5 py-8 pb-32">
-          <h1 className="text-2xl font-bold text-neutral-900">Your details</h1>
-          <p className="mt-1 text-sm text-neutral-500">
+          <h1 className="text-2xl font-bold text-white">Your <em className="qb-serif">details</em></h1>
+          <p className="mt-1 text-sm text-[#8f8b93]">
             {primary?.name}{vt ? ` · ${vt.label}` : ""} · {money(finalTotal)}
           </p>
 
@@ -419,13 +420,13 @@ export default function QuoteBuilder() {
             {needsPlanning ? (
               // Asking for a time we cannot honour would be a promise broken
               // before they leave the driveway.
-              <div className="rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+              <div className="rounded-xl bg-[rgba(214,158,46,0.14)] px-3 py-2.5 text-sm text-[#f6d26a]">
                 <strong>This one needs planning.</strong> We'll confirm your quote and call you to
                 book a date — nothing is scheduled today.
               </div>
             ) : (
               <>
-                <label className="block text-sm font-medium text-neutral-700">When works for you?</label>
+                <label className="block text-sm font-medium text-[#d6d4d8]">When works for you?</label>
                 <Input type="datetime-local" value={cust.scheduled_at} onChange={(e) => setCust("scheduled_at", e.target.value)} />
               </>
             )}
@@ -436,8 +437,8 @@ export default function QuoteBuilder() {
               handing the phone over, and it is what carriers want to see. */}
           {/* One checkbox, one line, wording identical everywhere a phone number
               is collected -- the site forms, /book, the QR intake and here. */}
-          <div className="mt-6 rounded-xl bg-neutral-50 p-4">
-            <label className="flex items-start gap-3 text-sm text-neutral-700">
+          <div className="mt-6 rounded-xl bg-[#191518] p-4">
+            <label className="flex items-start gap-3 text-sm text-[#d6d4d8]">
               <input type="checkbox" checked={d.smsOptIn} onChange={(e) => set({ smsOptIn: e.target.checked })} className="mt-0.5 h-5 w-5 shrink-0 accent-red-600" />
               <span>
                 Yes, text me about my quote and appointment updates from BH Car Detailing. Msg &amp; data
@@ -450,7 +451,7 @@ export default function QuoteBuilder() {
           </div>
         </div>
 
-        <div className="fixed inset-x-0 bottom-0 border-t border-neutral-200 bg-white/95 p-4 backdrop-blur"
+        <div className="fixed inset-x-0 bottom-0 border-t border-[rgba(255,255,255,0.10)] bg-[rgba(8,8,9,0.94)] p-4 backdrop-blur"
           style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}>
           <div className="mx-auto flex max-w-lg gap-3">
             <Button variant="ghost" onClick={back}>Back</Button>
@@ -468,18 +469,18 @@ export default function QuoteBuilder() {
   }
 
   return (
-    <div className="mx-auto max-w-lg p-4 pb-28 md:p-8">
+    <div className="bh-qb"><div className="mx-auto max-w-lg p-4 pb-28 md:p-8">
       {/* progress */}
       <div className="mb-5 flex items-center gap-2">
         {STEP_ORDER.slice(0, 5).map((s, i) => (
-          <div key={s} className={`h-1.5 flex-1 rounded-full ${i <= Math.min(stepIndex, 4) ? "bg-red-500" : "bg-neutral-200"}`} />
+          <div key={s} className={`h-1.5 flex-1 rounded-full ${i <= Math.min(stepIndex, 4) ? "bg-red-500" : "bg-[rgba(255,255,255,0.14)]"}`} />
         ))}
       </div>
 
       {d.step === "vehicle" && (
         <>
-          <h1 className="mb-1 text-2xl font-bold text-neutral-900">What are we detailing?</h1>
-          <p className="mb-5 text-sm text-neutral-500">Tap the closest match.</p>
+          <h1 className="mb-1 text-2xl font-bold text-white">What are we <em className="qb-serif">detailing?</em></h1>
+          <p className="mb-5 text-sm text-[#8f8b93]">Tap the closest match.</p>
           <div className="grid grid-cols-2 gap-3">
             {vehicleTypes.map((v) => (
               <ChoiceCard key={v.value} label={v.label} hint={v.note}
@@ -492,8 +493,8 @@ export default function QuoteBuilder() {
 
       {d.step === "area" && (
         <>
-          <h1 className="mb-1 text-2xl font-bold text-neutral-900">Inside, outside, or both?</h1>
-          <p className="mb-5 text-sm text-neutral-500">{vt?.label} · priced as {bucket}</p>
+          <h1 className="mb-1 text-2xl font-bold text-white">Inside, outside, or <em className="qb-serif">both?</em></h1>
+          <p className="mb-5 text-sm text-[#8f8b93]">{vt?.label} · priced as {bucket}</p>
           <div className="space-y-3">
             {AREA_OPTIONS.map((a) => (
               <ChoiceCard key={a.value} label={a.label} hint={a.hint} selected={d.area === a.value}
@@ -505,8 +506,8 @@ export default function QuoteBuilder() {
 
       {d.step === "level" && (
         <>
-          <h1 className="mb-1 text-2xl font-bold text-neutral-900">How deep are we going?</h1>
-          <p className="mb-5 text-sm text-neutral-500">Only what's available for this vehicle.</p>
+          <h1 className="mb-1 text-2xl font-bold text-white">How deep are we <em className="qb-serif">going?</em></h1>
+          <p className="mb-5 text-sm text-[#8f8b93]">Only what's available for this vehicle.</p>
           <div className="space-y-3">
             {levelsAvailable.map((l) => (
               <ChoiceCard key={l} label={LEVEL_LABELS[l]?.label ?? l} hint={LEVEL_LABELS[l]?.hint}
@@ -519,16 +520,16 @@ export default function QuoteBuilder() {
 
       {d.step === "services" && (
         <>
-          <h1 className="mb-1 text-2xl font-bold text-neutral-900">Pick the service</h1>
-          <p className="mb-3 text-sm text-neutral-500">Prices shown for {vt?.label}{vt?.note ? ` — ${vt.note}` : ""}.</p>
+          <h1 className="mb-1 text-2xl font-bold text-white">Pick the <em className="qb-serif">service</em></h1>
+          <p className="mb-3 text-sm text-[#8f8b93]">Prices shown for {vt?.label}{vt?.note ? ` — ${vt.note}` : ""}.</p>
           {areaRelaxed && (
-            <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <p className="mb-4 rounded-xl bg-[rgba(214,158,46,0.14)] px-3 py-2 text-sm text-[#f6d26a]">
               {LEVEL_LABELS[d.level]?.label ?? "This service"} isn't offered as{" "}
               {AREA_OPTIONS.find((a) => a.value === d.area)?.label.toLowerCase() ?? "that"} — here's how it comes.
             </p>
           )}
           {matching.length === 0 ? (
-            <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">
+            <p className="rounded-xl bg-[rgba(214,158,46,0.14)] p-4 text-sm text-[#f6d26a]">
               Nothing on the menu matches that combination. Go back and try another service level.
             </p>
           ) : (
@@ -536,21 +537,21 @@ export default function QuoteBuilder() {
               {matching.map((s) => (
                 <button key={s.id} type="button" onClick={() => set({ primaryId: s.id })}
                   className={`w-full rounded-2xl border-2 p-4 text-left transition active:scale-[0.99] ${
-                    d.primaryId === s.id ? "border-red-500 bg-red-50 ring-2 ring-red-100" : "border-neutral-200 bg-white"}`}>
+                    d.primaryId === s.id ? "border-red-500 bg-[#c8102e] ring-2 ring-[rgba(200,16,46,0.35)]" : "border-[rgba(255,255,255,0.10)] bg-[#121013]"}`}>
                   <div className="flex items-baseline justify-between gap-3">
-                    <span className="text-lg font-semibold text-neutral-900">{s.name}</span>
-                    <span className="shrink-0 text-lg font-bold text-neutral-900">
+                    <span className="text-lg font-semibold text-white">{s.name}</span>
+                    <span className="shrink-0 text-lg font-bold text-white">
                       {priceFor(s, bucket) > 0 ? money(priceFor(s, bucket)) : "Quote"}
                     </span>
                   </div>
-                  {s.description && <p className="mt-1 text-sm text-neutral-500">{s.description}</p>}
-                  <p className="mt-1 text-xs text-neutral-400">about {duration(s.duration_min ?? 0)}</p>
+                  {s.description && <p className="mt-1 text-sm text-[#8f8b93]">{s.description}</p>}
+                  <p className="mt-1 text-xs text-[#8f8b93]">about {duration(s.duration_min ?? 0)}</p>
                   {s.requires_planning ? (
-                    <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
+                    <p className="mt-2 rounded-lg bg-[rgba(214,158,46,0.14)] px-2.5 py-1.5 text-xs text-[#f6d26a]">
                       Has to be planned — we'll book a date once it's quoted, not today.
                     </p>
                   ) : priceFor(s, bucket) <= 0 ? (
-                    <p className="mt-2 rounded-lg bg-steel-50 px-2.5 py-1.5 text-xs text-chrome-400">
+                    <p className="mt-2 rounded-lg bg-[#191518] px-2.5 py-1.5 text-xs text-[#8f8b93]">
                       Priced on the day — look it over and set the price on the next screen.
                     </p>
                   ) : null}
@@ -561,7 +562,7 @@ export default function QuoteBuilder() {
 
           {addons.length > 0 && (
             <>
-              <h2 className="mb-2 mt-7 text-sm font-semibold uppercase tracking-wide text-neutral-500">Add-ons</h2>
+              <h2 className="mb-2 mt-7 text-sm font-semibold uppercase tracking-wide text-[#8f8b93]">Add-ons</h2>
               <div className="space-y-2">
                 {addons.map((a) => {
                   const on = d.addonIds.includes(a.id);
@@ -569,11 +570,11 @@ export default function QuoteBuilder() {
                     <button key={a.id} type="button"
                       onClick={() => set({ addonIds: on ? d.addonIds.filter((x) => x !== a.id) : [...d.addonIds, a.id] })}
                       className={`flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left ${
-                        on ? "border-red-500 bg-red-50" : "border-neutral-200 bg-white"}`}>
+                        on ? "border-red-500 bg-[#c8102e]" : "border-[rgba(255,255,255,0.10)] bg-[#121013]"}`}>
                       <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 ${
-                        on ? "border-red-500 bg-red-500 text-white" : "border-neutral-300"}`}>{on ? "✓" : ""}</span>
-                      <span className="flex-1 text-sm font-medium text-neutral-800">{a.name}</span>
-                      <span className="text-sm font-semibold text-neutral-900">+{money(priceFor(a, bucket))}</span>
+                        on ? "border-red-500 bg-red-500 text-white" : "border-[rgba(255,255,255,0.24)]"}`}>{on ? "✓" : ""}</span>
+                      <span className="flex-1 text-sm font-medium text-white">{a.name}</span>
+                      <span className="text-sm font-semibold text-white">+{money(priceFor(a, bucket))}</span>
                     </button>
                   );
                 })}
@@ -585,74 +586,74 @@ export default function QuoteBuilder() {
 
       {d.step === "summary" && primary && (
         <>
-          <h1 className="mb-5 text-2xl font-bold text-neutral-900">Quote</h1>
-          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-neutral-100">
-            <div className="mb-3 text-sm text-neutral-500">
+          <h1 className="mb-5 text-2xl font-bold text-white">Quote</h1>
+          <div className="rounded-2xl bg-[#121013] p-5 shadow-sm ring-1 ring-[rgba(255,255,255,0.08)]">
+            <div className="mb-3 text-sm text-[#8f8b93]">
               {vt?.label}{vt?.note ? ` — ${vt.note}` : ""}{d.vehicleNotes ? ` · ${d.vehicleNotes}` : ""}
             </div>
             <div className="flex justify-between py-1.5 text-sm">
-              <span className="text-neutral-700">{primary.name}</span>
+              <span className="text-[#d6d4d8]">{primary.name}</span>
               <span className="font-medium">{money(priceFor(primary, bucket))}</span>
             </div>
             {chosenAddons.map((a) => (
               <div key={a.id} className="flex justify-between py-1.5 text-sm">
-                <span className="text-neutral-500">+ {a.name}</span>
-                <span className="text-neutral-600">{money(priceFor(a, bucket))}</span>
+                <span className="text-[#8f8b93]">+ {a.name}</span>
+                <span className="text-[#d6d4d8]">{money(priceFor(a, bucket))}</span>
               </div>
             ))}
             {taxCents > 0 && (
               <>
-                <div className="mt-3 flex justify-between border-t border-neutral-100 pt-3 text-sm">
-                  <span className="text-neutral-500">Subtotal</span>
-                  <span className="text-neutral-600">{money(subtotal)}</span>
+                <div className="mt-3 flex justify-between border-t border-[rgba(255,255,255,0.06)] pt-3 text-sm">
+                  <span className="text-[#8f8b93]">Subtotal</span>
+                  <span className="text-[#d6d4d8]">{money(subtotal)}</span>
                 </div>
                 <div className="flex justify-between py-1.5 text-sm">
-                  <span className="text-neutral-500">{taxCfg.tax_label} ({taxCfg.tax_rate}%)</span>
-                  <span className="text-neutral-600">{money(taxCents)}</span>
+                  <span className="text-[#8f8b93]">{taxCfg.tax_label} ({taxCfg.tax_rate}%)</span>
+                  <span className="text-[#d6d4d8]">{money(taxCents)}</span>
                 </div>
               </>
             )}
-            <div className={`mt-3 flex items-baseline justify-between pt-3 ${taxCents > 0 ? "" : "border-t border-neutral-100"}`}>
-              <span className="font-semibold text-neutral-900">Total</span>
-              <span className="text-2xl font-bold text-neutral-900">{money(finalTotal)}</span>
+            <div className={`mt-3 flex items-baseline justify-between pt-3 ${taxCents > 0 ? "" : "border-t border-[rgba(255,255,255,0.06)]"}`}>
+              <span className="font-semibold text-white">Total</span>
+              <span className="qb-num text-2xl font-bold text-white">{money(finalTotal)}</span>
             </div>
-            <p className="mt-1 text-xs text-neutral-400">Estimated {duration(computed.mins)} on site</p>
+            <p className="mt-1 text-xs text-[#8f8b93]">Estimated {duration(computed.mins)} on site</p>
           </div>
 
           <div className="mt-4">
-            <label className="mb-1 block text-xs font-medium text-neutral-600">
+            <label className="mb-1 block text-xs font-medium text-[#d6d4d8]">
               {computed.total <= 0 && !needsPlanning
                 ? "Set the price for this job"
                 : `Override the price${taxCents > 0 ? " before tax" : ""} (optional)`}
             </label>
             <Input inputMode="decimal" placeholder={`${(computed.total / 100).toFixed(0)}`}
               value={d.overrideDollars} onChange={(e) => set({ overrideDollars: e.target.value })} />
-            <label className="mb-1 mt-3 block text-xs font-medium text-neutral-600">Vehicle note (optional)</label>
+            <label className="mb-1 mt-3 block text-xs font-medium text-[#d6d4d8]">Vehicle note (optional)</label>
             <Input placeholder="e.g. Black Range Rover, curb rash 2 rims"
               value={d.vehicleNotes} onChange={(e) => set({ vehicleNotes: e.target.value })} />
           </div>
 
           {/* Let the customer fill in their own details on their own phone,
               instead of handing this one across the driveway. */}
-          <div className="mt-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-neutral-100">
-            <h2 className="text-sm font-semibold text-neutral-900">Share with the customer</h2>
-            <p className="mt-1 text-xs text-neutral-500">
+          <div className="mt-4 rounded-2xl bg-[#121013] p-5 shadow-sm ring-1 ring-[rgba(255,255,255,0.08)]">
+            <h2 className="text-sm font-semibold text-white">Share with the customer</h2>
+            <p className="mt-1 text-xs text-[#8f8b93]">
               They scan the code or open the link on their own phone, fill in their details, and book.
             </p>
             {!shareToken ? (
               <button onClick={createShareLink} disabled={shareBusy}
-                className="mt-3 min-h-[48px] w-full rounded-xl bg-neutral-900 text-sm font-semibold text-white disabled:opacity-50">
+                className="mt-3 min-h-[48px] w-full rounded-xl bg-[#241f24] text-sm font-semibold text-white disabled:opacity-50">
                 {shareBusy ? "Creating…" : "Create QR code & link"}
               </button>
             ) : (
               <div className="mt-3 flex flex-col items-center gap-3 sm:flex-row sm:items-start">
                 {qrDataUrl && (
-                  <img src={qrDataUrl} alt="QR code that opens this quote" className="h-36 w-36 shrink-0 rounded-lg ring-1 ring-neutral-200" />
+                  <img src={qrDataUrl} alt="QR code that opens this quote" className="h-36 w-36 shrink-0 rounded-lg ring-1 ring-[rgba(255,255,255,0.22)]" />
                 )}
                 <div className="w-full min-w-0 flex-1 space-y-2">
-                  <div className="truncate rounded-lg bg-neutral-50 px-3 py-2 text-xs text-neutral-500">{shareUrl}</div>
+                  <div className="truncate rounded-lg bg-[#191518] px-3 py-2 text-xs text-[#8f8b93]">{shareUrl}</div>
                   <button onClick={copyShareLink}
-                    className="min-h-[44px] w-full rounded-lg bg-neutral-100 text-sm font-medium text-neutral-800">
+                    className="min-h-[44px] w-full rounded-lg bg-[#191518] text-sm font-medium text-white">
                     {linkCopied ? "Copied!" : "Copy link"}
                   </button>
                 </div>
@@ -664,47 +665,47 @@ export default function QuoteBuilder() {
 
       {d.step === "deposit" && result && (
         <>
-          <h1 className="mb-1 text-2xl font-bold text-neutral-900">Deposit</h1>
-          <p className="mb-4 text-sm text-neutral-500">
+          <h1 className="mb-1 text-2xl font-bold text-white">Deposit</h1>
+          <p className="mb-4 text-sm text-[#8f8b93]">
             {result.status === "scheduled" ? "Booked" : "Quoted"}
             {result.total_cents > 0 ? ` · ${money(result.total_cents)} total` : " · price to be confirmed"}
           </p>
 
           {needsPlanning && (
-            <div className="mb-5 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <div className="mb-5 rounded-xl bg-[rgba(214,158,46,0.14)] px-4 py-3 text-sm text-[#f6d26a]">
               <strong>Saved as a quote, not a booking.</strong> This work needs planning, so follow up
               with a firm price and a date. Take a deposit only once they've agreed the price.
             </div>
           )}
 
-          <label className="mb-1 block text-xs font-medium text-neutral-600">Deposit amount</label>
+          <label className="mb-1 block text-xs font-medium text-[#d6d4d8]">Deposit amount</label>
           <div className="mb-5 flex items-center gap-2">
-            <span className="text-lg text-neutral-400">$</span>
+            <span className="text-lg text-[#8f8b93]">$</span>
             <Input inputMode="decimal" value={depositDollars} onChange={(e) => setDepositDollars(e.target.value)}
               placeholder={(result.deposit_cents / 100).toFixed(0)} />
           </div>
 
           {quote?.payments_enabled && (
             <button onClick={payWithStripe} disabled={busy}
-              className="mb-5 min-h-[60px] w-full rounded-2xl bg-neutral-900 text-base font-semibold text-white disabled:opacity-50">
+              className="mb-5 min-h-[60px] w-full rounded-2xl bg-[#241f24] text-base font-semibold text-white disabled:opacity-50">
               Pay deposit with card (Stripe)
             </button>
           )}
 
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">Or mark it received</h2>
-          <p className="mb-3 text-xs text-neutral-400">
+          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[#8f8b93]">Or mark it received</h2>
+          <p className="mb-3 text-xs text-[#8f8b93]">
             These record that money arrived. Nothing verifies them automatically — only tick one if you have the money.
           </p>
           <div className="grid grid-cols-2 gap-3">
             {MANUAL_METHODS.map((m) => (
               <button key={m.value} onClick={() => takeManualDeposit(m.value)} disabled={busy}
-                className="min-h-[60px] rounded-2xl border-2 border-neutral-200 bg-white text-base font-semibold text-neutral-800 active:scale-[0.98] disabled:opacity-50">
+                className="min-h-[60px] rounded-2xl border-2 border-[rgba(255,255,255,0.10)] bg-[#121013] text-base font-semibold text-white active:scale-[0.98] disabled:opacity-50">
                 {m.label}
               </button>
             ))}
           </div>
 
-          <button onClick={() => go("done")} className="mt-6 w-full text-sm text-neutral-500 underline">
+          <button onClick={() => go("done")} className="mt-6 w-full text-sm text-[#8f8b93] underline">
             Skip — collect the deposit later
           </button>
         </>
@@ -712,29 +713,29 @@ export default function QuoteBuilder() {
 
       {d.step === "done" && result && (
         <div className="py-10 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-3xl">✓</div>
-          <h1 className="text-2xl font-bold text-neutral-900">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(16,185,129,0.16)] text-3xl">✓</div>
+          <h1 className="text-2xl font-bold text-white">
             {result.status === "scheduled" ? "Booked in" : "Quote saved"}
           </h1>
           {needsPlanning && (
-            <p className="mx-auto mt-2 max-w-xs text-sm text-amber-700">
+            <p className="mx-auto mt-2 max-w-xs text-sm text-[#f6d26a]">
               Call them back with a price and a date — this one wasn't scheduled.
             </p>
           )}
-          <p className="mt-2 text-sm text-neutral-500">
+          <p className="mt-2 text-sm text-[#8f8b93]">
             {result.total_cents > 0 ? `${money(result.total_cents)} total` : "Price to be confirmed"}
             {paidCents > 0
               ? ` · ${money(paidCents)} deposit paid · ${money(Math.max(0, result.total_cents - paidCents))} due on the day`
               : " · deposit still to collect"}
           </p>
-          <p className="mt-1 text-xs text-neutral-400">Confirmation {result.job_id.slice(0, 8).toUpperCase()}</p>
+          <p className="mt-1 text-xs text-[#8f8b93]">Confirmation {result.job_id.slice(0, 8).toUpperCase()}</p>
 
           <div className="mt-8 space-y-3">
             <Button onClick={() => { startOver(); }}>Create another quote</Button>
-            <button onClick={() => navigate(`/contacts/${result.contact_id}`)} className="block w-full text-sm text-neutral-500 underline">
+            <button onClick={() => navigate(`/contacts/${result.contact_id}`)} className="block w-full text-sm text-[#8f8b93] underline">
               Open the customer
             </button>
-            <button onClick={() => { startOver(); navigate("/home"); }} className="block w-full text-sm text-neutral-400 underline">
+            <button onClick={() => { startOver(); navigate("/home"); }} className="block w-full text-sm text-[#8f8b93] underline">
               Back to home
             </button>
           </div>
@@ -743,13 +744,13 @@ export default function QuoteBuilder() {
 
       {/* sticky footer: live total + advance */}
       {["area", "level", "services", "summary"].includes(d.step) && (
-        <div className="fixed inset-x-0 bottom-0 border-t border-neutral-200 bg-white/95 p-4 backdrop-blur md:left-64"
+        <div className="fixed inset-x-0 bottom-0 border-t border-[rgba(255,255,255,0.10)] bg-[rgba(8,8,9,0.94)] p-4 backdrop-blur md:left-64"
           style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}>
           <div className="mx-auto flex max-w-lg items-center gap-3">
             <Button variant="ghost" onClick={back}>Back</Button>
             <div className="flex-1 text-right">
-              <div className="text-xs text-neutral-400">{primary ? duration(computed.mins) : "—"}</div>
-              <div className="text-lg font-bold text-neutral-900">{money(finalTotal)}</div>
+              <div className="text-xs text-[#8f8b93]">{primary ? duration(computed.mins) : "—"}</div>
+              <div className="qb-num text-lg font-bold text-white">{money(finalTotal)}</div>
             </div>
             <button
               onClick={() => go(d.step === "summary" ? "customer" : "summary")}
@@ -761,6 +762,7 @@ export default function QuoteBuilder() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

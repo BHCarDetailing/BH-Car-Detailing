@@ -1,0 +1,65 @@
+/* ============================================================
+   In-person quote builder — same identity as the public /book
+   page: black ground, Manrope, Playfair for the accent word,
+   one brand red.
+
+   Only the things Tailwind expresses badly live here (the type
+   pairing and the ground). Colours stay as utilities in the
+   component, which is how the rest of this app is written.
+
+   Held one-handed next to a car in Florida sun, so contrast is
+   pushed harder than on /book: body copy sits at #d6d4d8 rather
+   than the #c7c7c7 used on the website.
+   ============================================================ */
+
+.bh-qb {
+  --qb-ink: #0a0a0a;
+  --qb-panel: #121013;
+  --qb-panel-2: #191518;
+  --qb-hair: rgba(255, 255, 255, 0.1);
+  --qb-text: #d6d4d8;
+  --qb-muted: #8f8b93;
+  --qb-accent: #c8102e;
+  --qb-bright: #ff4153;
+
+  background: var(--qb-ink);
+  color: #fff;
+  font-family: "Manrope Variable", -apple-system, "Segoe UI", sans-serif;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The one italic serif accent, exactly as the site and /book use it. */
+.bh-qb .qb-serif {
+  font-family: "Playfair Display Variable", Georgia, serif;
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--qb-bright);
+}
+
+.bh-qb h1 { letter-spacing: -0.025em; }
+
+/* Prices and totals line up in columns; tabular figures stop them dancing. */
+.bh-qb .qb-num { font-variant-numeric: tabular-nums; }
+
+/* Native controls (date/time pickers, checkboxes) must be told this is a
+   dark surface or the browser paints them light-on-light. */
+.bh-qb input,
+.bh-qb textarea,
+.bh-qb select { color-scheme: dark; }
+
+.bh-qb input::placeholder,
+.bh-qb textarea::placeholder { color: var(--qb-muted); }
+
+.bh-qb :where(button, input, textarea, a):focus-visible {
+  outline: 2px solid var(--qb-bright);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bh-qb *, .bh-qb *::before, .bh-qb *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
