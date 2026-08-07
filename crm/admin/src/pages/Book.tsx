@@ -28,14 +28,15 @@ interface Service {
 interface VehicleTypeOption { value: string; label: string; bucket: string; note?: string }
 interface Catalog { vehicle_types: VehicleTypeOption[]; services: Service[] }
 
-type Step = "vehicle" | "service" | "addons" | "schedule" | "contact" | "done";
-const STEP_ORDER: Step[] = ["vehicle", "service", "addons", "schedule", "contact", "done"];
+type Step = "vehicle" | "level" | "service" | "addons" | "schedule" | "contact" | "done";
+const STEP_ORDER: Step[] = ["vehicle", "level", "service", "addons", "schedule", "contact", "done"];
 
+const LEVEL_ORDER = ["maintenance", "light", "full", "specialty"];
 const LEVEL_LABELS: Record<string, string> = {
   maintenance: "Maintenance",
-  light: "Signature",
-  full: "Complete",
-  specialty: "Specialty",
+  light: "Light",
+  full: "Full",
+  specialty: "Special",
 };
 
 const money = (cents: number) => `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
@@ -64,6 +65,7 @@ export default function Book() {
   const [catalogErr, setCatalogErr] = useState(false);
 
   const [vehicleTypeValue, setVehicleTypeValue] = useState("");
+  const [level, setLevel] = useState("");
   const [primaryId, setPrimaryId] = useState("");
   const [addonIds, setAddonIds] = useState<string[]>([]);
 
@@ -102,6 +104,11 @@ export default function Book() {
     for (const s of primaryOptions) (groups[s.level ?? "specialty"] ??= []).push(s);
     return groups;
   }, [primaryOptions]);
+  const levelsAvailable = useMemo(
+    () => LEVEL_ORDER.filter((l) => (primaryByLevel[l]?.length ?? 0) > 0),
+    [primaryByLevel]
+  );
+  const serviceOptions = useMemo(() => primaryByLevel[level] ?? [], [primaryByLevel, level]);
   const primary = useMemo(() => primaryOptions.find((s) => s.id === primaryId) ?? null, [primaryOptions, primaryId]);
   const addonOptions = useMemo(
     () => (catalog?.services ?? []).filter((s) => s.is_addon && priceFor(s, bucket) > 0),
@@ -204,6 +211,16 @@ export default function Book() {
 
       {!catalog && step !== "done" && <p className="text-sm text-neutral-400">Loading pricing…</p>}
 
+      {primary && ["addons", "schedule", "contact"].includes(step) && (
+        <div className="mb-4 flex items-center justify-between rounded-lg bg-steel-100 px-3.5 py-2.5 text-sm">
+          <span className="text-graphite-800">
+            <span className="font-medium">{primary.name}</span>
+            <span className="text-neutral-400"> · {catalog?.vehicle_types.find((v) => v.value === vehicleTypeValue)?.label}</span>
+          </span>
+          <span className="shrink-0 font-semibold text-graphite-900">{priceIsReal ? money(priceFor(primary, bucket)) : "Quote"}</span>
+        </div>
+      )}
+
       {catalog && step === "vehicle" && (
         <div className="space-y-4">
           <p className="text-sm font-medium text-graphite-900">What are we detailing?</p>
@@ -219,36 +236,46 @@ export default function Book() {
         </div>
       )}
 
-      {catalog && step === "service" && (
-        <div className="space-y-5">
-          <p className="text-sm font-medium text-graphite-900">Choose your service</p>
-          {["maintenance", "light", "full", "specialty"].map((level) =>
-            primaryByLevel[level]?.length ? (
-              <div key={level}>
-                <p className="eyebrow mb-2 text-[10px] text-chrome-400">{LEVEL_LABELS[level] ?? level}</p>
-                <div className="space-y-2">
-                  {primaryByLevel[level].map((s) => {
-                    const p = priceFor(s, bucket);
-                    const quoteOnly = s.requires_planning || (p <= 0);
-                    return (
-                      <button key={s.id} type="button" onClick={() => { setPrimaryId(s.id); }}
-                        className={`flex w-full items-start justify-between gap-3 rounded-lg border px-3.5 py-3 text-left transition ${primaryId === s.id ? "border-red-600 bg-red-50" : "border-steel-200 bg-white hover:border-red-300"}`}>
-                        <span>
-                          <span className="block text-sm font-medium text-graphite-900">{s.name}</span>
-                          {s.description && <span className="mt-0.5 block text-xs text-neutral-500">{s.description}</span>}
-                          {s.duration_min ? <span className="mt-0.5 block text-[11px] text-neutral-400">{duration(s.duration_min)}</span> : null}
-                        </span>
-                        <span className="shrink-0 text-sm font-semibold text-graphite-900">{quoteOnly ? "Quote" : money(p)}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null
-          )}
-          <div className="flex gap-2 pt-1">
+      {catalog && step === "level" && (
+        <div className="space-y-4">
+          <p className="text-sm font-medium text-graphite-900">What kind of service?</p>
+          <div className="grid grid-cols-2 gap-2">
+            {levelsAvailable.map((l) => (
+              <button key={l} type="button"
+                onClick={() => { setLevel(l); setPrimaryId(""); goNext(); }}
+                className={`min-h-[52px] rounded-lg border px-3 py-2 text-left text-sm font-medium transition ${level === l ? "border-red-600 bg-red-50 text-red-700" : "border-steel-200 bg-white text-graphite-800 hover:border-red-300"}`}>
+                {LEVEL_LABELS[l] ?? l}
+              </button>
+            ))}
+          </div>
+          <div className="pt-1">
             <Button variant="ghost" onClick={goBack}>Back</Button>
-            <Button onClick={goNext} disabled={!primaryId} className="flex-1">Continue</Button>
+          </div>
+        </div>
+      )}
+
+      {catalog && step === "service" && (
+        <div className="space-y-4">
+          <p className="text-sm font-medium text-graphite-900">Choose your service</p>
+          <div className="space-y-2">
+            {serviceOptions.map((s) => {
+              const p = priceFor(s, bucket);
+              const quoteOnly = s.requires_planning || p <= 0;
+              return (
+                <button key={s.id} type="button" onClick={() => { setPrimaryId(s.id); goNext(); }}
+                  className={`flex w-full items-start justify-between gap-3 rounded-lg border px-3.5 py-3 text-left transition ${primaryId === s.id ? "border-red-600 bg-red-50" : "border-steel-200 bg-white hover:border-red-300"}`}>
+                  <span>
+                    <span className="block text-sm font-medium text-graphite-900">{s.name}</span>
+                    {s.description && <span className="mt-0.5 block text-xs text-neutral-500">{s.description}</span>}
+                    {s.duration_min ? <span className="mt-0.5 block text-[11px] text-neutral-400">{duration(s.duration_min)}</span> : null}
+                  </span>
+                  <span className="shrink-0 text-sm font-semibold text-graphite-900">{quoteOnly ? "Quote" : money(p)}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="pt-1">
+            <Button variant="ghost" onClick={goBack}>Back</Button>
           </div>
         </div>
       )}
@@ -303,7 +330,7 @@ export default function Book() {
                   slots.length === 0 ? <p className="text-sm text-neutral-400">No open times that day — try another date.</p> :
                     <div className="flex flex-wrap gap-2">
                       {slots.map((s) => (
-                        <button type="button" key={s} onClick={() => setSlot(s)}
+                        <button type="button" key={s} onClick={() => { setSlot(s); goNext(); }}
                           className={`min-h-[40px] rounded-md px-3 text-sm font-medium ${slot === s ? "bg-red-600 text-white" : "bg-steel-100 text-graphite-800 hover:bg-steel-200"}`}>
                           {new Date(s).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
                         </button>
@@ -314,7 +341,7 @@ export default function Book() {
           )}
           <div className="flex gap-2 pt-1">
             <Button variant="ghost" onClick={goBack}>Back</Button>
-            <Button onClick={goNext} disabled={!needsPlanning && !slot} className="flex-1">Continue</Button>
+            {needsPlanning && <Button onClick={goNext} className="flex-1">Continue</Button>}
           </div>
         </div>
       )}
