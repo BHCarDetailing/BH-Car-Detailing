@@ -387,17 +387,16 @@
   </section>
 
   <!-- ================= BIG CTA + BOOKING ================= -->
-  <section class="section cta" id="book">
+  <!-- Root-relative on purpose: a relative url() inside a custom property resolves
+       against style.css, not this document, and would 404 under /css/. -->
+  <section class="section book-cinema" id="book" style="--book-photo:url('/assets/photos/IMG_8042-1200w.webp')">
     <div class="container">
-      <div class="reveal">
-        <span class="eyebrow" style="justify-content:center">Ready When You Are</span>
-        <h2>Ready To Transform<br /><em class="accent">Your Vehicle?</em></h2>
-        <p>Pick a date and time below — confirmed instantly, no back-and-forth.</p>
+      <div class="section-head center reveal">
+        <span class="eyebrow">Ready When You Are</span>
+        <h2 class="h2">Ready To Transform<br /><em class="accent">Your Vehicle?</em></h2>
+        <p class="lead">See your price in about thirty seconds. No callback, no haggling.</p>
       </div>
-
-      <div class="book-embed-wrap reveal reveal-d1">
-        <iframe class="book-embed" src="https://bh-crm.bhdev.workers.dev/book" title="Get your price and book your detail" loading="lazy"></iframe>
-      </div>
+      <div class="reveal reveal-d1" data-bookflow></div>
     </div>
   </section>
 
@@ -653,5 +652,6 @@
   </div>
 
   <script src="js/main.js" defer></script>
+  <script src="js/booking.js" defer></script>
 </body>
 </html>

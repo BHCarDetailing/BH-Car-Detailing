@@ -943,24 +943,293 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
 .quote-grid .calendly-embed { grid-column: 1 / -1; margin-top: 32px; }
 .quote-grid .calendly-embed iframe { border-radius: var(--radius); overflow: hidden; }
 
-/* Booking embed — the CRM's /book flow.
-   That page is near-black, so the frame must match it: a white background here
-   shows as a white flash on load and pale edges around the dark page. */
-.book-embed {
-  display: block;
-  width: 100%;
-  min-width: 320px;
-  height: 860px;
-  border: 0;
-  border-radius: var(--radius);
-  background: var(--ink);
-  overflow: hidden;
+/* ---------- Booking flow ----------
+   Native to the page, not an iframe. It inherits the page's fonts, width and
+   scroll, so there is no frame height to guess at and nothing to go wrong on a
+   phone.
+
+   The section is full-bleed: it escapes .container so the photograph runs edge
+   to edge, and the flow sits on it in a glass panel. Every photograph in the
+   library is portrait (they are phone shots), so the image is anchored rather
+   than stretched — on a phone it fills naturally, and on desktop a gradient
+   carries the width instead of a bad crop. */
+
+/* The section is already full-width, so it needs no bleed trick — a 100vw rule
+   here would overflow by the scrollbar's width and scroll the page sideways. */
+.book-cinema { position: relative; overflow: hidden; }
+.book-cinema::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--book-photo);
+  background-size: cover;
+  /* Anchored low on purpose. The top of the frame is windscreen — bright sky
+     and trees — which white type cannot sit on. The lower two thirds are
+     leather, carbon and console: dark, and the thing being sold. */
+  background-position: 58% 82%;
+  transform: scale(1.06);
+  /* Darkening the photograph beats stacking more scrim over it: the scrim flattens
+     everything equally, while brightness pulls the blown-out windscreen down and
+     leaves the leather and carbon still reading as material. */
+  filter: grayscale(0.4) contrast(1.08) brightness(0.6);
 }
-/* The booking flow is a phone-shaped column, so a full-container-width frame
-   would strand it in the middle of a very wide black panel. */
-.book-embed-wrap { margin: 32px auto 0; max-width: 620px; }
-@media (max-width: 860px) {
-  .book-embed { height: 760px; }
+/* One scrim, not two. Stacked translucent layers compound — a 0.72 over a 0.86
+   lands at an effective 0.96 and erases the photograph entirely. This single
+   pass fades to solid at the edges so the section melts into the black page,
+   and holds ~0.6 through the middle: dark enough for white type, light enough
+   that the car is still there. */
+.book-cinema::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    var(--ink) 0%,
+    rgba(10, 10, 10, 0.8) 16%,
+    rgba(10, 10, 10, 0.58) 42%,
+    rgba(10, 10, 10, 0.58) 78%,
+    var(--ink) 100%
+  );
+}
+.book-cinema > .container { position: relative; z-index: 1; }
+
+.book-cinema .section-head { margin-bottom: clamp(26px, 3.5vw, 42px); }
+
+/* The panel. Glass over the photograph, with a hairline that catches light. */
+.bf-panel {
+  max-width: 620px;
+  margin: 0 auto;
+  background: rgba(14, 12, 15, 0.72);
+  backdrop-filter: blur(18px) saturate(1.1);
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+  padding: clamp(20px, 3vw, 30px);
+  box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.9);
+  text-align: left;
+}
+
+.bf-rail { display: flex; gap: 5px; margin-bottom: 16px; }
+.bf-rail i { height: 2px; flex: 1; border-radius: 2px; background: rgba(255,255,255,0.14); transition: background 0.3s; }
+.bf-rail i.bf-on { background: var(--accent); }
+
+.bf-crumbs { display: flex; flex-wrap: wrap; gap: 6px; min-height: 0; }
+.bf-crumbs:not(:empty) { margin-bottom: 18px; }
+.bf-crumb {
+  font: 700 10px/1 var(--font-sans); letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--silver); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px; padding: 7px 12px; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+}
+.bf-crumb:hover { border-color: var(--accent); color: #fff; }
+
+@keyframes bf-rise { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
+.bf-step { animation: bf-rise 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+.bf-ask {
+  font-family: var(--font-sans); font-weight: 800;
+  font-size: clamp(1.45rem, 4.6vw, 2rem); line-height: 1.08; letter-spacing: -0.025em;
+  margin: 0; text-wrap: balance; color: #fff; text-transform: none;
+}
+.bf-ask em { font-family: var(--font-serif); font-style: italic; font-weight: 600; color: var(--accent-bright); }
+.bf-hint { color: var(--muted); font-size: 0.9rem; line-height: 1.55; margin: 10px 0 0; max-width: 40ch; }
+.bf-hint a { color: var(--accent-bright); text-decoration: underline; }
+
+.bf-opts { display: grid; gap: 9px; margin-top: 22px; }
+
+.bf-opt {
+  display: flex; align-items: center; gap: 15px; width: 100%; text-align: left; cursor: pointer;
+  font-family: var(--font-sans);
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.11);
+  border-radius: 15px; padding: 17px 18px;
+  transition: border-color 0.2s, background 0.2s, transform 0.12s;
+}
+.bf-opt:hover { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.07); }
+.bf-opt:active { transform: scale(0.99); }
+.bf-opt[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); }
+.bf-opt-txt { flex: 1; min-width: 0; }
+.bf-opt-t { display: block; font-size: 1rem; font-weight: 800; letter-spacing: -0.01em; color: #fff; }
+.bf-opt-d { display: block; font-size: 0.78rem; font-weight: 500; color: var(--muted); margin-top: 4px; line-height: 1.45; }
+.bf-opt[aria-pressed="true"] .bf-opt-d { color: rgba(255,255,255,0.82); }
+.bf-opt-go { color: var(--muted); font-size: 1.1rem; font-weight: 800; flex: none; }
+.bf-opt:hover .bf-opt-go { color: var(--accent-bright); }
+.bf-opt[aria-pressed="true"] .bf-opt-go { color: #fff; }
+
+/* The vault: nothing costs anything until they open it. */
+.bf-vault {
+  position: relative; margin-top: 22px; border-radius: var(--radius); overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.35);
+  min-height: 250px;
+}
+.bf-vault:not(.bf-open) .bf-cards { max-height: 250px; overflow: hidden; }
+.bf-cover {
+  position: absolute; inset: 0; z-index: 3;
+  background: linear-gradient(160deg, #1c181b 0%, #0e0c0e 100%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 15px; padding: 30px 22px; text-align: center;
+  transition: transform 0.62s cubic-bezier(0.76, 0, 0.24, 1), opacity 0.4s ease 0.22s;
+}
+.bf-cover.bf-off { transform: translateX(-101%); opacity: 0; pointer-events: none; }
+.bf-lead { font: 700 10px/1 var(--font-sans); letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.bf-what { font: 800 1.15rem/1.2 var(--font-sans); letter-spacing: -0.02em; color: #fff; text-wrap: balance; }
+.bf-reveal {
+  font: 800 0.72rem/1 var(--font-sans); letter-spacing: 0.14em; text-transform: uppercase;
+  background: var(--accent); color: #fff; border: 0; border-radius: 12px;
+  padding: 16px 28px; cursor: pointer; transition: background 0.2s, transform 0.12s;
+}
+.bf-reveal:hover { background: var(--accent-bright); }
+.bf-reveal:active { transform: scale(0.98); }
+/* the buff: a specular streak wipes across as the cover leaves */
+.bf-sheen {
+  position: absolute; top: 0; bottom: 0; width: 46%; z-index: 4; pointer-events: none; opacity: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+  mix-blend-mode: screen;
+}
+@keyframes bf-buff {
+  0% { transform: translateX(-170%) skewX(-16deg); opacity: 0; }
+  22% { opacity: 1; }
+  100% { transform: translateX(320%) skewX(-16deg); opacity: 0; }
+}
+.bf-sheen.bf-go { animation: bf-buff 0.72s cubic-bezier(0.5, 0, 0.3, 1) both; }
+.bf-cards { padding: 6px; }
+
+.bf-card {
+  display: block; width: calc(100% - 12px); margin: 6px; text-align: left; cursor: pointer;
+  font-family: var(--font-sans);
+  border-radius: 14px; padding: 18px 17px;
+  border: 1px solid transparent; background: rgba(255,255,255,0.05);
+  transition: border-color 0.2s, background 0.2s;
+}
+.bf-card:hover { border-color: rgba(255,255,255,0.24); }
+.bf-card[data-sel="1"] { border-color: var(--accent); background: rgba(200,16,46,0.14); }
+.bf-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.bf-card h4 { font: 800 1.05rem/1.15 var(--font-sans); letter-spacing: -0.02em; margin: 0; color: #fff; }
+.bf-tag {
+  font: 800 9px/1 var(--font-sans); letter-spacing: 0.16em; text-transform: uppercase;
+  padding: 5px 8px; border-radius: 5px; display: inline-block; margin-bottom: 9px;
+}
+.bf-tag.bf-you { background: var(--accent); color: #fff; }
+.bf-tag.bf-up { background: rgba(255,255,255,0.1); color: var(--silver); }
+.bf-amt {
+  font: 800 1.6rem/1 var(--font-sans); letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums; white-space: nowrap; color: #fff;
+}
+.bf-amt.bf-q { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--silver); }
+.bf-delta { display: block; font: 700 0.62rem/1 var(--font-sans); color: var(--accent-bright); margin-top: 6px; text-align: right; }
+.bf-inc { margin-top: 14px; display: grid; gap: 12px; }
+.bf-inc-g b {
+  font: 800 9px/1 var(--font-sans); letter-spacing: 0.17em; text-transform: uppercase;
+  color: var(--accent-bright); display: block; margin-bottom: 8px;
+}
+.bf-inc-g ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.bf-inc-g li {
+  font-size: 0.78rem; color: var(--silver); line-height: 1.45; padding-left: 16px; position: relative;
+}
+.bf-inc-g li::before {
+  content: ""; position: absolute; left: 0; top: 6px; width: 6px; height: 6px;
+  border-radius: 50%; background: var(--accent); opacity: 0.85;
+}
+.bf-inc-g li.bf-new { color: #fff; font-weight: 600; }
+.bf-inc-g li.bf-new::before { background: var(--accent-bright); }
+.bf-only { font-size: 0.78rem; color: var(--muted); margin: 12px 0 0; line-height: 1.5; }
+
+/* add-ons */
+.bf-add {
+  display: flex; align-items: center; gap: 13px; cursor: pointer;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.11);
+  border-radius: 13px; padding: 13px 15px;
+  transition: border-color 0.2s, background 0.2s;
+}
+.bf-add:hover { border-color: rgba(255,255,255,0.28); }
+.bf-add[data-on="1"] { background: var(--accent); border-color: var(--accent); }
+.bf-box {
+  width: 19px; height: 19px; flex: none; border-radius: 6px; border: 1.5px solid rgba(255,255,255,0.34);
+  display: flex; align-items: center; justify-content: center; font-size: 11px; color: transparent;
+}
+.bf-add[data-on="1"] .bf-box { background: #fff; border-color: #fff; color: var(--accent); font-weight: 800; }
+.bf-add-nm { flex: 1; font-size: 0.85rem; font-weight: 700; color: #fff; }
+.bf-add-pr { font-size: 0.85rem; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bf-qty {
+  display: flex; align-items: center; flex: none;
+  border: 1px solid rgba(255,255,255,0.32); border-radius: 9px; overflow: hidden;
+}
+.bf-qty button {
+  width: 29px; height: 29px; background: transparent; border: 0; color: #fff;
+  cursor: pointer; font: 700 15px/1 var(--font-sans);
+}
+.bf-qty button:hover { background: rgba(255,255,255,0.16); }
+.bf-qty span { min-width: 22px; text-align: center; font: 800 0.8rem/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+
+/* when + who */
+.bf-date, .bf-fields input, .bf-fields textarea {
+  width: 100%; font-family: var(--font-sans); font-size: 0.9rem; color: #fff;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 13px; padding: 14px 15px; color-scheme: dark;
+}
+.bf-date { margin-top: 20px; }
+.bf-fields { display: grid; gap: 9px; margin-top: 20px; }
+.bf-fields input::placeholder, .bf-fields textarea::placeholder { color: var(--muted); }
+.bf-fields input:focus, .bf-fields textarea:focus, .bf-date:focus { outline: none; border-color: var(--accent); }
+.bf-slots { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.bf-slot {
+  font: 800 0.82rem/1 var(--font-sans); color: var(--silver);
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px; padding: 13px 17px; cursor: pointer; font-variant-numeric: tabular-nums;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+.bf-slot:hover { border-color: rgba(255,255,255,0.3); }
+.bf-slot[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.bf-consent { display: flex; gap: 11px; align-items: flex-start; margin-top: 15px; cursor: pointer; }
+.bf-consent input { margin: 2px 0 0; width: 17px; height: 17px; flex: none; accent-color: var(--accent); }
+.bf-consent span { font-size: 0.72rem; line-height: 1.55; color: var(--muted); }
+.bf-consent a { color: var(--silver); text-decoration: underline; }
+.bf-fine { font-size: 0.66rem; line-height: 1.6; color: #6d6a71; margin: 12px 0 0; }
+.bf-err { font-size: 0.82rem; color: var(--accent-bright); margin: 12px 0 0; }
+.bf-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+
+/* action bar — an ordinary block, not fixed. Inside the page there is nothing
+   to pin it to and nothing to overlap. */
+.bf-bar {
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 22px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.1);
+}
+.bf-back {
+  font: 800 0.68rem/1 var(--font-sans); letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted); background: transparent; border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 11px; padding: 14px 15px; cursor: pointer; transition: color 0.2s, border-color 0.2s;
+}
+.bf-back:hover { color: #fff; border-color: rgba(255,255,255,0.34); }
+.bf-lbl { flex: 1; min-width: 0; }
+.bf-lbl b { display: block; font-size: 0.78rem; font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bf-lbl small { display: block; font-size: 0.66rem; color: var(--muted); margin-top: 2px; }
+.bf-tot { font: 800 1.45rem/1 var(--font-sans); letter-spacing: -0.025em; font-variant-numeric: tabular-nums; white-space: nowrap; color: #fff; }
+.bf-cta {
+  font: 800 0.72rem/1 var(--font-sans); letter-spacing: 0.1em; text-transform: uppercase;
+  background: var(--accent); color: #fff; border: 0; border-radius: 12px;
+  padding: 15px 20px; cursor: pointer; white-space: nowrap; transition: background 0.2s;
+}
+.bf-cta:hover { background: var(--accent-bright); }
+.bf-cta:disabled { background: rgba(255,255,255,0.07); color: #6d6a71; cursor: not-allowed; }
+
+.bf-done { text-align: center; padding: 20px 0 6px; }
+.bf-mark {
+  width: 58px; height: 58px; margin: 0 auto 18px; border-radius: 50%;
+  background: rgba(200,16,46,0.16); border: 1px solid var(--accent);
+  display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--accent-bright);
+}
+.bf-done p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; margin: 12px auto 0; max-width: 40ch; }
+.bf-ref { font-size: 0.72rem; color: #6d6a71; margin-top: 16px; }
+
+.book-cinema :where(button, input, textarea, a):focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 2px; }
+
+@media (max-width: 620px) {
+  .bf-panel { padding: 18px 16px; border-radius: 14px; }
+  .bf-opt { padding: 15px 15px; }
+  .bf-bar { flex-wrap: wrap; }
+  .bf-lbl { order: -1; flex-basis: 100%; }
+  .bf-cta { flex: 1; text-align: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .book-cinema *, .book-cinema *::before, .book-cinema *::after { animation: none !important; transition: none !important; }
 }
 
 .contact-list { display: grid; gap: 22px; margin-top: 40px; }
@@ -1138,7 +1407,7 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
   .nav-toggle { display: block; }
 
   .why-grid, .quote-grid, .ba-wrap, .showcase, .ig-editorial { grid-template-columns: 1fr; }
-  .quote-grid .form, .quote-grid .book-embed { order: -1; }
+  .quote-grid .form { order: -1; }
   .quote-grid .form-msg { grid-column: 1; }
   .ig-feature { aspect-ratio: 16/10; }
   .process { grid-template-columns: 1fr; gap: 34px; text-align: left; }

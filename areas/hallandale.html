@@ -208,10 +208,21 @@
           <div class="field"><textarea name="message" aria-label="Neighborhood, vehicle, timing…" placeholder="Neighborhood, vehicle, timing…"></textarea></div>
           <button class="btn btn-primary btn-lg" type="submit">Get My Free Quote</button>
         </form>
-        <div class="book-embed-wrap">
-          <iframe class="book-embed" src="https://bh-crm.bhdev.workers.dev/book" title="Get your price and book your detail" loading="lazy"></iframe>
-        </div>
       </div>
+    </div>
+  </section>
+
+  <!-- ================= BOOK ================= -->
+  <!-- Root-relative url() on purpose: a relative one inside a custom property
+       resolves against style.css, not this document. -->
+  <section class="section book-cinema" id="book" style="--book-photo:url('/assets/photos/IMG_8042-1200w.webp')">
+    <div class="container">
+      <div class="section-head center reveal">
+        <span class="eyebrow">Ready When You Are</span>
+        <h2 class="h2">See Your Price,<br /><em class="accent">Book It Now.</em></h2>
+        <p class="lead">About thirty seconds. No callback, no haggling.</p>
+      </div>
+      <div class="reveal reveal-d1" data-bookflow></div>
     </div>
   </section>
 
@@ -230,5 +241,6 @@
   </div>
 
   <script src="../js/main.js" defer></script>
+  <script src="../js/booking.js" defer></script>
 </body>
 </html>
