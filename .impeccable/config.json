@@ -65,6 +65,15 @@
         ],
         "createdAt": "2026-08-07T23:29:39.982Z",
         "reason": "Vault opens from sealed height to content height, one-off deliberate moment"
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "crm/admin/src/pages/Book.css"
+        ],
+        "createdAt": "2026-08-08T00:11:28.482Z",
+        "reason": "Same file as the lowercase entry; the hook reports it capitalised on Windows"
       }
     ]
   }
