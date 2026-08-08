@@ -963,15 +963,17 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
   inset: 0;
   background-image: var(--book-photo);
   background-size: cover;
-  /* Anchored low on purpose. The top of the frame is windscreen — bright sky
-     and trees — which white type cannot sit on. The lower two thirds are
-     leather, carbon and console: dark, and the thing being sold. */
-  background-position: 58% 82%;
+  /* Framed on the hands and the hose, which sit centre-left. Anchoring lower
+     would crop to bare carpet and lose the person doing the work. */
+  background-position: 46% 44%;
   transform: scale(1.06);
-  /* Darkening the photograph beats stacking more scrim over it: the scrim flattens
-     everything equally, while brightness pulls the blown-out windscreen down and
-     leaves the leather and carbon still reading as material. */
-  filter: grayscale(0.4) contrast(1.08) brightness(0.6);
+  /* Darkening the photograph beats stacking more scrim over it: scrim flattens
+     everything equally, while brightness pulls the bright shirt and window down
+     and leaves the upholstery still reading as material.
+     Desaturation stays light on purpose — the orange hose is the one warm note
+     in the frame and it sits well against the brand red. Grey it out and the
+     photograph stops being recognisably this job. */
+  filter: grayscale(0.2) contrast(1.06) brightness(0.66);
 }
 /* One scrim, not two. Stacked translucent layers compound — a 0.72 over a 0.86
    lands at an effective 0.96 and erases the photograph entirely. This single
