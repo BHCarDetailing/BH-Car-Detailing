@@ -239,14 +239,13 @@ export default function Book() {
     [specialties, specialtyId]
   );
 
-  /** Always two cards: what they picked, and the rung above. At the top there is
-      nothing above, so the rung below sits beside it -- they see they took the best. */
+  /** What they picked, and the rung above it when there is one. At the top the
+      card stands alone -- never show a cheaper option beside what they chose. */
   const cardLevels = useMemo(() => {
     if (coverage === "specialty") return [];
     const i = depthsAvailable.indexOf(depth);
     if (i < 0) return [];
-    if (i < depthsAvailable.length - 1) return [depthsAvailable[i], depthsAvailable[i + 1]];
-    return depthsAvailable.length > 1 ? [depthsAvailable[i - 1], depthsAvailable[i]] : [depthsAvailable[i]];
+    return i < depthsAvailable.length - 1 ? [depthsAvailable[i], depthsAvailable[i + 1]] : [depthsAvailable[i]];
   }, [coverage, depth, depthsAvailable]);
 
   const chosen = useMemo(() => {
@@ -608,7 +607,7 @@ export default function Book() {
                       onClick={() => setChosenDepth(lvl)}
                     >
                       <span className={`tag ${mine ? "you" : "up"}`}>
-                        {mine ? "Your pick" : isUpper ? "Step up" : "One below"}
+                        {mine ? "Your pick" : "Step up"}
                       </span>
                       <div className="card-top">
                         <h3>{svc.name}</h3>

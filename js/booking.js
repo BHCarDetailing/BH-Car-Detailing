@@ -141,14 +141,13 @@
     }
     return serviceAt(s.chosenDepth || s.depth);
   }
-  /* Always two cards: their pick and the rung above. At the top there is
-     nothing above, so the rung below sits beside it. */
+  /* Their pick, and the rung above it when there is one. At the top the card
+     stands alone — never show a cheaper option beside what they already chose. */
   function cardLevels() {
     if (s.coverage === "specialty") return [];
     var d = depthsAvailable(), i = d.indexOf(s.depth);
     if (i < 0) return [];
-    if (i < d.length - 1) return [d[i], d[i + 1]];
-    return d.length > 1 ? [d[i - 1], d[i]] : [d[i]];
+    return i < d.length - 1 ? [d[i], d[i + 1]] : [d[i]];
   }
   function addonTotal() {
     var t = 0, opts = addonOptions();
@@ -211,7 +210,7 @@
       html += '<button type="button" class="bf-card" data-sel="' + ((s.chosenDepth || s.depth) === lvl ? "1" : "0") +
         '" data-pick-depth="' + esc(lvl) + '">' +
         '<span class="bf-tag ' + (mine ? "bf-you" : "bf-up") + '">' +
-        (mine ? "Your pick" : isUpper ? "Step up" : "One below") + "</span>" +
+        (mine ? "Your pick" : "Step up") + "</span>" +
         '<div class="bf-card-top"><h4>' + esc(svc.name) + "</h4>" +
         '<span><span class="bf-amt">' + money(priceFor(svc)) + "</span>" +
         (diff > 0 ? '<span class="bf-delta">+' + money(diff) + " more</span>" : "") + "</span></div>" +
