@@ -702,7 +702,9 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
 .ig-editorial { display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; }
 .ig-feature { aspect-ratio: 4/5; }
 .ig-support { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
-.ig-support .ig-item:last-child { grid-column: span 2; aspect-ratio: 16/7; }
+/* nth-child(5), not :last-child: only the 5th item gets the wide-banner treatment,
+   so a 4-item set stays a clean 2x2 instead of leaving a gap where the 5th would be. */
+.ig-support .ig-item:nth-child(5) { grid-column: span 2; aspect-ratio: 16/7; }
 
 /* ---------- FAQ (native accordion, no JS) ---------- */
 
