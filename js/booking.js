@@ -76,7 +76,7 @@
 
   var s = {
     step: "vehicle", vehicle: "", coverage: "", depth: "", specialtyId: "",
-    chosenDepth: "", addons: {}, opened: false,
+    chosenId: "", addons: {}, opened: false,
     date: today(), slots: [], slotsLoading: false, slot: "",
     fullName: "", phone: "", email: "", address: "", notes: "",
     consent: false, website: "", mountedAt: Date.now(),
@@ -122,13 +122,12 @@
     primaries().forEach(function (x) { if (x.area === s.coverage) seen[x.level] = 1; });
     return DEPTH_ORDER.filter(function (l) { return seen[l]; });
   }
-  function serviceAt(level) {
-    var list = primaries();
-    for (var i = 0; i < list.length; i++) {
-      if (list[i].area === s.coverage && list[i].level === level) return list[i];
-    }
-    return null;
+  /* Every service filed at this area+level, not just the first. Two services can
+     share a slot, and returning one of them silently makes the other unsellable. */
+  function servicesAt(level) {
+    return primaries().filter(function (x) { return x.area === s.coverage && x.level === level; });
   }
+  function serviceAt(level) { return servicesAt(level)[0] || null; }
   function addonOptions() {
     if (!catalog) return [];
     return catalog.services.filter(function (x) { return x.is_addon && priceFor(x) > 0; });
@@ -139,15 +138,27 @@
       for (var i = 0; i < sp.length; i++) if (sp[i].id === s.specialtyId) return sp[i];
       return null;
     }
-    return serviceAt(s.chosenDepth || s.depth);
+    var here = servicesAt(s.depth);
+    if (s.chosenId) {
+      var all = primaries();
+      for (var i = 0; i < all.length; i++) if (all[i].id === s.chosenId) return all[i];
+    }
+    return here[0] || null;
   }
-  /* Their pick, and the rung above it when there is one. At the top the card
-     stands alone — never show a cheaper option beside what they already chose. */
-  function cardLevels() {
+  /* Cards are built from services, not levels. Everything filed at the chosen
+     level appears — two services can share a slot and neither may be hidden —
+     followed by the rung above when there is one. At the top the card stands
+     alone: never offer a cheaper option beside what they already chose. */
+  function cardList() {
     if (s.coverage === "specialty") return [];
     var d = depthsAvailable(), i = d.indexOf(s.depth);
     if (i < 0) return [];
-    return i < d.length - 1 ? [d[i], d[i + 1]] : [d[i]];
+    var out = servicesAt(s.depth).map(function (svc) { return { svc: svc, mine: true }; });
+    if (i < d.length - 1) {
+      var up = servicesAt(d[i + 1])[0];
+      if (up) out.push({ svc: up, mine: false, diff: priceFor(up) - priceFor(out[0].svc) });
+    }
+    return out;
   }
   function addonTotal() {
     var t = 0, opts = addonOptions();
@@ -200,21 +211,19 @@
         (sp.description ? '<p class="bf-only">' + esc(sp.description) + "</p>" : "") + "</div>";
       return html;
     }
-    var levels = cardLevels();
-    levels.forEach(function (lvl, i) {
-      var svc = serviceAt(lvl);
-      if (!svc) return;
-      var mine = lvl === s.depth, isUpper = i === 1, lower = levels[0];
-      var lowerSvc = serviceAt(lower);
-      var diff = isUpper && lowerSvc ? priceFor(svc) - priceFor(lowerSvc) : 0;
-      html += '<button type="button" class="bf-card" data-sel="' + ((s.chosenDepth || s.depth) === lvl ? "1" : "0") +
-        '" data-pick-depth="' + esc(lvl) + '">' +
-        '<span class="bf-tag ' + (mine ? "bf-you" : "bf-up") + '">' +
-        (mine ? "Your pick" : "Step up") + "</span>" +
+    var cards = cardList(), current = chosenService();
+    cards.forEach(function (c) {
+      var svc = c.svc, sel = current && current.id === svc.id;
+      // Two services can sit at the same level. The selected one is the pick;
+      // any sibling is an alternative, not a downgrade.
+      var tag = !c.mine ? "Step up" : sel ? "Your pick" : "Also at this level";
+      html += '<button type="button" class="bf-card" data-sel="' + (sel ? "1" : "0") +
+        '" data-pick-service="' + esc(svc.id) + '">' +
+        '<span class="bf-tag ' + (sel ? "bf-you" : "bf-up") + '">' + tag + "</span>" +
         '<div class="bf-card-top"><h4>' + esc(svc.name) + "</h4>" +
         '<span><span class="bf-amt">' + money(priceFor(svc)) + "</span>" +
-        (diff > 0 ? '<span class="bf-delta">+' + money(diff) + " more</span>" : "") + "</span></div>" +
-        featureList(s.coverage, lvl, isUpper ? lower : "") + "</button>";
+        (c.diff > 0 ? '<span class="bf-delta">+' + money(c.diff) + " more</span>" : "") + "</span></div>" +
+        featureList(s.coverage, svc.level, c.mine ? "" : s.depth) + "</button>";
     });
     return html;
   }
@@ -460,11 +469,11 @@
     }
     if ((el = e.target.closest("[data-coverage]"))) {
       s.coverage = el.getAttribute("data-coverage");
-      s.depth = ""; s.chosenDepth = ""; s.specialtyId = ""; s.opened = false;
+      s.depth = ""; s.chosenId = ""; s.specialtyId = ""; s.opened = false;
       return go("depth");
     }
     if ((el = e.target.closest("[data-depth]"))) {
-      s.depth = el.getAttribute("data-depth"); s.chosenDepth = s.depth; s.opened = false;
+      s.depth = el.getAttribute("data-depth"); s.chosenId = ""; s.opened = false;
       return go("price");
     }
     if ((el = e.target.closest("[data-specialty]"))) {
@@ -472,8 +481,8 @@
       return go("price");
     }
     if (e.target.closest("[data-reveal]")) { s.opened = true; return render(); }
-    if ((el = e.target.closest("[data-pick-depth]"))) {
-      s.chosenDepth = el.getAttribute("data-pick-depth"); return render();
+    if ((el = e.target.closest("[data-pick-service]"))) {
+      s.chosenId = el.getAttribute("data-pick-service"); return render();
     }
     if ((el = e.target.closest("[data-qty]"))) {
       e.stopPropagation();
