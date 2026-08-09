@@ -3,9 +3,10 @@
   "configurations": [
     {
       "name": "bh-site",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "4173", "--bind", "127.0.0.1"],
-      "port": 4173
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "C:\\Users\\MAXWEL~1\\AppData\\Local\\Programs\\Python\\PYTHON~1\\python.exe -m http.server %PORT% --bind 127.0.0.1"],
+      "port": 4173,
+      "autoPort": true
     },
     {
       "name": "bh-crm",

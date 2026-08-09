@@ -340,6 +340,10 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
   display: flex; flex-direction: column; align-items: center; gap: 10px;
   font-size: 0.65rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--silver);
 }
+/* hero-split's quote form makes the hero taller than 100svh, so a bottom:36px-anchored
+   indicator lands off-screen, below the fold, floating between the form and the next
+   section instead of hinting at the actual scroll point. Just drop it on that layout. */
+.hero-split ~ .hero-scroll { display: none; }
 .hero-scroll::after {
   content: ""; width: 1px; height: 44px;
   background: linear-gradient(var(--silver), transparent);
@@ -472,51 +476,6 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
   .feat-card { grid-template-columns: 1fr; }
   .feat-img { order: -1 !important; aspect-ratio: 16/10; min-height: 0; }
 }
-
-/* ---------- Best option recommender ---------- */
-
-.quiz {
-  background: var(--ink-2);
-  border: 1px solid var(--line-dark);
-  border-radius: calc(var(--radius) + 8px);
-  padding: clamp(40px, 6vw, 76px);
-  max-width: 920px;
-  margin: 0 auto;
-}
-.quiz-step h3 { font-size: clamp(1.4rem, 2.6vw, 2rem); margin-bottom: 30px; }
-.quiz-options { display: grid; gap: 16px; }
-.quiz-options button {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid var(--line-dark);
-  color: var(--white);
-  border-radius: 14px;
-  padding: 24px 28px;
-  font-size: 1.05rem;
-  font-weight: 600;
-  text-align: left;
-  display: flex; justify-content: space-between; align-items: center;
-  transition: all 0.35s var(--ease);
-}
-.quiz-options button::after { content: "→"; color: var(--muted); transition: transform 0.3s var(--ease), color 0.3s; }
-.quiz-options button:hover { border-color: var(--accent); background: rgba(200, 16, 46,0.08); transform: translateX(4px); }
-.quiz-options button:hover::after { color: var(--accent); transform: translateX(4px); }
-
-.quiz-progress { display: flex; gap: 8px; margin-bottom: 34px; }
-.quiz-progress i { height: 3px; flex: 1; background: rgba(255,255,255,0.12); border-radius: 3px; transition: background 0.4s; }
-.quiz-progress i.on { background: var(--accent); }
-
-.quiz-step, .quiz-result { transition: opacity 0.28s var(--ease), transform 0.36s var(--ease); }
-.quiz-step.fade-out, .quiz-result.fade-out { opacity: 0; transform: translateX(-18px); }
-
-.quiz-result { text-align: center; }
-.quiz-result .eyebrow { justify-content: center; color: var(--accent); }
-.quiz-result h3 { font-size: clamp(1.8rem, 3.5vw, 2.6rem); text-transform: uppercase; }
-.quiz-result .price { font-size: clamp(2.4rem, 5vw, 3.6rem); font-weight: 800; margin: 18px 0 6px; }
-.quiz-result .price small { font-size: 0.9rem; color: var(--muted); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; display: block; }
-.quiz-result p { color: var(--muted); max-width: 480px; margin: 14px auto 32px; }
-.quiz-result .actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
-.quiz-restart { background: none; border: 0; color: var(--muted); font-size: 0.82rem; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 26px; text-decoration: underline; text-underline-offset: 4px; }
-.quiz-restart:hover { color: var(--white); }
 
 /* ---------- Gallery ---------- */
 
@@ -676,6 +635,14 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
 .step h4::before { content: "0" counter(step) " — "; color: var(--silver); font-weight: 800; }
 .step p { color: #5e5e63; font-size: 0.85rem; }
 
+/* #process and #why are both .section-light back to back — at >=1024px their
+   clamp()'d padding maxes at 150px each, leaving 300px of dead gray space
+   between the last step and "Meet the Owner". Tighten just the touching edges. */
+@media (min-width: 1024px) {
+  #process { padding-bottom: 90px; }
+  #why { padding-top: 90px; }
+}
+
 /* ---------- Testimonials ---------- */
 
 .t-carousel { overflow: hidden; position: relative; }
@@ -739,7 +706,8 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
 
 /* ---------- FAQ (native accordion, no JS) ---------- */
 
-.faq-list { max-width: 840px; margin: 0 auto; display: grid; gap: 10px; }
+#faq { padding: clamp(56px, 8vw, 100px) 0; }
+.faq-list { max-width: 840px; margin: 0 auto; display: grid; gap: 8px; }
 .faq-item {
   border: 1px solid var(--line-dark);
   border-radius: 14px;
@@ -751,7 +719,7 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
 .faq-item summary {
   list-style: none;
   cursor: pointer;
-  padding: 18px 24px;
+  padding: 16px 22px;
   font-weight: 700;
   font-size: 1rem;
   display: flex;
@@ -770,7 +738,7 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
   transition: transform 0.35s var(--ease);
 }
 .faq-item[open] summary::after { transform: rotate(45deg); }
-.faq-item p { padding: 0 24px 20px; color: var(--muted); font-size: 0.92rem; }
+.faq-item p { padding: 0 22px 16px; color: var(--muted); font-size: 0.92rem; line-height: 1.5; }
 
 /* ---------- Areas ---------- */
 
@@ -870,6 +838,7 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
   max-width: 760px; margin: 22px auto 0; text-align: center;
   font-size: 0.8rem; line-height: 1.6; color: var(--muted);
 }
+.pkg-cards { display: none; }
 @media (max-width: 640px) {
   .pkg-table th, .pkg-table td { padding: 10px 5px; }
   .pkg-name { font-size: 0; }
@@ -879,6 +848,32 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
   .pkg-group td { font-size: 0.62rem; letter-spacing: 0.1em; }
   .pkg-pop-tag { font-size: 0.5rem; padding: 2px 6px; letter-spacing: 0.08em; }
   .pkg-table tfoot .btn { padding: 11px 8px; font-size: 0.78rem; }
+
+  .pkg-wrap { display: none; }
+  .pkg-cards { display: flex; flex-direction: column; gap: 18px; max-width: 440px; margin: 0 auto; }
+  .pkg-card {
+    position: relative; background: var(--white); border: 1px solid var(--line-light);
+    border-radius: var(--radius); padding: 24px 22px 22px;
+  }
+  .pkg-card-popular { border-color: var(--accent); box-shadow: 0 18px 40px -20px rgba(200, 16, 46, 0.35); }
+  .pkg-card .pkg-pop-tag { position: absolute; top: -11px; left: 22px; font-size: 0.58rem; }
+  .pkg-card-head { margin-bottom: 14px; }
+  .pkg-card-name { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.01em; }
+  .pkg-card-group { margin-bottom: 14px; }
+  .pkg-card-group:last-of-type { margin-bottom: 18px; }
+  .pkg-card-group-label {
+    display: block; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
+  }
+  .pkg-card-list li {
+    position: relative; padding-left: 22px; font-size: 0.85rem; color: #3a3a3e;
+    line-height: 1.5; margin-bottom: 6px;
+  }
+  .pkg-card-list li:last-child { margin-bottom: 0; }
+  .pkg-card-list li::before {
+    content: "\2713"; position: absolute; left: 0; color: var(--accent); font-weight: 800;
+  }
+  .pkg-card .btn { width: 100%; }
 }
 
 #areas { padding: clamp(56px, 8vw, 100px) 0; }
