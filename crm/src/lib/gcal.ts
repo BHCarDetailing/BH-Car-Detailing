@@ -2,7 +2,16 @@ import type { Env } from "../types";
 import { all, one, run, nowIso } from "./db";
 import { zonedToUtcIso } from "./booking";
 
-export const GOOGLE_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+// Two scopes, and both are needed:
+//   calendar.events   - read AND write events (job push, manual blocks)
+//   calendar.readonly - read the user's calendarList
+// calendar.events alone 403s on /users/me/calendarList; it covers events on a
+// calendar, not the list of calendars. Neither grants creating or deleting
+// whole calendars — that would be the broader `calendar` scope.
+export const GOOGLE_SCOPE = [
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.readonly",
+].join(" ");
 export const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 export const TOKEN_URL = "https://oauth2.googleapis.com/token";
 export const REVOKE_URL = "https://oauth2.googleapis.com/revoke";
@@ -79,7 +88,11 @@ export async function gapi<T>(env: Env, path: string): Promise<T | null> {
     headers: { Authorization: `Bearer ${token}` },
   }).catch(() => null);
   if (!res || !res.ok) {
-    await setGcalError(env, `api_error ${res?.status ?? "network"}: ${path}`);
+    // Google puts the actual cause in the body ("insufficient authentication
+    // scopes", "API has not been used in project…"). Without it a 403 is
+    // indistinguishable from a dozen unrelated problems.
+    const detail = res ? (await res.text().catch(() => "")).slice(0, 200) : "network error";
+    await setGcalError(env, `api_error ${res?.status ?? "network"} on ${path.split("?")[0]}: ${detail}`);
     return null;
   }
   return (await res.json()) as T;

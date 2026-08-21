@@ -32,7 +32,12 @@ describe("google oauth routes", () => {
     expect(u.origin + u.pathname).toBe("https://accounts.google.com/o/oauth2/v2/auth");
     expect(u.searchParams.get("access_type")).toBe("offline");
     expect(u.searchParams.get("prompt")).toBe("consent");
-    expect(u.searchParams.get("scope")).toBe("https://www.googleapis.com/auth/calendar.events");
+    // Both scopes are required: events alone 403s on /users/me/calendarList.
+    const scopes = (u.searchParams.get("scope") ?? "").split(" ");
+    expect(scopes).toContain("https://www.googleapis.com/auth/calendar.events");
+    expect(scopes).toContain("https://www.googleapis.com/auth/calendar.readonly");
+    // Never the broad `calendar` scope — that grants creating/deleting calendars.
+    expect(scopes).not.toContain("https://www.googleapis.com/auth/calendar");
     expect(u.searchParams.get("redirect_uri")).toBe("https://bh-crm.bhdev.workers.dev/api/settings/google/callback");
     expect(u.searchParams.get("state")).toBeTruthy();
   });

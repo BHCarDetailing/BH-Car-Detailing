@@ -207,13 +207,18 @@ cleanup of code this feature has to touch anyway — not a general refactor.
 
 Consent URL: `https://accounts.google.com/o/oauth2/v2/auth` with `access_type=offline`,
 `prompt=consent` (forces a refresh token even on reconnect),
-`scope=https://www.googleapis.com/auth/calendar.events`, and `state` = a nonce
-HMAC-signed with the existing `SESSION_SECRET` and stamped with an expiry, verified in
-the callback.
+`scope=https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly`,
+and `state` = a nonce HMAC-signed with the existing `SESSION_SECRET` and stamped with an
+expiry, verified in the callback.
 
-`calendar.events` grants read and write on events across the account's calendars. It
-does **not** grant calendar management (create/delete whole calendars) — that would be
-the broader `calendar` scope, which this design does not request.
+**Both scopes are required.** `calendar.events` grants read and write on events, which
+covers job push and manual blocks. It does **not** cover `/users/me/calendarList` —
+that endpoint lists the account's calendars rather than events on one, and returns 403
+under `calendar.events` alone. `calendar.readonly` supplies it. (Revision 2 of this spec
+requested only `calendar.events` and the Settings card 403'd on first connect.)
+
+Neither scope grants calendar management — creating or deleting whole calendars would
+be the broader `calendar` scope, which this design does not request.
 
 `/callback` cannot use `requireAuth()` — Google's redirect is a top-level browser
 navigation, so the signed `state` is what proves the request originated from the admin's
