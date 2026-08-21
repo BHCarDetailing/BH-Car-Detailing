@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { money, SIZE_CLASSES, type Label, type Service, type SizeClass } from "../types";
@@ -124,6 +124,124 @@ function ServicesManager() {
         ))}
         {items.length === 0 && <li className="text-sm text-neutral-400">No services yet — add your first one.</li>}
       </ul>
+    </section>
+  );
+}
+
+interface GStatus {
+  configured: boolean; connected: boolean; account_email: string | null;
+  calendars: Array<{ id: string; summary: string; primary?: boolean }>;
+  selected: string[]; write_calendar: string; last_sync: string; last_error: string;
+}
+
+function GoogleCalendarCard() {
+  const [s, setS] = useState<GStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    api<GStatus>("/api/settings/google/status").then(setS).catch(() => setS(null));
+  }, []);
+  useEffect(load, [load]);
+
+  async function connect() {
+    const { url } = await api<{ url: string }>("/api/settings/google/connect");
+    location.assign(url);
+  }
+
+  async function saveCalendars(selected: string[], write: string) {
+    setBusy(true);
+    await api("/api/settings/google/calendars", {
+      method: "PUT", body: JSON.stringify({ selected, write_calendar: write }),
+    }).catch(() => {});
+    setBusy(false);
+    load();
+  }
+
+  if (!s) return null;
+
+  return (
+    <section className="rounded-xl bg-white p-5 shadow-sm">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="font-medium">Google Calendar</h2>
+        <span className={`rounded-full px-2 py-0.5 text-xs ${s.connected ? "bg-green-100 text-green-700" : "bg-neutral-200 text-neutral-600"}`}>
+          {s.connected ? "Connected" : "Not connected"}
+        </span>
+      </div>
+
+      {!s.configured && (
+        <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+          Add <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code> as Worker secrets to turn this on.
+        </div>
+      )}
+
+      {s.configured && !s.connected && (
+        <>
+          <p className="mb-3 text-sm text-neutral-500">
+            Connect your Google account so events marked Busy block customer booking times, and CRM jobs land on your calendar straight away.
+          </p>
+          <button onClick={connect} className="min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white">Connect Google Calendar</button>
+        </>
+      )}
+
+      {s.connected && (
+        <>
+          {s.last_error && (
+            <div className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-800">
+              Reconnect needed — {s.last_error}
+            </div>
+          )}
+          <p className="mb-3 text-sm text-neutral-500">Connected as {s.account_email}</p>
+
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Block booking times from</p>
+          {s.calendars.map((cal) => (
+            <label key={cal.id} className="mb-1 flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={s.selected.includes(cal.id)}
+                disabled={busy}
+                onChange={(e) => saveCalendars(
+                  e.target.checked ? [...s.selected, cal.id] : s.selected.filter((x) => x !== cal.id),
+                  s.write_calendar)}
+              />
+              {cal.summary}
+            </label>
+          ))}
+
+          <label className="mb-3 mt-3 block text-sm">Write CRM jobs to
+            <select
+              className="mt-1 block min-h-[44px] w-full max-w-sm rounded-md border border-neutral-300 px-2 text-sm"
+              value={s.write_calendar}
+              disabled={busy}
+              onChange={(e) => saveCalendars(s.selected, e.target.value)}
+            >
+              {s.calendars.map((cal) => <option key={cal.id} value={cal.id}>{cal.summary}</option>)}
+            </select>
+          </label>
+
+          <div className="flex items-center gap-3">
+            <button
+              disabled={busy}
+              onClick={async () => { setBusy(true); await api("/api/settings/google/sync", { method: "POST" }).catch(() => {}); setBusy(false); load(); }}
+              className="min-h-[44px] rounded-md bg-red-600 px-4 text-sm text-white"
+            >
+              Sync now
+            </button>
+            <button
+              onClick={async () => {
+                if (!confirm("Disconnect Google Calendar? Booking times will stop respecting your calendar.")) return;
+                await api("/api/settings/google/disconnect", { method: "POST" }).catch(() => {});
+                load();
+              }}
+              className="min-h-[44px] rounded-md border border-neutral-300 px-4 text-sm text-neutral-700"
+            >
+              Disconnect
+            </button>
+            <span className="text-xs text-neutral-500">
+              Last synced: {s.last_sync ? new Date(s.last_sync).toLocaleString() : "never"}
+            </span>
+          </div>
+        </>
+      )}
     </section>
   );
 }
@@ -354,6 +472,8 @@ export default function Settings() {
             {taxNote && <span className="text-sm text-neutral-500">{taxNote}</span>}
           </div>
         </section>
+
+        <GoogleCalendarCard />
 
         <section className="rounded-xl bg-white p-5 shadow-sm">
           <div className="mb-2 flex items-center justify-between">
