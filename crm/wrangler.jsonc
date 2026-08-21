@@ -27,7 +27,12 @@
   // ],
   "vars": {
     "ALLOWED_ORIGINS": "https://bhcardetails.com,https://www.bhcardetails.com,http://localhost:4173,http://127.0.0.1:4173",
-    "HOME_TZ": "America/New_York"
+    "HOME_TZ": "America/New_York",
+    // Absolute origin of the deployed Worker. The Google OAuth redirect URI is
+    // derived from this and must match what is registered in Google Cloud
+    // Console. Previously unset, which left sequences.ts falling back to a
+    // hostname that does not resolve and missedcall.ts emitting domain-less links.
+    "PUBLIC_BASE_URL": "https://bh-crm.bhdev.workers.dev"
   },
   "observability": { "enabled": true }
 }

@@ -20,6 +20,8 @@ export interface Env {
   ANTHROPIC_API_KEY?: string;
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
 }
 
 export const STAGES = ["new", "contacted", "quoted", "scheduled", "customer", "lost"] as const;
