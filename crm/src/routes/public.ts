@@ -13,6 +13,7 @@ import { fireTrigger } from "../lib/triggers";
 import { notifyOwner } from "../lib/email";
 import { analyzeLead } from "../lib/ai";
 import { availableSlots, businessHours, slotIsFree } from "../lib/booking";
+import { syncIfStale } from "../lib/gcal";
 import { sendJobConfirmation } from "../lib/reminders";
 import { buildVoiceTwiml, handleMissedCall, loadMissedCallSettings } from "../lib/missedcall";
 import { createCheckoutSession, depositForTotal, loadPaymentSettings, stripeConfigured, verifyStripeWebhook } from "../lib/stripe";
@@ -291,6 +292,9 @@ publicRoutes.get("/book/availability", async (c) => {
   const h = corsHeaders(c);
   const date = c.req.query("date");
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return c.json({ error: "bad_date" }, 400, h);
+  // Pull fresh Google busy time if the cron cache has gone stale, so a customer
+  // never sees a slot the owner blocked minutes ago.
+  await syncIfStale(c.env);
   const cfg = await businessHours(c.env);
   return c.json({ slots: await availableSlots(c.env, date), slot_min: cfg.slot_min }, 200, h);
 });
@@ -428,6 +432,7 @@ publicRoutes.post("/book/quote", async (c) => {
   if (!priced.needsPlanning) {
     const slot = typeof body.scheduled_start === "string" ? body.scheduled_start : "";
     if (!slot || !Number.isFinite(Date.parse(slot))) return c.json({ ok: false, error: "slot_required" }, 400, h);
+    await syncIfStale(c.env);
     if (!(await slotIsFree(c.env, slot))) return c.json({ ok: false, error: "slot_taken" }, 409, h);
     scheduledStart = slot;
   }
