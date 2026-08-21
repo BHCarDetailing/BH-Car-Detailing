@@ -1,0 +1,18 @@
+-- INTENTIONALLY A NO-OP. Kept so the migration number stays accounted for.
+--
+-- This originally renamed "Full Detail" -> "Complete Detail" to match a website
+-- copy change (Light Detail -> Signature, Full Detail -> Complete). It was never
+-- applied to production.
+--
+-- Cancelled 2026-08-21 by Maxwell. Two reasons:
+--   1. Its own comment claimed no "Light Detail" row existed. That was wrong —
+--      prod has one (8a3be1d3-19eb-4d6d-84ed-3d1755e9bca1). Applying this as
+--      written would have produced "Complete Detail" sitting beside
+--      "Light Detail": a half-finished rebrand visible to customers on the
+--      booking page and on every quote.
+--   2. The tier names stay "Full Detail" and "Light Detail".
+--
+-- If the rebrand is ever revived, write a NEW migration that renames both rows
+-- together. Do not edit this one — by then it will have been applied, and D1
+-- tracks migrations by filename, so an edit here would never re-run.
+SELECT 1;
