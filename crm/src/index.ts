@@ -18,6 +18,8 @@ import { emailRoutes } from "./routes/email";
 import { rebookRoutes } from "./routes/rebook";
 import { growthRoutes } from "./routes/growth";
 import { quoteBuilderRoutes } from "./routes/quotebuilder";
+import { googleRoutes } from "./routes/google";
+import { syncGoogleBusy } from "./lib/gcal";
 import { runReminders } from "./lib/reminders";
 import { runSequences } from "./lib/sequences";
 import { runRebook } from "./lib/rebook";
@@ -34,6 +36,7 @@ app.route("/api/contacts", contactRoutes);
 app.route("/api/custom-fields", customFieldRoutes);
 app.route("/api/labels", labelRoutes);
 app.route("/api/services", serviceRoutes);
+app.route("/api/settings/google", googleRoutes); // mounted before /api/settings so the longer prefix wins
 app.route("/api/settings", settingsRoutes);
 app.route("/api/stats", statsRoutes);
 app.route("/api/jobs", jobRoutes);
@@ -57,7 +60,7 @@ export default {
     // handles time-sensitive appointment reminders and due sequence steps.
     const work = event.cron === "0 13 * * *"
       ? [runRebook(env, now), runTimeTriggers(env, now), runReviewFollowUps(env, now)]
-      : [runReminders(env, now), runSequences(env, now)];
+      : [runReminders(env, now), runSequences(env, now), syncGoogleBusy(env).then(() => undefined)];
     ctx.waitUntil(Promise.all(work).then(() => undefined));
   },
 };

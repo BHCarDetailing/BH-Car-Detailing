@@ -69,6 +69,7 @@ settingsRoutes.get("/integrations", (c) => {
     twilio: !!(c.env.TWILIO_ACCOUNT_SID && c.env.TWILIO_AUTH_TOKEN),
     anthropic: !!c.env.ANTHROPIC_API_KEY,
     resend: !!c.env.RESEND_API_KEY,
+    google_calendar: !!(c.env.GOOGLE_CLIENT_ID && c.env.GOOGLE_CLIENT_SECRET),
   });
 });
 
