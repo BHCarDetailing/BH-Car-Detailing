@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../api";
+import { api, ApiError } from "../api";
 import { BrandLogo } from "../components/ui";
 
 export default function Login() {
@@ -16,8 +16,17 @@ export default function Login() {
     try {
       await api("/api/auth/login", { method: "POST", body: JSON.stringify({ password }) });
       nav("/dashboard");
-    } catch {
-      setError("Wrong password.");
+    } catch (e) {
+      // The API already distinguishes these; collapsing them into "Wrong
+      // password" sends you hunting for a password problem you don't have.
+      const status = e instanceof ApiError ? e.status : 0;
+      setError(
+        status === 429
+          ? "Too many attempts — locked out for 15 minutes. Your password may be correct; wait, then try once."
+          : status === 500
+            ? "Server isn't configured — ADMIN_PASSWORD or SESSION_SECRET is missing."
+            : "Wrong password."
+      );
     } finally {
       setBusy(false);
     }
