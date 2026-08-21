@@ -1,5 +1,6 @@
 import type { Env } from "../types";
-import { one, run, nowIso } from "./db";
+import { all, one, run, nowIso } from "./db";
+import { zonedToUtcIso } from "./booking";
 
 export const GOOGLE_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 export const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -87,4 +88,131 @@ export async function gapi<T>(env: Env, path: string): Promise<T | null> {
 export async function listCalendars(env: Env): Promise<GCalendar[]> {
   const body = await gapi<{ items?: GCalendar[] }>(env, "/users/me/calendarList?minAccessRole=reader&maxResults=250");
   return body?.items ?? [];
+}
+
+export const SYNC_WINDOW_DAYS = 60;
+
+interface GEvent {
+  id: string;
+  status?: string;
+  summary?: string;
+  transparency?: string;
+  start?: { date?: string; dateTime?: string };
+  end?: { date?: string; dateTime?: string };
+  attendees?: Array<{ self?: boolean; responseStatus?: string }>;
+  extendedProperties?: { private?: Record<string, string> };
+}
+
+export async function selectedCalendars(env: Env): Promise<string[]> {
+  const row = await one<{ value: string }>(env.DB, "SELECT value FROM settings WHERE key = 'gcal_calendars'");
+  if (!row?.value) return [];
+  try {
+    const parsed = JSON.parse(row.value);
+    return Array.isArray(parsed) ? parsed.filter((v) => typeof v === "string") : [];
+  } catch { return []; }
+}
+
+/** True when this event should occupy time on the booking calendar. */
+function blocks(ev: GEvent): boolean {
+  if (ev.status === "cancelled") return false;
+  // Absent transparency means "opaque" per the Calendar API — i.e. busy.
+  if (ev.transparency === "transparent") return false;
+  if (ev.attendees?.some((a) => a.self && a.responseStatus === "declined")) return false;
+  // Events this CRM created for a job are already represented by the job row.
+  // Counting them here would block the time twice and render two chips.
+  if (ev.extendedProperties?.private?.bh_job_id) return false;
+  return true;
+}
+
+/** UTC span for an event. All-day dates are local midnights; Google's end date is exclusive. */
+function span(ev: GEvent, tz: string): { start: string; end: string; allDay: boolean } | null {
+  if (ev.start?.dateTime && ev.end?.dateTime) {
+    return {
+      start: new Date(ev.start.dateTime).toISOString(),
+      end: new Date(ev.end.dateTime).toISOString(),
+      allDay: false,
+    };
+  }
+  if (ev.start?.date && ev.end?.date) {
+    return {
+      start: zonedToUtcIso(ev.start.date, "00:00", tz),
+      end: zonedToUtcIso(ev.end.date, "00:00", tz),
+      allDay: true,
+    };
+  }
+  return null;
+}
+
+/**
+ * Refresh `gcal_busy` from Google. Returns null when disconnected or when any
+ * calendar read fails — in that case the existing cache is left intact so the
+ * last known-good busy times keep blocking.
+ */
+export async function syncGoogleBusy(env: Env): Promise<{ synced: number; skipped: number } | null> {
+  const calendars = await selectedCalendars(env);
+  if (calendars.length === 0) return null;
+
+  const tz = env.HOME_TZ || "America/New_York";
+  const now = Date.now();
+  const timeMin = new Date(now).toISOString();
+  const timeMax = new Date(now + SYNC_WINDOW_DAYS * 86_400_000).toISOString();
+
+  const seen: string[] = [];
+  const rows: Array<[string, string, string | null, string, string, number, number]> = [];
+  let skipped = 0;
+
+  for (const cal of calendars) {
+    const qs = new URLSearchParams({
+      singleEvents: "true", orderBy: "startTime", maxResults: "250",
+      timeMin, timeMax,
+    });
+    const body = await gapi<{ items?: GEvent[] }>(env, `/calendars/${encodeURIComponent(cal)}/events?${qs}`);
+    // A single failed calendar aborts the pass rather than half-wiping the cache.
+    if (!body) return null;
+
+    for (const ev of body.items ?? []) {
+      if (!blocks(ev)) { skipped++; continue; }
+      const s = span(ev, tz);
+      if (!s) { skipped++; continue; }
+      const id = `${ev.id}@${cal}`;
+      seen.push(id);
+      rows.push([id, cal, ev.summary ?? null, s.start, s.end, s.allDay ? 1 : 0,
+        ev.extendedProperties?.private?.bh_block ? 1 : 0]);
+    }
+  }
+
+  const syncedAt = nowIso();
+  for (const r of rows) {
+    await run(env.DB,
+      `INSERT INTO gcal_busy (id, calendar_id, summary, starts_at, ends_at, all_day, is_block, synced_at)
+       VALUES (?,?,?,?,?,?,?,?)
+       ON CONFLICT(id) DO UPDATE SET
+         summary = excluded.summary, starts_at = excluded.starts_at, ends_at = excluded.ends_at,
+         all_day = excluded.all_day, is_block = excluded.is_block, synced_at = excluded.synced_at`,
+      ...r, syncedAt);
+  }
+
+  // Drop anything in the window Google no longer reports — handles deletions.
+  const stale = await all<{ id: string }>(env.DB,
+    "SELECT id FROM gcal_busy WHERE starts_at < ? AND ends_at > ?", timeMax, timeMin);
+  const keep = new Set(seen);
+  for (const s of stale) {
+    if (!keep.has(s.id)) await run(env.DB, "DELETE FROM gcal_busy WHERE id = ?", s.id);
+  }
+
+  await run(env.DB,
+    "INSERT INTO settings (key, value) VALUES ('gcal_last_sync', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    syncedAt);
+  await clearGcalError(env);
+  return { synced: rows.length, skipped };
+}
+
+/** Sync only if the cache is older than `maxAgeMs`. Never throws. */
+export async function syncIfStale(env: Env, maxAgeMs = 5 * 60_000): Promise<void> {
+  try {
+    const row = await one<{ value: string }>(env.DB, "SELECT value FROM settings WHERE key = 'gcal_last_sync'");
+    const last = row?.value ? Date.parse(row.value) : 0;
+    if (Number.isFinite(last) && Date.now() - last < maxAgeMs) return;
+    await syncGoogleBusy(env);
+  } catch { /* fail open: stale or missing Google data never blocks a booking */ }
 }

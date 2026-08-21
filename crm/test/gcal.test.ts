@@ -1,6 +1,6 @@
 import { env, fetchMock } from "cloudflare:test";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { getAccessToken, listCalendars } from "../src/lib/gcal";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { getAccessToken, listCalendars, syncGoogleBusy } from "../src/lib/gcal";
 
 beforeAll(() => { fetchMock.activate(); fetchMock.disableNetConnect(); });
 afterEach(() => fetchMock.assertNoPendingInterceptors());
@@ -86,5 +86,126 @@ describe("google access tokens", () => {
 
     const cals = await listCalendars(env);
     expect(cals.map((c) => c.id)).toEqual(["a@b.com", "hol"]);
+  });
+});
+
+// The sync window is now..now+60d, so fixtures must be relative to today —
+// a hard-coded future date would fall outside the window and the stale-row
+// cleanup could never match it.
+const DAY = 86_400_000;
+const at = (offsetDays: number, utcHour: number): string => {
+  const d = new Date(Date.now() + offsetDays * DAY);
+  d.setUTCHours(utcHour, 0, 0, 0);
+  return d.toISOString();
+};
+const ymd = (offsetDays: number): string => new Date(Date.now() + offsetDays * DAY).toISOString().slice(0, 10);
+
+function gEvent(over: Record<string, unknown> = {}) {
+  return {
+    id: "e1", status: "confirmed", summary: "Dentist",
+    start: { dateTime: at(7, 15) },
+    end: { dateTime: at(7, 16) },
+    ...over,
+  };
+}
+
+function mockEvents(items: unknown[]) {
+  fetchMock.get("https://www.googleapis.com")
+    .intercept({ path: /\/calendar\/v3\/calendars\/.*\/events/ })
+    .reply(200, { items });
+}
+
+const countBusy = async (): Promise<number> =>
+  Number((await env.DB.prepare("SELECT COUNT(*) n FROM gcal_busy").first<{ n: number }>())?.n ?? -1);
+
+describe("inbound sync", () => {
+  beforeEach(async () => {
+    await env.DB.prepare("DELETE FROM gcal_busy").run();
+    await env.DB.prepare(
+      "INSERT INTO settings (key, value) VALUES ('gcal_calendars', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+    ).bind(JSON.stringify(["a@b.com"])).run();
+    await connect(Date.now() + 300_000);
+  });
+
+  it("stores a confirmed busy event", async () => {
+    mockEvents([gEvent()]);
+    await syncGoogleBusy(env);
+    const row = await env.DB.prepare("SELECT summary, starts_at FROM gcal_busy").first();
+    expect(row?.summary).toBe("Dentist");
+    expect(row?.starts_at).toBe(at(7, 15));
+  });
+
+  it("skips events marked Free", async () => {
+    mockEvents([gEvent({ transparency: "transparent" })]);
+    await syncGoogleBusy(env);
+    expect(await countBusy()).toBe(0);
+  });
+
+  it("keeps events with no transparency field — the API default is busy", async () => {
+    mockEvents([gEvent()]);
+    await syncGoogleBusy(env);
+    expect(await countBusy()).toBe(1);
+  });
+
+  it("skips cancelled events", async () => {
+    mockEvents([gEvent({ status: "cancelled" })]);
+    await syncGoogleBusy(env);
+    expect(await countBusy()).toBe(0);
+  });
+
+  it("skips events the owner declined", async () => {
+    mockEvents([gEvent({ attendees: [{ self: true, responseStatus: "declined" }] })]);
+    await syncGoogleBusy(env);
+    expect(await countBusy()).toBe(0);
+  });
+
+  it("skips events the CRM itself created — loop prevention", async () => {
+    mockEvents([gEvent({ extendedProperties: { private: { bh_job_id: "job_1" } } })]);
+    await syncGoogleBusy(env);
+    expect(await countBusy()).toBe(0);
+  });
+
+  it("keeps CRM manual blocks and flags them", async () => {
+    mockEvents([gEvent({ extendedProperties: { private: { bh_block: "1" } } })]);
+    await syncGoogleBusy(env);
+    const row = await env.DB.prepare("SELECT is_block FROM gcal_busy").first();
+    expect(row?.is_block).toBe(1);
+  });
+
+  it("expands an all-day event to a full local day and marks all_day", async () => {
+    mockEvents([gEvent({ start: { date: ymd(7) }, end: { date: ymd(8) } })]);
+    await syncGoogleBusy(env);
+    const row = await env.DB.prepare("SELECT all_day, starts_at, ends_at FROM gcal_busy").first<
+      { all_day: number; starts_at: string; ends_at: string }>();
+    expect(row?.all_day).toBe(1);
+
+    // Local midnight in HOME_TZ, whichever side of a DST boundary we land on.
+    const localHour = new Intl.DateTimeFormat("en-US",
+      { timeZone: "America/New_York", hour: "numeric", hour12: false }).format(new Date(row!.starts_at));
+    expect(Number(localHour) % 24).toBe(0);
+
+    const spanHours = (Date.parse(row!.ends_at) - Date.parse(row!.starts_at)) / 3_600_000;
+    expect(spanHours).toBeGreaterThanOrEqual(23);
+    expect(spanHours).toBeLessThanOrEqual(25);
+  });
+
+  it("removes rows for events deleted in Google", async () => {
+    mockEvents([gEvent()]);
+    await syncGoogleBusy(env);
+    expect(await countBusy()).toBe(1);
+
+    mockEvents([]);
+    await syncGoogleBusy(env);
+    expect(await countBusy()).toBe(0);
+  });
+
+  it("keeps the warm cache when Google errors", async () => {
+    mockEvents([gEvent()]);
+    await syncGoogleBusy(env);
+
+    fetchMock.get("https://www.googleapis.com")
+      .intercept({ path: /\/calendar\/v3\/calendars\/.*\/events/ }).reply(500, "boom");
+    expect(await syncGoogleBusy(env)).toBeNull();
+    expect(await countBusy()).toBe(1);
   });
 });
