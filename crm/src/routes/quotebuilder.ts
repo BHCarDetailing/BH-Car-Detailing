@@ -26,6 +26,7 @@ import { exitEnrollments } from "../lib/sequences";
 import { slotEndIso } from "../lib/booking";
 import { depositForTotal, loadPaymentSettings } from "../lib/stripe";
 import { loadTaxSettings, taxOn } from "../lib/tax";
+import { pushJobEvent } from "../lib/gcal";
 
 export const quoteBuilderRoutes = new Hono<{ Bindings: Env }>();
 quoteBuilderRoutes.use("*", requireAuth());
@@ -334,6 +335,7 @@ quoteBuilderRoutes.post("/complete", async (c) => {
       || result.error === "vehicle_type_required" || result.error === "contact_info_required" ? 400 : 500;
     return c.json(result, code);
   }
+  c.executionCtx.waitUntil(pushJobEvent(c.env, result.job_id));
   return c.json(result, 201);
 });
 

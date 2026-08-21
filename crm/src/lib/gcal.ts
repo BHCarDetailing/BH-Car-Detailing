@@ -207,6 +207,111 @@ export async function syncGoogleBusy(env: Env): Promise<{ synced: number; skippe
   return { synced: rows.length, skipped };
 }
 
+interface PushJob {
+  id: string; title: string; status: string;
+  scheduled_start: string | null; scheduled_end: string | null;
+  address: string | null; price_cents: number;
+  gcal_event_id: string | null;
+  first_name: string | null; last_name: string | null; phone: string | null;
+}
+
+const PUSHABLE = new Set(["scheduled", "in_progress", "completed", "paid"]);
+
+async function writeCalendar(env: Env): Promise<string | null> {
+  const row = await one<{ value: string }>(env.DB, "SELECT value FROM settings WHERE key = 'gcal_write_calendar'");
+  return row?.value || null;
+}
+
+async function loadPushJob(env: Env, jobId: string): Promise<PushJob | null> {
+  return one<PushJob>(env.DB,
+    `SELECT j.id, j.title, j.status, j.scheduled_start, j.scheduled_end, j.address,
+            j.price_cents, j.gcal_event_id, ct.first_name, ct.last_name, ct.phone
+     FROM jobs j LEFT JOIN contacts ct ON ct.id = j.contact_id WHERE j.id = ?`, jobId);
+}
+
+/**
+ * Create or update the Google event mirroring a job. Never throws: a Google
+ * failure is recorded on the job row and retried by cron, because a customer
+ * booking must never fail because Google is unreachable.
+ */
+export async function pushJobEvent(env: Env, jobId: string): Promise<void> {
+  try {
+    const job = await loadPushJob(env, jobId);
+    if (!job) return;
+    // Unscheduled or cancelled work has no place on the calendar.
+    if (!job.scheduled_start || !PUSHABLE.has(job.status)) {
+      if (job.gcal_event_id) await deleteJobEvent(env, jobId);
+      return;
+    }
+
+    const cal = await writeCalendar(env);
+    const token = await getAccessToken(env);
+    if (!cal || !token) return;
+
+    const name = [job.first_name, job.last_name].filter(Boolean).join(" ");
+    const endIso = job.scheduled_end
+      ?? new Date(Date.parse(job.scheduled_start) + 2 * 3600_000).toISOString();
+    const body = {
+      summary: name ? `${job.title} — ${name}` : job.title,
+      location: job.address ?? undefined,
+      description: [
+        `Status: ${job.status}`,
+        job.price_cents ? `Price: $${(job.price_cents / 100).toFixed(2)}` : "",
+        job.phone ? `Phone: ${job.phone}` : "",
+      ].filter(Boolean).join("\n"),
+      start: { dateTime: new Date(job.scheduled_start).toISOString() },
+      end: { dateTime: new Date(endIso).toISOString() },
+      // Invisible in the Google UI, survives edits, and is what the inbound
+      // sync keys on to avoid counting this job's time twice.
+      extendedProperties: { private: { bh_job_id: job.id } },
+    };
+
+    const base = `${API_BASE}/calendars/${encodeURIComponent(cal)}/events`;
+    const url = job.gcal_event_id ? `${base}/${encodeURIComponent(job.gcal_event_id)}` : base;
+    const res = await fetch(url, {
+      method: job.gcal_event_id ? "PATCH" : "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).catch(() => null);
+
+    if (!res || !res.ok) {
+      await run(env.DB, "UPDATE jobs SET gcal_error = ? WHERE id = ?",
+        `api_error ${res?.status ?? "network"}`, jobId);
+      return;
+    }
+
+    const created = (await res.json()) as { id?: string };
+    await run(env.DB,
+      "UPDATE jobs SET gcal_event_id = ?, gcal_synced_at = ?, gcal_error = NULL WHERE id = ?",
+      created.id ?? job.gcal_event_id, nowIso(), jobId);
+  } catch { /* fail open */ }
+}
+
+export async function deleteJobEvent(env: Env, jobId: string): Promise<void> {
+  try {
+    const job = await loadPushJob(env, jobId);
+    if (!job?.gcal_event_id) return;
+    const cal = await writeCalendar(env);
+    const token = await getAccessToken(env);
+    if (!cal || !token) return;
+
+    await fetch(`${API_BASE}/calendars/${encodeURIComponent(cal)}/events/${encodeURIComponent(job.gcal_event_id)}`, {
+      method: "DELETE", headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => null);
+
+    await run(env.DB,
+      "UPDATE jobs SET gcal_event_id = NULL, gcal_synced_at = ?, gcal_error = NULL WHERE id = ?", nowIso(), jobId);
+  } catch { /* fail open */ }
+}
+
+/** Re-push jobs whose last write failed. Returns how many were attempted. */
+export async function retryFailedPushes(env: Env): Promise<number> {
+  const rows = await all<{ id: string }>(env.DB,
+    "SELECT id FROM jobs WHERE gcal_error IS NOT NULL AND scheduled_start IS NOT NULL LIMIT 25");
+  for (const r of rows) await pushJobEvent(env, r.id);
+  return rows.length;
+}
+
 /** Sync only if the cache is older than `maxAgeMs`. Never throws. */
 export async function syncIfStale(env: Env, maxAgeMs = 5 * 60_000): Promise<void> {
   try {

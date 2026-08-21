@@ -13,7 +13,7 @@ import { fireTrigger } from "../lib/triggers";
 import { notifyOwner } from "../lib/email";
 import { analyzeLead } from "../lib/ai";
 import { availableSlots, businessHours, slotIsFree } from "../lib/booking";
-import { syncIfStale } from "../lib/gcal";
+import { syncIfStale, pushJobEvent } from "../lib/gcal";
 import { sendJobConfirmation } from "../lib/reminders";
 import { buildVoiceTwiml, handleMissedCall, loadMissedCallSettings } from "../lib/missedcall";
 import { createCheckoutSession, depositForTotal, loadPaymentSettings, stripeConfigured, verifyStripeWebhook } from "../lib/stripe";
@@ -463,6 +463,7 @@ publicRoutes.post("/book/quote", async (c) => {
   if (result.status === "scheduled") {
     c.executionCtx.waitUntil(sendJobConfirmation(c.env, result.job_id).then(() => undefined));
   }
+  c.executionCtx.waitUntil(pushJobEvent(c.env, result.job_id));
 
   // Tell Max a booking landed. Fired after the job is safely written, and
   // notifyOwner swallows its own failures, so an email problem can never cost
@@ -813,5 +814,6 @@ publicRoutes.post("/intent/:token/complete", async (c) => {
   }
 
   await run(c.env.DB, "UPDATE quote_intents SET completed_job_id = ?, completed_at = ? WHERE id = ?", result.job_id, nowIso(), intent.id);
+  c.executionCtx.waitUntil(pushJobEvent(c.env, result.job_id));
   return c.json(result, 201, h);
 });

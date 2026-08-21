@@ -3,6 +3,7 @@ import type { Env } from "../types";
 import { all, nowIso, one, run, uuid } from "../lib/db";
 import { logActivity } from "../lib/activity";
 import { requireAuth } from "../lib/auth";
+import { pushJobEvent, deleteJobEvent } from "../lib/gcal";
 
 export const JOB_STATUSES = ["draft", "quoted", "scheduled", "in_progress", "completed", "paid", "cancelled"] as const;
 type JobStatus = (typeof JOB_STATUSES)[number];
@@ -73,6 +74,8 @@ jobRoutes.post("/", async (c) => {
     now, now
   );
   await logActivity(c.env.DB, { contactId, type: "job_created", title: `Job: ${title}`, payload: { job_id: id, status }, actor: actorOf(c) });
+  // After the row is committed, never before: a Google failure must not cost a job.
+  c.executionCtx.waitUntil(pushJobEvent(c.env, id));
   return c.json({ id }, 201);
 });
 
@@ -137,10 +140,15 @@ jobRoutes.patch("/:id", async (c) => {
       c.executionCtx.waitUntil(sendReviewRequest(c.env, id).then(() => undefined));
     }
   }
+  // Covers reschedule, address/title edits, and cancellation alike: pushJobEvent
+  // deletes the Google event when the job leaves the pushable set.
+  c.executionCtx.waitUntil(pushJobEvent(c.env, id));
   return c.json({ ok: true });
 });
 
 jobRoutes.delete("/:id", async (c) => {
+  // Awaited before the delete — the helper reads the job row to find its event id.
+  await deleteJobEvent(c.env, c.req.param("id"));
   await run(c.env.DB, "DELETE FROM jobs WHERE id = ?", c.req.param("id"));
   return c.json({ ok: true });
 });

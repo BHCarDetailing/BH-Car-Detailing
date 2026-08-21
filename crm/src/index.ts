@@ -19,7 +19,7 @@ import { rebookRoutes } from "./routes/rebook";
 import { growthRoutes } from "./routes/growth";
 import { quoteBuilderRoutes } from "./routes/quotebuilder";
 import { googleRoutes } from "./routes/google";
-import { syncGoogleBusy } from "./lib/gcal";
+import { syncGoogleBusy, retryFailedPushes } from "./lib/gcal";
 import { runReminders } from "./lib/reminders";
 import { runSequences } from "./lib/sequences";
 import { runRebook } from "./lib/rebook";
@@ -60,7 +60,9 @@ export default {
     // handles time-sensitive appointment reminders and due sequence steps.
     const work = event.cron === "0 13 * * *"
       ? [runRebook(env, now), runTimeTriggers(env, now), runReviewFollowUps(env, now)]
-      : [runReminders(env, now), runSequences(env, now), syncGoogleBusy(env).then(() => undefined)];
+      : [runReminders(env, now), runSequences(env, now),
+         syncGoogleBusy(env).then(() => undefined),
+         retryFailedPushes(env).then(() => undefined)];
     ctx.waitUntil(Promise.all(work).then(() => undefined));
   },
 };
