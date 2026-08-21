@@ -1,6 +1,6 @@
 import { env, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { pushJobEvent, deleteJobEvent, retryFailedPushes } from "../src/lib/gcal";
+import { pushJobEvent, deleteJobEvent, retryFailedPushes, createBlock } from "../src/lib/gcal";
 
 beforeAll(() => { fetchMock.activate(); fetchMock.disableNetConnect(); });
 afterEach(() => fetchMock.assertNoPendingInterceptors());
@@ -108,5 +108,39 @@ describe("job push", () => {
     await pushJobEvent(env, "job_7");
     const row = await env.DB.prepare("SELECT gcal_event_id FROM jobs WHERE id='job_7'").first();
     expect(row?.gcal_event_id).toBeNull();
+  });
+});
+
+describe("manual blocks", () => {
+  beforeEach(connected);
+
+  it("tags a block bh_block, not bh_job_id, so the sync keeps it", async () => {
+    let sent: Record<string, unknown> = {};
+    fetchMock.get("https://www.googleapis.com")
+      .intercept({ path: /\/calendars\/.*\/events$/, method: "POST" })
+      .reply(200, (opts: { body?: unknown }) => {
+        sent = JSON.parse(String(opts.body));
+        return { id: "gev_block" };
+      });
+
+    const id = await createBlock(env, {
+      start: "2027-03-02T15:00:00.000Z", end: "2027-03-02T17:00:00.000Z", title: "Blocked",
+    });
+    expect(id).toBe("gev_block");
+
+    const priv = (sent.extendedProperties as { private: Record<string, string> }).private;
+    expect(priv.bh_block).toBe("1");
+    expect(priv.bh_job_id).toBeUndefined();
+    // Explicitly busy — a block that Google treats as Free would not block anything.
+    expect(sent.transparency).toBe("opaque");
+  });
+
+  it("returns null and records the error when Google refuses", async () => {
+    fetchMock.get("https://www.googleapis.com")
+      .intercept({ path: /\/calendars\/.*\/events$/, method: "POST" }).reply(500, "boom");
+
+    expect(await createBlock(env, { start: "2027-03-02T15:00:00.000Z", end: "2027-03-02T17:00:00.000Z", title: "x" })).toBeNull();
+    const row = await env.DB.prepare("SELECT value FROM settings WHERE key='gcal_last_error'").first();
+    expect(String(row?.value)).toMatch(/block_create_failed/);
   });
 });

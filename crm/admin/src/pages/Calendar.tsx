@@ -39,7 +39,35 @@ function JobChip({ job, onClick }: { job: Job; onClick: () => void }) {
   );
 }
 
+interface GEventRow {
+  id: string; summary: string | null; starts_at: string; ends_at: string;
+  all_day: number; is_block: number;
+}
+
+/** Does a Google event overlap this calendar day? Handles multi-day spans. */
+function gOnDay(g: GEventRow, d: Date): boolean {
+  const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return Date.parse(g.starts_at) < dayStart + 86_400_000 && Date.parse(g.ends_at) > dayStart;
+}
+
+/** Read-only mirror of a Google event. Dashed and drained of colour so it never
+ *  reads as a CRM job, which is the only thing on this page you can act on. */
+function GoogleChip({ ev, onRemove }: { ev: GEventRow; onRemove: () => void }) {
+  return (
+    <div className="w-full rounded-md border border-dashed border-steel-200 bg-steel-50 px-2 py-1.5 text-left text-xs text-chrome-400">
+      <div className="flex items-center justify-between gap-1">
+        <span className="font-semibold">{ev.all_day ? "All day" : timeLabel(ev.starts_at)}</span>
+        {ev.is_block === 1 && (
+          <button onClick={onRemove} className="text-[10px] font-semibold hover:text-red-600">remove</button>
+        )}
+      </div>
+      <div className="truncate">{ev.summary ?? "Busy"}</div>
+    </div>
+  );
+}
+
 const NEW_EVENT = { title: "", contactId: "", customer: "", when: "", address: "", price: "", depositPaid: false, deposit: "" };
+const NEW_BLOCK = { title: "", start: "", end: "" };
 
 export default function Calendar() {
   const [weekStart, setWeekStart] = useState(() => startOfWeek());
@@ -52,6 +80,11 @@ export default function Calendar() {
   const [ev, setEv] = useState(NEW_EVENT);
   const [evBusy, setEvBusy] = useState(false);
   const [evErr, setEvErr] = useState("");
+  const [gevents, setGevents] = useState<GEventRow[]>([]);
+  const [blockOpen, setBlockOpen] = useState(false);
+  const [blk, setBlk] = useState(NEW_BLOCK);
+  const [blkBusy, setBlkBusy] = useState(false);
+  const [blkErr, setBlkErr] = useState("");
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -59,7 +92,36 @@ export default function Calendar() {
     const from = ymd(weekStart);
     const to = ymd(addDays(weekStart, 6));
     api<{ items: Job[] }>(`/api/jobs?from=${from}&to=${to}`).then((r) => setJobs(r.items)).catch(() => {});
+    // Google is optional: if it is not connected this 404s or returns nothing and
+    // the page renders exactly as it did before.
+    api<{ items: GEventRow[] }>(`/api/settings/google/events?from=${from}T00:00:00.000Z&to=${to}T23:59:59.999Z`)
+      .then((r) => setGevents(r.items ?? [])).catch(() => setGevents([]));
   }, [weekStart]);
+
+  async function removeBlock(g: GEventRow) {
+    if (!confirm(`Remove "${g.summary ?? "Blocked"}" from your Google Calendar?`)) return;
+    await api(`/api/settings/google/blocks/${encodeURIComponent(g.id.split("@")[0])}`, { method: "DELETE" }).catch(() => {});
+    load();
+  }
+
+  async function saveBlock() {
+    if (!blk.start || !blk.end) { setBlkErr("Pick a start and an end."); return; }
+    if (new Date(blk.end) <= new Date(blk.start)) { setBlkErr("End has to be after the start."); return; }
+    setBlkBusy(true); setBlkErr("");
+    try {
+      await api("/api/settings/google/blocks", {
+        method: "POST",
+        body: JSON.stringify({
+          title: blk.title.trim() || "Blocked",
+          start: new Date(blk.start).toISOString(),
+          end: new Date(blk.end).toISOString(),
+        }),
+      });
+      setBlockOpen(false); setBlk(NEW_BLOCK); load();
+    } catch {
+      setBlkErr("Couldn't reach Google. Check the connection in Settings.");
+    } finally { setBlkBusy(false); }
+  }
   useEffect(load, [load]);
 
   function openNew(day?: Date) {
@@ -172,6 +234,10 @@ export default function Calendar() {
               <button onClick={() => setWeekStart(startOfWeek())} className="rounded-lg px-3 py-1.5 text-sm font-medium text-graphite-800 hover:bg-steel-100">Today</button>
               <button onClick={() => setWeekStart(addDays(weekStart, 7))} aria-label="Next week" className="grid h-9 w-9 place-items-center rounded-lg text-chrome-400 hover:bg-steel-100 hover:text-graphite-800">›</button>
             </div>
+            <button onClick={() => { setBlk(NEW_BLOCK); setBlkErr(""); setBlockOpen(true); }}
+              className="rounded-xl bg-white px-3 py-2 text-sm font-medium text-graphite-800 shadow-sm ring-1 ring-steel-200 hover:bg-steel-100">
+              Block time
+            </button>
             <Button onClick={() => openNew()}>+ New event</Button>
           </div>
         } />
@@ -180,14 +246,18 @@ export default function Calendar() {
       <div className="space-y-3 md:hidden">
         {days.map((d) => {
           const dayJobs = jobs.filter((j) => isOnDay(j.scheduled_start, d));
+          const dayG = gevents.filter((g) => gOnDay(g, d));
           const isToday = isOnDay(d.toISOString(), today);
           return (
             <div key={ymd(d)} className="rounded-xl bg-white p-3 shadow-sm ring-1 ring-steel-200">
               <div className={`mb-2 flex items-center gap-2 text-sm font-semibold ${isToday ? "text-red-600" : "text-graphite-800"}`}>
                 {dayLabel(d)}{isToday && <span className="rounded-full bg-red-600 px-1.5 text-[10px] font-medium text-white">Today</span>}
               </div>
-              {dayJobs.length === 0 ? <div className="text-xs text-chrome-300">No jobs</div> :
-                <div className="space-y-1.5">{dayJobs.map((j) => <JobChip key={j.id} job={j} onClick={() => openJob(j)} />)}</div>}
+              {dayJobs.length === 0 && dayG.length === 0 ? <div className="text-xs text-chrome-300">No jobs</div> :
+                <div className="space-y-1.5">
+                  {dayJobs.map((j) => <JobChip key={j.id} job={j} onClick={() => openJob(j)} />)}
+                  {dayG.map((g) => <GoogleChip key={g.id} ev={g} onRemove={() => removeBlock(g)} />)}
+                </div>}
               <button onClick={() => openNew(d)} className="mt-2 w-full rounded-md border border-dashed border-steel-200 py-1.5 text-xs text-chrome-400 hover:border-red-200 hover:text-red-500">+ Add event</button>
             </div>
           );
@@ -199,6 +269,7 @@ export default function Calendar() {
         <div className="grid grid-cols-7">
           {days.map((d) => {
             const dayJobs = jobs.filter((j) => isOnDay(j.scheduled_start, d));
+            const dayG = gevents.filter((g) => gOnDay(g, d));
             const isToday = isOnDay(d.toISOString(), today);
             return (
               <div key={ymd(d)} className="group min-h-[22rem] border-r border-steel-100 last:border-r-0">
@@ -208,6 +279,7 @@ export default function Calendar() {
                 </div>
                 <div className="space-y-1.5 p-1.5">
                   {dayJobs.map((j) => <JobChip key={j.id} job={j} onClick={() => openJob(j)} />)}
+                  {dayG.map((g) => <GoogleChip key={g.id} ev={g} onRemove={() => removeBlock(g)} />)}
                   <button onClick={() => openNew(d)} className="w-full rounded-md border border-dashed border-steel-200 py-1 text-[11px] text-chrome-400 opacity-0 transition hover:border-red-200 hover:text-red-500 focus:opacity-100 group-hover:opacity-100">+ Add</button>
                 </div>
               </div>
@@ -215,6 +287,28 @@ export default function Calendar() {
           })}
         </div>
       </div>
+
+      {/* Block time — writes a busy event straight to Google */}
+      <Modal open={blockOpen} onClose={() => setBlockOpen(false)} title="Block time"
+        footer={
+          <div className="flex items-center gap-2">
+            <Button onClick={saveBlock} disabled={blkBusy}>{blkBusy ? "Blocking…" : "Block it"}</Button>
+            {blkErr && <span className="text-sm text-red-600">{blkErr}</span>}
+          </div>
+        }>
+        <p className="mb-3 text-sm text-chrome-400">
+          Writes a Busy event to your Google Calendar, so customers can't book this time.
+        </p>
+        <Field label="What is it?" hint="Optional — shows on your calendar.">
+          <Input value={blk.title} placeholder="Blocked" onChange={(e) => setBlk({ ...blk, title: e.target.value })} />
+        </Field>
+        <Field label="From">
+          <Input type="datetime-local" value={blk.start} onChange={(e) => setBlk({ ...blk, start: e.target.value })} />
+        </Field>
+        <Field label="Until">
+          <Input type="datetime-local" value={blk.end} onChange={(e) => setBlk({ ...blk, end: e.target.value })} />
+        </Field>
+      </Modal>
 
       {/* Job drawer */}
       {selected && (

@@ -5,6 +5,7 @@ import { all, one, run, nowIso } from "../lib/db";
 import {
   AUTH_URL, TOKEN_URL, REVOKE_URL, GOOGLE_SCOPE,
   listCalendars, selectedCalendars, syncGoogleBusy, getAccessToken,
+  createBlock, deleteBlock,
 } from "../lib/gcal";
 
 export const googleRoutes = new Hono<{ Bindings: Env }>();
@@ -156,6 +157,28 @@ googleRoutes.put("/calendars", async (c) => {
 });
 
 googleRoutes.post("/sync", async (c) => c.json({ ok: true, result: await syncGoogleBusy(c.env) }));
+
+googleRoutes.post("/blocks", async (c) => {
+  const b = ((await c.req.json().catch(() => null)) ?? {}) as { start?: string; end?: string; title?: string };
+  if (!b.start || !b.end || !Number.isFinite(Date.parse(b.start)) || !Number.isFinite(Date.parse(b.end))) {
+    return c.json({ error: "start_and_end_required" }, 400);
+  }
+  if (Date.parse(b.end) <= Date.parse(b.start)) return c.json({ error: "end_must_follow_start" }, 400);
+
+  const id = await createBlock(c.env, {
+    start: new Date(b.start).toISOString(),
+    end: new Date(b.end).toISOString(),
+    title: typeof b.title === "string" && b.title.trim() ? b.title.trim().slice(0, 120) : "Blocked",
+  });
+  if (!id) return c.json({ error: "google_unavailable" }, 502);
+  await syncGoogleBusy(c.env);
+  return c.json({ ok: true, id });
+});
+
+googleRoutes.delete("/blocks/:id", async (c) => {
+  await deleteBlock(c.env, c.req.param("id"));
+  return c.json({ ok: true });
+});
 
 googleRoutes.post("/disconnect", async (c) => {
   const token = await getAccessToken(c.env);

@@ -304,6 +304,45 @@ export async function deleteJobEvent(env: Env, jobId: string): Promise<void> {
   } catch { /* fail open */ }
 }
 
+/**
+ * A busy event owned by the CRM but not tied to a job. Tagged bh_block so the
+ * inbound sync keeps it — unlike job events, there is no jobs row behind it,
+ * so gcal_busy is the only place its time is recorded.
+ */
+export async function createBlock(
+  env: Env, opts: { start: string; end: string; title: string }
+): Promise<string | null> {
+  const cal = await writeCalendar(env);
+  const token = await getAccessToken(env);
+  if (!cal || !token) return null;
+
+  const res = await fetch(`${API_BASE}/calendars/${encodeURIComponent(cal)}/events`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      summary: opts.title || "Blocked",
+      start: { dateTime: opts.start },
+      end: { dateTime: opts.end },
+      transparency: "opaque",
+      extendedProperties: { private: { bh_block: "1" } },
+    }),
+  }).catch(() => null);
+
+  if (!res || !res.ok) { await setGcalError(env, `block_create_failed ${res?.status ?? "network"}`); return null; }
+  const body = (await res.json()) as { id?: string };
+  return body.id ?? null;
+}
+
+export async function deleteBlock(env: Env, eventId: string): Promise<void> {
+  const cal = await writeCalendar(env);
+  const token = await getAccessToken(env);
+  if (!cal || !token) return;
+  await fetch(`${API_BASE}/calendars/${encodeURIComponent(cal)}/events/${encodeURIComponent(eventId)}`, {
+    method: "DELETE", headers: { Authorization: `Bearer ${token}` },
+  }).catch(() => null);
+  await run(env.DB, "DELETE FROM gcal_busy WHERE id LIKE ?", `${eventId}@%`);
+}
+
 /** Re-push jobs whose last write failed. Returns how many were attempted. */
 export async function retryFailedPushes(env: Env): Promise<number> {
   const rows = await all<{ id: string }>(env.DB,
