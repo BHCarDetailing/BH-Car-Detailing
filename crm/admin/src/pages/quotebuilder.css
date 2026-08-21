@@ -1,29 +1,28 @@
 /* ============================================================
    In-person quote builder — same identity as the public /book
-   page: black ground, Manrope, Playfair for the accent word,
-   one brand red.
+   page: Manrope, Playfair for the accent word, one brand red.
 
    Only the things Tailwind expresses badly live here (the type
    pairing and the ground). Colours stay as utilities in the
    component, which is how the rest of this app is written.
 
-   Held one-handed next to a car in Florida sun, so contrast is
-   pushed harder than on /book: body copy sits at #d6d4d8 rather
-   than the #c7c7c7 used on the website.
+   Held one-handed next to a car in Florida sun. That used to be the
+   argument for pushing contrast up on a black ground; as of
+   2026-08-21 it is the argument for not having a black ground at all.
    ============================================================ */
 
 .bh-qb {
-  --qb-ink: #0a0a0a;
-  --qb-panel: #121013;
-  --qb-panel-2: #191518;
-  --qb-hair: rgba(255, 255, 255, 0.1);
-  --qb-text: #d6d4d8;
-  --qb-muted: #8f8b93;
+  --qb-ink: #eef1f5;
+  --qb-panel: #ffffff;
+  --qb-panel-2: #f7f9fb;
+  --qb-hair: rgba(20, 23, 28, 0.11);
+  --qb-text: #14171c;
+  --qb-muted: #6b7482;
   --qb-accent: #c8102e;
-  --qb-bright: #ff4153;
+  --qb-bright: #a10c24;
 
   background: var(--qb-ink);
-  color: #fff;
+  color: var(--qb-text);
   font-family: "Manrope Variable", -apple-system, "Segoe UI", sans-serif;
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
@@ -43,11 +42,17 @@
 /* Prices and totals line up in columns; tabular figures stop them dancing. */
 .bh-qb .qb-num { font-variant-numeric: tabular-nums; }
 
-/* Native controls (date/time pickers, checkboxes) must be told this is a
-   dark surface or the browser paints them light-on-light. */
 .bh-qb input,
 .bh-qb textarea,
-.bh-qb select { color-scheme: dark; }
+.bh-qb select { color-scheme: light; }
+
+/* A selected card turns brand red, and everything inside it has to go white.
+   Setting it here rather than threading a conditional colour through every
+   child: one rule, and it cannot be forgotten on a new child. The descendant
+   selector outranks Tailwind's single-class colour utilities on its own, so
+   no !important is needed. */
+.bh-qb .qb-sel,
+.bh-qb .qb-sel * { color: #ffffff; }
 
 .bh-qb input::placeholder,
 .bh-qb textarea::placeholder { color: var(--qb-muted); }

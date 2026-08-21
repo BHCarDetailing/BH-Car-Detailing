@@ -23,10 +23,10 @@ import { logActivity } from "../lib/activity";
 import { cleanName, normalizeEmail, normalizePhone } from "../lib/normalize";
 import { bucketFor, priceFor, vehicleType } from "../lib/vehicles";
 import { exitEnrollments } from "../lib/sequences";
-import { slotEndIso } from "../lib/booking";
+import { slotEndIso, slotIsFree } from "../lib/booking";
+import { syncIfStale, pushJobEvent } from "../lib/gcal";
 import { depositForTotal, loadPaymentSettings } from "../lib/stripe";
 import { loadTaxSettings, taxOn } from "../lib/tax";
-import { pushJobEvent } from "../lib/gcal";
 
 export const quoteBuilderRoutes = new Hono<{ Bindings: Env }>();
 quoteBuilderRoutes.use("*", requireAuth());
@@ -309,6 +309,16 @@ quoteBuilderRoutes.get("/config", async (c) => {
 
 quoteBuilderRoutes.post("/complete", async (c) => {
   const b = ((await c.req.json().catch(() => null)) ?? {}) as CompleteBody;
+
+  // The wizard now offers real openings, so the chosen one is re-checked here —
+  // a quote written at the car can sit open while /book or the Google calendar
+  // takes the slot. Same guard as the customer intake link.
+  const wantedSlot = typeof b.scheduled_start === "string" ? b.scheduled_start : null;
+  if (wantedSlot) {
+    await syncIfStale(c.env);
+    if (!(await slotIsFree(c.env, wantedSlot))) return c.json({ ok: false, error: "slot_taken" }, 409);
+  }
+
   const result = await completeQuote(c.env, {
     vehicleType: typeof b.vehicle_type === "string" ? b.vehicle_type : "",
     vehicleNotes: typeof b.vehicle_notes === "string" ? b.vehicle_notes : null,
