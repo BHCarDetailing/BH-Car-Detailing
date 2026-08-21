@@ -1,5 +1,17 @@
-import { env } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { env, fetchMock } from "cloudflare:test";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { getAccessToken, listCalendars } from "../src/lib/gcal";
+
+beforeAll(() => { fetchMock.activate(); fetchMock.disableNetConnect(); });
+afterEach(() => fetchMock.assertNoPendingInterceptors());
+
+async function connect(expiresAt: number, accessToken: string | null = "cached-at") {
+  await env.DB.prepare("DELETE FROM oauth_tokens").run();
+  await env.DB.prepare(
+    `INSERT INTO oauth_tokens (provider, refresh_token, access_token, expires_at, account_email, created_at, updated_at)
+     VALUES ('google', 'rt-123', ?, ?, 'a@b.com', '2027-01-01T00:00:00.000Z', '2027-01-01T00:00:00.000Z')`
+  ).bind(accessToken, expiresAt).run();
+}
 
 describe("google calendar schema", () => {
   it("creates gcal_busy with a time-window index", async () => {
@@ -33,5 +45,46 @@ describe("google calendar schema", () => {
 
   it("exposes PUBLIC_BASE_URL so the OAuth redirect can be derived", () => {
     expect(env.PUBLIC_BASE_URL).toMatch(/^https?:\/\//);
+  });
+});
+
+describe("google access tokens", () => {
+  it("returns null when no account is connected", async () => {
+    await env.DB.prepare("DELETE FROM oauth_tokens").run();
+    expect(await getAccessToken(env)).toBeNull();
+  });
+
+  it("reuses a cached token that has more than 60s left", async () => {
+    await connect(Date.now() + 300_000);
+    expect(await getAccessToken(env)).toBe("cached-at");
+  });
+
+  it("refreshes an expired token and stores the new one", async () => {
+    await connect(Date.now() - 1000);
+    fetchMock.get("https://oauth2.googleapis.com").intercept({ path: "/token", method: "POST" })
+      .reply(200, { access_token: "fresh-at", expires_in: 3600 });
+
+    expect(await getAccessToken(env)).toBe("fresh-at");
+    const row = await env.DB.prepare("SELECT access_token FROM oauth_tokens WHERE provider='google'").first();
+    expect(row?.access_token).toBe("fresh-at");
+  });
+
+  it("fails open and records the error when the refresh is rejected", async () => {
+    await connect(Date.now() - 1000);
+    fetchMock.get("https://oauth2.googleapis.com").intercept({ path: "/token", method: "POST" })
+      .reply(400, { error: "invalid_grant" });
+
+    expect(await getAccessToken(env)).toBeNull();
+    const row = await env.DB.prepare("SELECT value FROM settings WHERE key='gcal_last_error'").first();
+    expect(String(row?.value)).toMatch(/invalid_grant/);
+  });
+
+  it("lists calendars", async () => {
+    await connect(Date.now() + 300_000);
+    fetchMock.get("https://www.googleapis.com").intercept({ path: /\/calendar\/v3\/users\/me\/calendarList/ })
+      .reply(200, { items: [{ id: "a@b.com", summary: "a@b.com", primary: true }, { id: "hol", summary: "Holidays" }] });
+
+    const cals = await listCalendars(env);
+    expect(cals.map((c) => c.id)).toEqual(["a@b.com", "hol"]);
   });
 });
