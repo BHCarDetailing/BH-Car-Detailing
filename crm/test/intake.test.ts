@@ -225,3 +225,50 @@ describe("expenses and equipment collections", () => {
     expect(Number(row?.purchased)).toBe(1);
   });
 });
+
+describe("intake respects real availability", () => {
+  it("rejects a slot that is already blocked by a Google event", async () => {
+    const { availableSlots } = await import("../src/lib/booking");
+    const DATE = "2027-04-05"; // a Monday
+    await env.DB.prepare("DELETE FROM gcal_busy").run();
+
+    const target = (await availableSlots(env, DATE))[0];
+    expect(target).toBeTruthy();
+
+    await env.DB.prepare(
+      `INSERT INTO gcal_busy (id, calendar_id, summary, starts_at, ends_at, all_day, is_block, synced_at)
+       VALUES ('intake-probe@cal','cal','Dentist',?,?,0,0,?)`
+    ).bind(target, new Date(Date.parse(target) + 3600_000).toISOString(), new Date().toISOString()).run();
+
+    const { token } = await createIntent();
+    const res = await SELF.fetch(`http://x/api/intent/${token}/complete`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        first_name: "Slot", last_name: "Clash", phone: "3055554321",
+        scheduled_start: target, sms_opt_in: true, ts: Date.now() - 3000,
+      }),
+    });
+
+    expect(res.status).toBe(409);
+    expect((await res.json() as { error: string }).error).toBe("slot_taken");
+    await env.DB.prepare("DELETE FROM gcal_busy WHERE id = 'intake-probe@cal'").run();
+  });
+
+  it("accepts the same slot once the blocking event is gone", async () => {
+    const { availableSlots } = await import("../src/lib/booking");
+    await env.DB.prepare("DELETE FROM gcal_busy").run();
+    const target = (await availableSlots(env, "2027-04-12"))[0];
+
+    const { token } = await createIntent();
+    const res = await SELF.fetch(`http://x/api/intent/${token}/complete`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        first_name: "Clear", last_name: "Booking", phone: "3055556789",
+        scheduled_start: target, sms_opt_in: true, ts: Date.now() - 3000,
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    expect((await res.json() as { status: string }).status).toBe("scheduled");
+  });
+});

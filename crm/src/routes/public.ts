@@ -784,6 +784,15 @@ publicRoutes.post("/intent/:token/complete", async (c) => {
   if ((rl?.n ?? 0) >= 10) return c.json({ ok: false, error: "rate_limited" }, 429, h);
   await run(c.env.DB, "INSERT INTO rl_events (bucket, ts) VALUES (?, ?)", "intent:" + ip, Date.now());
 
+  // The intake page now offers real open slots, so it has to re-check the one
+  // chosen — a customer can sit on this form for ten minutes while the slot is
+  // taken by /book, the CRM, or an event landing on the Google calendar.
+  const wantedSlot = typeof body.scheduled_start === "string" ? body.scheduled_start : null;
+  if (wantedSlot) {
+    await syncIfStale(c.env);
+    if (!(await slotIsFree(c.env, wantedSlot))) return c.json({ ok: false, error: "slot_taken" }, 409, h);
+  }
+
   let lines: Array<{ service_id: string; qty: number }> = [];
   try { lines = JSON.parse(intent.lines || "[]"); } catch { lines = []; }
 
