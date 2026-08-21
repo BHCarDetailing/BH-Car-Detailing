@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { money } from "../types";
+import { BrandLogo } from "../components/ui";
 
 /**
  * The customer-facing side of a QR/link handoff.
@@ -160,13 +161,20 @@ export default function Intake() {
     } finally { setSubmitting(false); }
   }
 
+  // safe-screen carries the device insets; the visual padding lives on the
+  // inner element. Putting both on one node lets the Tailwind utility win and
+  // silently discards the notch inset.
   if (state === "loading") {
-    return <div className="bh-bg safe-screen min-h-screen p-8 text-center text-chrome-400">Loading…</div>;
+    return (
+      <div className="bh-bg safe-screen min-h-screen">
+        <div className="relative z-10 p-8 text-center text-chrome-400">Loading…</div>
+      </div>
+    );
   }
 
   if (state === "notfound" || !data) return (
-    <div className="bh-bg safe-screen min-h-screen py-16">
-      <div className="relative z-10 mx-auto max-w-md px-4 text-center">
+    <div className="bh-bg safe-screen min-h-screen">
+      <div className="relative z-10 mx-auto max-w-md px-4 py-16 text-center">
         <h1 className="font-display text-2xl text-white">Link not found</h1>
         <p className="mt-2 text-chrome-400">This link is invalid or has expired. Ask us for a new one.</p>
       </div>
@@ -178,8 +186,8 @@ export default function Intake() {
     // recorded when the page is reloaded after the fact (e.g. a bookmark).
     const status = result?.status ?? data.completed_status ?? "quoted";
     return (
-      <div className="bh-bg safe-screen min-h-screen py-16">
-        <div className="relative z-10 mx-auto max-w-md px-4 text-center">
+      <div className="bh-bg safe-screen min-h-screen">
+        <div className="relative z-10 mx-auto max-w-md px-4 py-16 text-center">
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-red-600/40 bg-red-600/10 text-3xl text-red-500">✓</div>
           <h1 className="font-display text-3xl text-white">
             {status === "scheduled" ? "You're booked in" : "Quote request sent"}
@@ -203,16 +211,16 @@ export default function Intake() {
   const ctaLabel = data.requires_planning || !form.scheduled_at ? "Send my details" : "Confirm booking";
 
   return (
-    <div className="bh-bg safe-screen min-h-screen py-8">
-      <div className="relative z-10 mx-auto max-w-md space-y-4 px-4">
+    <div className="bh-bg safe-screen min-h-screen">
+      <div className="relative z-10 mx-auto max-w-md space-y-4 px-4 pb-12 pt-6">
 
-        <header className="flex items-center gap-3 pb-1">
-          <img src="/brand/logo.png" alt={data.business} className="h-12 w-auto" />
-          <div>
-            <div className="font-display text-lg leading-tight text-white">{data.business}</div>
-            <div className="eyebrow text-[10px] text-chrome-400">
-              {data.vehicle_label}{data.vehicle_note ? ` · ${data.vehicle_note}` : ""}
-            </div>
+        {/* The logo is a black-ink lockup — it needs the white chip to survive a
+            graphite background, same as the login screen. It already says the
+            business name, so the text beside it names the car instead. */}
+        <header className="flex items-center gap-3">
+          <BrandLogo h="h-10" chip />
+          <div className="min-w-0 truncate font-display text-base leading-tight text-white">
+            {data.vehicle_label}{data.vehicle_note ? ` · ${data.vehicle_note}` : ""}
           </div>
         </header>
 
