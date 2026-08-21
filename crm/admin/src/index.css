@@ -29,6 +29,9 @@
   --color-steel-200: #dde3ea;
   --color-chrome-300: #c2c9d2;
   --color-chrome-400: #9aa3af;
+  /* Secondary text on a light ground. chrome-400 is ~2.5:1 on white — fine as a
+     hairline or an icon, not as words someone has to read. */
+  --color-chrome-500: #6b7482;
 
   /* Type */
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -88,6 +91,19 @@ body {
   position: relative;
   background: radial-gradient(120% 120% at 50% -10%, #1a1e26 0%, #0d1013 58%, #06070a 100%);
   overflow: hidden;
+}
+
+/* Daylight counterpart to .bh-bg, for the customer-facing surfaces. A flat fill
+   gives frosted panels nothing to sit on, so the ground carries two faint brand
+   washes and a cool steel gradient — enough variation for the blur to read,
+   quiet enough that the price stays the loudest thing on screen. */
+.bh-light {
+  position: relative;
+  background:
+    radial-gradient(58% 40% at 10% 0%, rgba(200, 16, 46, 0.07), transparent 70%),
+    radial-gradient(52% 44% at 92% 100%, rgba(200, 16, 46, 0.05), transparent 70%),
+    linear-gradient(to bottom, #edf1f5 0%, #ffffff 38%, #edf1f5 100%);
+  background-attachment: fixed;
 }
 .bh-bg::before,
 .bh-bg::after {

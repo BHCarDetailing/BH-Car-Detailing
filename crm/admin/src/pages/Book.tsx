@@ -117,6 +117,22 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/** Local YYYY-MM-DD `n` days out. Availability is read in the shop's timezone. */
+function dayStr(n: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+const RAIL_DAYS = 14;
+
+async function openingsOn(dayKey: string): Promise<string[]> {
+  const r = await fetch(`/api/book/availability?date=${dayKey}`)
+    .then((res) => res.json() as Promise<{ slots?: string[] }>)
+    .catch(() => ({ slots: [] as string[] }));
+  return r.slots ?? [];
+}
+
 export default function Book() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -138,6 +154,7 @@ export default function Book() {
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slot, setSlot] = useState("");
+  const [railReady, setRailReady] = useState(false);
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -298,16 +315,32 @@ export default function Book() {
     return () => { cancelAnimationFrame(raf); clearTimeout(settle); };
   }, [opened]);
 
-  // ---- live slots
+  // ---- live slots.
+  // Opening on a day with nothing free reads as "they're never available", and
+  // after 6pm that is every first visit. So the first time this step opens we
+  // walk forward to the first day that actually has something.
   useEffect(() => {
-    if (step !== "when" || needsPlanning) return;
-    setSlot(""); setSlots([]); setSlotsLoading(true);
-    fetch(`/api/book/availability?date=${date}`)
-      .then((r) => r.json())
-      .then((r: { slots: string[] }) => setSlots(r.slots ?? []))
-      .catch(() => setSlots([]))
-      .finally(() => setSlotsLoading(false));
-  }, [step, date, needsPlanning]);
+    if (step !== "when" || needsPlanning || railReady) return;
+    let cancelled = false;
+    (async () => {
+      setSlotsLoading(true);
+      for (let i = 0; i < 10; i++) {
+        const key = dayStr(i);
+        const found = await openingsOn(key);
+        if (cancelled) return;
+        if (found.length) { setDate(key); setSlots(found); break; }
+      }
+      if (!cancelled) { setSlotsLoading(false); setRailReady(true); }
+    })();
+    return () => { cancelled = true; };
+  }, [step, needsPlanning, railReady]);
+
+  async function pickDay(key: string) {
+    setDate(key); setSlot(""); setSlots([]); setSlotsLoading(true);
+    const found = await openingsOn(key);
+    setSlots(found);
+    setSlotsLoading(false);
+  }
 
   // ---- a drop-off is still a lead worth calling. Saved once there is a name
   // and a phone; sets no consent, so it is callable, never textable.
@@ -681,13 +714,22 @@ export default function Book() {
               <>
                 <h1 className="ask">When suits <em>you?</em></h1>
                 <p className="hint">Two-hour arrival windows. We come to you.</p>
-                <div className="opts">
-                  <input className="date-in" type="date" min={todayStr()} value={date}
-                    onChange={(e) => setDate(e.target.value)} aria-label="Date" />
+                <div className="dayrail" role="group" aria-label="Choose a day">
+                  {Array.from({ length: RAIL_DAYS }, (_, i) => dayStr(i)).map((key) => {
+                    const d = new Date(`${key}T12:00:00`);
+                    const on = key === date;
+                    return (
+                      <button key={key} type="button" className="day" aria-pressed={on}
+                        onClick={() => pickDay(key)}>
+                        <span className="dow">{d.toLocaleDateString([], { weekday: "short" })}</span>
+                        <span className="num">{d.getDate()}</span>
+                      </button>
+                    );
+                  })}
                 </div>
                 <div className="slots">
-                  {slotsLoading && <p className="hint">Loading times…</p>}
-                  {!slotsLoading && slots.length === 0 && <p className="hint">Nothing open that day. Try another date.</p>}
+                  {slotsLoading && <p className="hint">Finding open times…</p>}
+                  {!slotsLoading && slots.length === 0 && <p className="hint">Nothing open that day. Try another above.</p>}
                   {slots.map((s) => (
                     <button key={s} type="button" aria-pressed={slot === s} onClick={() => setSlot(s)}>
                       {new Date(s).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}

@@ -33,10 +33,12 @@ interface IntentData {
 }
 
 const FIELD =
-  "min-h-[48px] w-full rounded-lg border border-white/10 bg-graphite-850 px-3 text-base text-steel-50 " +
-  "placeholder-chrome-400 outline-none transition focus:border-red-600 focus:ring-2 focus:ring-red-600/30";
+  "min-h-[48px] w-full rounded-lg border border-steel-200 bg-white px-3 text-base text-graphite-900 " +
+  "placeholder-chrome-400 outline-none transition focus:border-red-600 focus:ring-2 focus:ring-red-600/20";
 
-const PANEL = "rounded-2xl border border-white/10 bg-graphite-900/80 p-6 shadow-2xl backdrop-blur-xl bh-gloss";
+// bg-white/85 + backdrop-blur over .bh-light is what makes these read as glass.
+// (bh-gloss is gone: it paints a white inset highlight, invisible on white.)
+const PANEL = "rounded-2xl border border-steel-200 bg-white/85 p-6 shadow-lg backdrop-blur-xl";
 
 /** Local YYYY-MM-DD. The availability API reads dates in the shop's timezone. */
 const ymdLocal = (d: Date): string =>
@@ -54,7 +56,7 @@ const timeLabel = (iso: string): string =>
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
     <div className="mb-4">
-      <div className="eyebrow text-[10px] text-chrome-400">{children}</div>
+      <div className="eyebrow text-[10px] text-chrome-500">{children}</div>
       <div className="mt-2 h-px w-10 bg-red-600" />
     </div>
   );
@@ -166,17 +168,17 @@ export default function Intake() {
   // silently discards the notch inset.
   if (state === "loading") {
     return (
-      <div className="bh-bg safe-screen min-h-screen">
-        <div className="relative z-10 p-8 text-center text-chrome-400">Loading…</div>
+      <div className="bh-light safe-screen min-h-screen">
+        <div className="relative z-10 p-8 text-center text-chrome-500">Loading…</div>
       </div>
     );
   }
 
   if (state === "notfound" || !data) return (
-    <div className="bh-bg safe-screen min-h-screen">
+    <div className="bh-light safe-screen min-h-screen">
       <div className="relative z-10 mx-auto max-w-md px-4 py-16 text-center">
-        <h1 className="font-display text-2xl text-white">Link not found</h1>
-        <p className="mt-2 text-chrome-400">This link is invalid or has expired. Ask us for a new one.</p>
+        <h1 className="font-display text-2xl text-graphite-900">Link not found</h1>
+        <p className="mt-2 text-chrome-500">This link is invalid or has expired. Ask us for a new one.</p>
       </div>
     </div>
   );
@@ -186,22 +188,22 @@ export default function Intake() {
     // recorded when the page is reloaded after the fact (e.g. a bookmark).
     const status = result?.status ?? data.completed_status ?? "quoted";
     return (
-      <div className="bh-bg safe-screen min-h-screen">
+      <div className="bh-light safe-screen min-h-screen">
         <div className="relative z-10 mx-auto max-w-md px-4 py-16 text-center">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-red-600/40 bg-red-600/10 text-3xl text-red-500">✓</div>
-          <h1 className="font-display text-3xl text-white">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-red-600/30 bg-red-50 text-3xl text-red-600">✓</div>
+          <h1 className="font-display text-3xl text-graphite-900">
             {status === "scheduled" ? "You're booked in" : "Quote request sent"}
           </h1>
-          <p className="mt-3 text-chrome-400">
+          <p className="mt-3 text-chrome-500">
             {status === "scheduled"
               ? "We'll see you then. A confirmation text is on its way."
               : "This one needs a quick look before we lock in a price — we'll text or call you to confirm."}
           </p>
           {!!result?.total_cents && (
-            <p className="mt-6 font-display text-4xl text-white">{money(result.total_cents)}</p>
+            <p className="mt-6 font-display text-4xl text-graphite-900">{money(result.total_cents)}</p>
           )}
           {data.completed && !result && (
-            <p className="mt-4 text-sm text-chrome-400">This link has already been used.</p>
+            <p className="mt-4 text-sm text-chrome-500">This link has already been used.</p>
           )}
         </div>
       </div>
@@ -211,7 +213,7 @@ export default function Intake() {
   const ctaLabel = data.requires_planning || !form.scheduled_at ? "Send my details" : "Confirm booking";
 
   return (
-    <div className="bh-bg safe-screen min-h-screen">
+    <div className="bh-light safe-screen min-h-screen">
       <div className="relative z-10 mx-auto max-w-md space-y-4 px-4 pb-12 pt-6">
 
         {/* The logo is a black-ink lockup — it needs the white chip to survive a
@@ -219,7 +221,7 @@ export default function Intake() {
             business name, so the text beside it names the car instead. */}
         <header className="flex items-center gap-3">
           <BrandLogo h="h-10" chip />
-          <div className="min-w-0 truncate font-display text-base leading-tight text-white">
+          <div className="min-w-0 truncate font-display text-base leading-tight text-graphite-900">
             {data.vehicle_label}{data.vehicle_note ? ` · ${data.vehicle_note}` : ""}
           </div>
         </header>
@@ -227,31 +229,31 @@ export default function Intake() {
         {/* ---- The quote: the reason they opened this link, so it leads. ---- */}
         <section className={PANEL}>
           <Eyebrow>Your quote</Eyebrow>
-          <ul className="divide-y divide-white/5">
+          <ul className="divide-y divide-steel-100">
             {data.items.map((it, i) => (
               <li key={i} className="flex items-center justify-between gap-3 py-2.5">
-                <span className="text-sm text-steel-200">{it.name}{it.qty > 1 ? ` ×${it.qty}` : ""}</span>
-                <span className="font-display text-sm text-white">
+                <span className="text-sm text-graphite-800">{it.name}{it.qty > 1 ? ` ×${it.qty}` : ""}</span>
+                <span className="font-display text-sm text-graphite-900">
                   {it.price_cents > 0 ? money(it.price_cents * it.qty) : "Quote"}
                 </span>
               </li>
             ))}
           </ul>
           {data.tax_cents > 0 && (
-            <div className="flex items-center justify-between border-t border-white/5 pt-3 text-sm">
-              <span className="text-chrome-400">{data.tax_label}</span>
-              <span className="text-steel-200">{money(data.tax_cents)}</span>
+            <div className="flex items-center justify-between border-t border-steel-100 pt-3 text-sm">
+              <span className="text-chrome-500">{data.tax_label}</span>
+              <span className="text-graphite-800">{money(data.tax_cents)}</span>
             </div>
           )}
-          <div className="mt-4 flex items-end justify-between border-t border-white/10 pt-4">
-            <span className="eyebrow text-[10px] text-chrome-400">Total</span>
-            <span className="font-display text-4xl leading-none text-white">
+          <div className="mt-4 flex items-end justify-between border-t border-steel-200 pt-4">
+            <span className="eyebrow text-[10px] text-chrome-500">Total</span>
+            <span className="font-display text-4xl leading-none text-graphite-900">
               {data.total_cents > 0 ? money(data.total_cents) : "TBC"}
             </span>
           </div>
 
           {data.requires_planning && (
-            <p className="mt-4 rounded-lg border border-red-600/30 bg-red-600/10 px-3 py-2.5 text-sm text-red-100">
+            <p className="mt-4 rounded-lg border border-red-600/30 bg-red-50 px-3 py-2.5 text-sm text-red-700">
               <strong className="font-semibold">This one needs planning.</strong> Leave your details and we'll call to confirm the price and pick a date.
             </p>
           )}
@@ -261,7 +263,7 @@ export default function Intake() {
         {!data.requires_planning && (
           <section className={PANEL}>
             <Eyebrow>Pick your time</Eyebrow>
-            <p className="-mt-2 mb-4 text-sm text-chrome-400">
+            <p className="-mt-2 mb-4 text-sm text-chrome-500">
               Two-hour arrival window. We come to you.
             </p>
 
@@ -276,13 +278,13 @@ export default function Intake() {
                     onClick={() => pickDay(key)}
                     aria-pressed={on}
                     className={`shrink-0 rounded-lg border px-3 py-2 text-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/50 ${
-                      on ? "border-red-600 bg-red-600/15" : "border-white/10 bg-graphite-850 hover:border-white/20"
+                      on ? "border-red-600 bg-red-50" : "border-steel-200 bg-white hover:border-chrome-300"
                     }`}
                   >
-                    <div className={`text-[10px] uppercase tracking-wide ${on ? "text-red-400" : "text-chrome-400"}`}>
+                    <div className={`text-[10px] uppercase tracking-wide ${on ? "text-red-600" : "text-chrome-500"}`}>
                       {d.toLocaleDateString([], { weekday: "short" })}
                     </div>
-                    <div className={`font-display text-lg leading-none ${on ? "text-white" : "text-steel-200"}`}>
+                    <div className={`font-display text-lg leading-none ${on ? "text-graphite-900" : "text-graphite-800"}`}>
                       {d.getDate()}
                     </div>
                   </button>
@@ -291,9 +293,9 @@ export default function Intake() {
             </div>
 
             <div className="mt-4 space-y-2">
-              {slotsLoading && <p className="text-sm text-chrome-400">Finding open times…</p>}
+              {slotsLoading && <p className="text-sm text-chrome-500">Finding open times…</p>}
               {!slotsLoading && slots.length === 0 && (
-                <p className="text-sm text-chrome-400">Nothing open that day. Try another above.</p>
+                <p className="text-sm text-chrome-500">Nothing open that day. Try another above.</p>
               )}
               {!slotsLoading && slots.map((s) => {
                 const on = form.scheduled_at === s;
@@ -305,12 +307,12 @@ export default function Intake() {
                     aria-pressed={on}
                     className={`flex w-full items-center justify-between rounded-lg border border-l-[3px] px-3 py-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/50 ${
                       on
-                        ? "border-white/10 border-l-red-600 bg-red-600/15"
-                        : "border-white/10 border-l-white/10 bg-graphite-850 hover:border-l-red-600/50"
+                        ? "border-steel-200 border-l-red-600 bg-red-50"
+                        : "border-steel-200 border-l-steel-200 bg-white hover:border-l-red-600/50"
                     }`}
                   >
-                    <span className={`font-display text-base ${on ? "text-white" : "text-steel-200"}`}>{timeLabel(s)}</span>
-                    <span className="text-xs text-chrome-400">{on ? "Selected" : "Open"}</span>
+                    <span className={`font-display text-base ${on ? "text-graphite-900" : "text-graphite-800"}`}>{timeLabel(s)}</span>
+                    <span className="text-xs text-chrome-500">{on ? "Selected" : "Open"}</span>
                   </button>
                 );
               })}
@@ -342,28 +344,28 @@ export default function Intake() {
 
           {/* One checkbox, one line, wording identical everywhere a phone number
               is collected -- the site forms, /book, this page and the quote builder. */}
-          <div className="mt-4 rounded-xl border border-white/5 bg-graphite-850/60 p-4">
-            <label className="flex items-start gap-3 text-sm text-steel-200">
+          <div className="mt-4 rounded-xl border border-steel-100 bg-steel-50 p-4">
+            <label className="flex items-start gap-3 text-sm text-graphite-800">
               <input type="checkbox" checked={smsOptIn} onChange={(e) => setSmsOptIn(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-red-600" />
               <span>
                 Yes, text me about my quote and appointment updates from BH Car Detailing. Msg &amp; data
                 rates may apply. Msg frequency varies. Reply STOP to opt out anytime.{" "}
-                <a href="https://bhcardetails.com/terms.html" target="_blank" rel="noreferrer" className="underline hover:text-white">Terms</a>
+                <a href="https://bhcardetails.com/terms.html" target="_blank" rel="noreferrer" className="underline hover:text-red-600">Terms</a>
                 {" · "}
-                <a href="https://bhcardetails.com/privacy-policy.html" target="_blank" rel="noreferrer" className="underline hover:text-white">Privacy</a>
+                <a href="https://bhcardetails.com/privacy-policy.html" target="_blank" rel="noreferrer" className="underline hover:text-red-600">Privacy</a>
               </span>
             </label>
           </div>
 
-          {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+          {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
           <button onClick={submit} disabled={submitting}
-            className="mt-4 min-h-[52px] w-full rounded-xl bg-red-600 font-display text-base tracking-wide text-white transition hover:bg-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/50 disabled:opacity-50">
+            className="mt-4 min-h-[52px] w-full rounded-xl bg-red-600 font-display text-base tracking-wide text-graphite-900 transition hover:bg-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/50 disabled:opacity-50">
             {submitting ? "Sending…" : ctaLabel}
           </button>
         </section>
 
-        <p className="pt-2 text-center text-xs text-chrome-400">Questions? Just reply to the text we sent you.</p>
+        <p className="pt-2 text-center text-xs text-chrome-500">Questions? Just reply to the text we sent you.</p>
       </div>
     </div>
   );

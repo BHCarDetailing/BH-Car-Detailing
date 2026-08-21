@@ -2,24 +2,35 @@
    Public booking page.
 
    Everything is scoped under .bh-book on purpose: this page wears
-   the marketing site's identity (black ground, Manrope, Playfair,
-   the logo red) rather than the admin app's light steel shell, and
-   none of it should leak into the CRM.
+   the marketing site's typography (Manrope, Playfair, the logo red)
+   rather than the admin app's shell, and none of it should leak into
+   the CRM.
+
+   The ground is light. It was near-black until 2026-08-21; the page
+   is opened on a phone in a driveway in Miami, and a dark ground lost
+   that argument to direct sunlight. Every colour here is a token —
+   flipping the block at the top flips the page.
 
    Spine: the price is a destination, not a listing. Nothing costs
    anything until the customer opens it.
    ============================================================ */
 
 .bh-book {
-  --ink: #0a0a0a;
-  --panel: #121013;      /* near-black pulled toward the red, not a neutral grey */
-  --panel-2: #191518;
-  --hair: rgba(255, 255, 255, 0.1);
-  --hair-2: rgba(255, 255, 255, 0.05);
-  --silver: #c7c7c7;
-  --muted: #87838a;
+  --ink: #eef1f5;        /* cool steel ground — a picked neutral, not paper white */
+  --panel: #ffffff;      /* raised surface */
+  --panel-2: #f7f9fb;    /* recessed surface */
+  --hair: rgba(20, 23, 28, 0.11);
+  --hair-2: rgba(20, 23, 28, 0.06);
+  --edge: rgba(20, 23, 28, 0.26);   /* hover border */
+  --chip: rgba(20, 23, 28, 0.06);   /* subtle fill */
+  --text: #14171c;       /* primary text */
+  --on-accent: #ffffff;  /* text sitting ON the red — never themed */
+  --silver: #4a515c;     /* secondary text */
+  --muted: #6b7482;      /* tertiary text */
   --accent: #c8102e;     /* the site's logo red */
-  --bright: #ff4153;
+  /* On a dark ground the second red was lighter. On a light one it has to go
+     the other way or it disappears — same role, inverted direction. */
+  --bright: #a10c24;
   --round: 18px;
   --bsans: "Manrope Variable", -apple-system, "Segoe UI", sans-serif;
   --bserif: "Playfair Display Variable", Georgia, serif;
@@ -27,7 +38,7 @@
   position: relative;
   min-height: 100dvh;
   background: var(--ink);
-  color: #fff;
+  color: var(--text);
   font-family: var(--bsans);
   padding-bottom: 120px;
   -webkit-font-smoothing: antialiased;
@@ -48,7 +59,7 @@
   border-radius: 999px; padding: 7px 12px; cursor: pointer;
   transition: border-color 0.18s, color 0.18s;
 }
-.bh-book .crumb:hover { border-color: var(--accent); color: #fff; }
+.bh-book .crumb:hover { border-color: var(--accent); color: var(--text); }
 
 /* ---------- steps ---------- */
 .bh-book .step { padding: 30px 0 0; }
@@ -71,16 +82,17 @@
   padding: 18px; width: 100%;
   transition: border-color 0.18s, background 0.18s, transform 0.12s;
 }
-.bh-book .opt:hover { border-color: rgba(255, 255, 255, 0.28); background: var(--panel-2); }
+.bh-book .opt:hover { border-color: var(--edge); background: var(--panel-2); }
 .bh-book .opt:active { transform: scale(0.99); }
 .bh-book .opt[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); }
 .bh-book .opt .txt { flex: 1; min-width: 0; }
-.bh-book .opt .t { display: block; font-size: 15.5px; font-weight: 800; letter-spacing: -0.01em; color: #fff; }
+.bh-book .opt .t { display: block; font-size: 15.5px; font-weight: 800; letter-spacing: -0.01em; color: var(--text); }
 .bh-book .opt .d { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-top: 4px; line-height: 1.45; }
 .bh-book .opt[aria-pressed="true"] .d { color: rgba(255, 255, 255, 0.8); }
 .bh-book .opt .go { color: var(--muted); font-size: 17px; font-weight: 800; flex: none; }
 .bh-book .opt:hover .go { color: var(--accent); }
-.bh-book .opt[aria-pressed="true"] .go { color: #fff; }
+.bh-book .opt[aria-pressed="true"] .go { color: var(--on-accent); }
+.bh-book .opt[aria-pressed="true"] .t { color: var(--on-accent); }
 
 /* ---------- the vault: the price stays shut until they open it ----------
    The cards are mounted underneath from the moment this step opens - the
@@ -95,7 +107,7 @@
 .bh-book .vault.sealed { height: 250px; }
 .bh-book .vault-cover {
   position: absolute; inset: 0; z-index: 3;
-  background: linear-gradient(160deg, #1c181b 0%, #0e0c0e 100%);
+  background: linear-gradient(160deg, #ffffff 0%, #e7ecf2 100%);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 16px; padding: 34px 24px; text-align: center;
   transition: transform 0.62s cubic-bezier(0.76, 0, 0.24, 1), opacity 0.4s ease 0.22s;
@@ -105,11 +117,11 @@
   font: 700 11px/1 var(--bsans); letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted);
 }
 .bh-book .vault-cover .what {
-  font: 800 20px/1.2 var(--bsans); letter-spacing: -0.02em; color: #fff; text-wrap: balance;
+  font: 800 20px/1.2 var(--bsans); letter-spacing: -0.02em; color: var(--text); text-wrap: balance;
 }
 .bh-book .reveal-btn {
   font: 800 12px/1 var(--bsans); letter-spacing: 0.14em; text-transform: uppercase;
-  background: var(--accent); color: #fff; border: 0; border-radius: 12px;
+  background: var(--accent); color: var(--on-accent); border: 0; border-radius: 12px;
   padding: 17px 30px; cursor: pointer; transition: background 0.18s, transform 0.12s;
 }
 .bh-book .reveal-btn:hover { background: var(--bright); }
@@ -117,8 +129,10 @@
 /* the buff: a specular streak wipes across as the cover leaves */
 .bh-book .sheen {
   position: absolute; top: 0; bottom: 0; width: 46%; z-index: 4; pointer-events: none; opacity: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
-  mix-blend-mode: screen;
+  /* On black this was a white specular streak screened over the cover. On a
+     light cover the same gesture has to be a shadow multiplied through it. */
+  background: linear-gradient(90deg, transparent, rgba(20, 23, 28, 0.22), transparent);
+  mix-blend-mode: multiply;
 }
 @keyframes bh-buff {
   0% { transform: translateX(-170%) skewX(-16deg); opacity: 0; }
@@ -135,19 +149,19 @@
   text-align: left; display: block;
   transition: border-color 0.18s, background 0.18s;
 }
-.bh-book .card:hover { border-color: rgba(255, 255, 255, 0.24); }
+.bh-book .card:hover { border-color: var(--edge); }
 .bh-book .card[data-sel="1"] { border-color: var(--accent); background: rgba(200, 16, 46, 0.1); }
 .bh-book .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
 .bh-book .tag {
   font: 800 9px/1 var(--bsans); letter-spacing: 0.16em; text-transform: uppercase;
   padding: 5px 8px; border-radius: 5px; display: inline-block; margin-bottom: 9px;
 }
-.bh-book .tag.you { background: var(--accent); color: #fff; }
-.bh-book .tag.up { background: rgba(255, 255, 255, 0.09); color: var(--silver); }
+.bh-book .tag.you { background: var(--accent); color: var(--on-accent); }
+.bh-book .tag.up { background: var(--chip); color: var(--silver); }
 .bh-book .card h3 { font: 800 17px/1.15 var(--bsans); letter-spacing: -0.02em; margin: 0; }
 .bh-book .card .amt {
   font: 800 27px/1 var(--bsans); letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums; white-space: nowrap; color: #fff;
+  font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--text);
 }
 .bh-book .card .amt.q {
   font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--silver);
@@ -168,7 +182,7 @@
   content: ""; position: absolute; left: 0; top: 6px; width: 6px; height: 6px;
   border-radius: 50%; background: var(--accent); opacity: 0.8;
 }
-.bh-book .inc-g li.new { color: #fff; font-weight: 600; }
+.bh-book .inc-g li.new { color: var(--text); font-weight: 600; }
 .bh-book .inc-g li.new::before { background: var(--bright); }
 .bh-book .only { font-size: 11px; color: var(--muted); margin: 13px 0 0; line-height: 1.5; }
 
@@ -179,29 +193,32 @@
   width: 100%; text-align: left;
   transition: border-color 0.18s, background 0.18s;
 }
-.bh-book .add:hover { border-color: rgba(255, 255, 255, 0.26); }
+.bh-book .add:hover { border-color: var(--edge); }
 .bh-book .add[data-on="1"] { background: var(--accent); border-color: var(--accent); }
 .bh-book .bx {
   width: 19px; height: 19px; flex: none; border-radius: 6px;
-  border: 1.5px solid rgba(255, 255, 255, 0.32);
+  border: 1.5px solid var(--edge);
   display: flex; align-items: center; justify-content: center; font-size: 11px; color: transparent;
 }
+/* This box sits on the red row, so it stays white with a red tick in both themes. */
 .bh-book .add[data-on="1"] .bx { background: #fff; border-color: #fff; color: var(--accent); font-weight: 800; }
-.bh-book .add .nm { flex: 1; font-size: 13.5px; font-weight: 700; color: #fff; }
+.bh-book .add[data-on="1"] .nm,
+.bh-book .add[data-on="1"] .pr { color: var(--on-accent); }
+.bh-book .add .nm { flex: 1; font-size: 13.5px; font-weight: 700; color: var(--text); }
 .bh-book .add .pr {
-  font-size: 13.5px; font-weight: 800; color: #fff;
+  font-size: 13.5px; font-weight: 800; color: var(--text);
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 /* the only quantity control on the whole menu */
 .bh-book .qty {
-  display: flex; align-items: center; border: 1px solid rgba(255, 255, 255, 0.3);
+  display: flex; align-items: center; border: 1px solid var(--edge);
   border-radius: 9px; overflow: hidden; flex: none;
 }
 .bh-book .qty button {
-  width: 29px; height: 29px; background: transparent; border: 0; color: #fff;
+  width: 29px; height: 29px; background: transparent; border: 0; color: var(--text);
   cursor: pointer; font: 700 15px/1 var(--bsans);
 }
-.bh-book .qty button:hover { background: rgba(255, 255, 255, 0.15); }
+.bh-book .qty button:hover { background: var(--chip); }
 .bh-book .qty span {
   min-width: 22px; text-align: center; font: 800 13px/1 var(--bsans); font-variant-numeric: tabular-nums;
 }
@@ -210,14 +227,38 @@
 .bh-book .date-in,
 .bh-book .fields input,
 .bh-book .fields textarea {
-  width: 100%; font-family: var(--bsans); font-size: 14px; color: #fff; background: var(--panel);
-  border: 1px solid var(--hair); border-radius: 13px; padding: 15px 16px; color-scheme: dark;
+  width: 100%; font-family: var(--bsans); font-size: 14px; color: var(--text); background: var(--panel);
+  border: 1px solid var(--hair); border-radius: 13px; padding: 15px 16px; color-scheme: light;
 }
 .bh-book .fields input::placeholder,
 .bh-book .fields textarea::placeholder { color: var(--muted); }
 .bh-book .fields input:focus,
 .bh-book .fields textarea:focus,
 .bh-book .date-in:focus { outline: none; border-color: var(--accent); }
+/* A rail of real days beats a typed date field: it shows what is on offer
+   instead of asking the customer to guess and be refused. */
+.bh-book .dayrail {
+  display: flex; gap: 7px; overflow-x: auto; margin-top: 22px;
+  padding-bottom: 6px; -webkit-overflow-scrolling: touch;
+}
+.bh-book .day {
+  flex: 0 0 auto; width: 52px; padding: 9px 0; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: var(--panel); border: 1px solid var(--hair); border-radius: 12px;
+  transition: border-color 0.18s, background 0.18s;
+}
+.bh-book .day:hover { border-color: var(--edge); }
+.bh-book .day .dow {
+  font: 700 9px/1 var(--bsans); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+}
+.bh-book .day .num {
+  font: 800 18px/1.05 var(--bsans); letter-spacing: -0.02em; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.bh-book .day[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); }
+.bh-book .day[aria-pressed="true"] .dow,
+.bh-book .day[aria-pressed="true"] .num { color: var(--on-accent); }
+
 .bh-book .slots { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .bh-book .slots button {
   font: 800 13px/1 var(--bsans); color: var(--silver); background: var(--panel);
@@ -225,22 +266,22 @@
   font-variant-numeric: tabular-nums;
   transition: border-color 0.18s, background 0.18s, color 0.18s;
 }
-.bh-book .slots button:hover { border-color: rgba(255, 255, 255, 0.26); }
-.bh-book .slots button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.bh-book .slots button:hover { border-color: var(--edge); }
+.bh-book .slots button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .bh-book .fields { display: grid; gap: 9px; margin-top: 22px; }
 .bh-book .two { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .bh-book .consent { display: flex; gap: 11px; align-items: flex-start; margin-top: 15px; cursor: pointer; }
 .bh-book .consent input { margin: 2px 0 0; width: 17px; height: 17px; flex: none; accent-color: var(--accent); }
 .bh-book .consent span { font-size: 11.5px; line-height: 1.55; color: var(--muted); }
 .bh-book .consent a { color: var(--silver); }
-.bh-book .fine { font-size: 10.5px; line-height: 1.6; color: #6d6a71; margin: 13px 0 0; }
+.bh-book .fine { font-size: 10.5px; line-height: 1.6; color: var(--muted); margin: 13px 0 0; }
 .bh-book .err { font-size: 13px; color: var(--bright); margin: 12px 0 0; }
 .bh-book .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 
 /* ---------- sticky bar ---------- */
 .bh-book .bar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
-  background: rgba(8, 8, 9, 0.94); backdrop-filter: blur(14px); border-top: 1px solid var(--hair);
+  background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(14px); border-top: 1px solid var(--hair);
 }
 .bh-book .bar-in {
   max-width: 560px; margin: 0 auto; display: flex; align-items: center; gap: 13px;
@@ -251,10 +292,10 @@
   background: transparent; border: 1px solid var(--hair); border-radius: 11px; padding: 15px; cursor: pointer;
   transition: color 0.18s, border-color 0.18s;
 }
-.bh-book .back:hover { color: #fff; border-color: rgba(255, 255, 255, 0.3); }
+.bh-book .back:hover { color: var(--text); border-color: var(--edge); }
 .bh-book .bar .lbl { flex: 1; min-width: 0; }
 .bh-book .bar .lbl b {
-  display: block; font-size: 12.5px; font-weight: 800; color: #fff;
+  display: block; font-size: 12.5px; font-weight: 800; color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .bh-book .bar .lbl small { display: block; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
@@ -264,11 +305,11 @@
 }
 .bh-book .cta {
   font: 800 12px/1 var(--bsans); letter-spacing: 0.1em; text-transform: uppercase;
-  background: var(--accent); color: #fff; border: 0; border-radius: 12px; padding: 16px 20px;
+  background: var(--accent); color: var(--on-accent); border: 0; border-radius: 12px; padding: 16px 20px;
   cursor: pointer; white-space: nowrap; transition: background 0.18s;
 }
 .bh-book .cta:hover { background: var(--bright); }
-.bh-book .cta:disabled { background: #262327; color: #6d6a71; cursor: not-allowed; }
+.bh-book .cta:disabled { background: #d8dee6; color: #8b94a1; cursor: not-allowed; }
 
 .bh-book :where(button, input, textarea, a):focus-visible { outline: 2px solid var(--bright); outline-offset: 2px; }
 
@@ -280,7 +321,7 @@
   display: flex; align-items: center; justify-content: center; font-size: 26px; color: var(--bright);
 }
 .bh-book .done p { color: var(--muted); font-size: 14px; line-height: 1.6; margin: 12px auto 0; max-width: 40ch; }
-.bh-book .done .ref { font-size: 11.5px; color: #6d6a71; margin-top: 18px; }
+.bh-book .done .ref { font-size: 11.5px; color: var(--muted); margin-top: 18px; }
 
 @media (prefers-reduced-motion: reduce) {
   .bh-book *, .bh-book *::before, .bh-book *::after { animation: none !important; transition: none !important; }
